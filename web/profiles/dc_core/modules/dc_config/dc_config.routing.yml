@@ -1,0 +1,41 @@
+dc_config.admin:
+  path: '/admin/config/decoupled/configuration'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::configPage'
+    _title: 'Decoupled Drupal Configuration'
+  requirements:
+    _permission: 'administer decoupled configuration'
+
+dc_config.homepage:
+  path: '/dc-config'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::homePage'
+    _title: 'Decoupled Drupal Configuration'
+  requirements:
+    _access: 'TRUE'
+
+dc_config.generate_secret:
+  path: '/dc-config/generate-secret'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::generateSecret'
+    _title: 'Generate Revalidation Secret'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+
+dc_config.generate_secret_ajax:
+  path: '/dc-config/generate-secret-ajax'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::generateSecretAjax'
+    _title: 'Generate Secret Ajax'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+
+decoupled.admin_category:
+  path: '/admin/config/decoupled'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Decoupled Drupal'
+  requirements:
+    _permission: 'administer site configuration'

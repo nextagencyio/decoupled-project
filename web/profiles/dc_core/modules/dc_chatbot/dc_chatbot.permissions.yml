@@ -1,0 +1,8 @@
+administer decoupled chatbot:
+  title: 'Administer Decoupled Drupal Chatbot'
+  description: 'Configure Decoupled chatbot settings and API keys'
+  restrict access: true
+
+use decoupled chatbot:
+  title: 'Use Decoupled Drupal Chatbot'
+  description: 'Access the chatbot functionality via API'
