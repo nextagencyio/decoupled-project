@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Url;
 use Drupal\dc_config\Service\VercelApiService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Routing\TrustedRedirectResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -682,7 +683,8 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
 
     \Drupal::logger('dc_config')->info('Initiating Vercel OAuth flow, redirecting to: @url', ['@url' => $authUrl]);
 
-    return new RedirectResponse($authUrl);
+    // Use TrustedRedirectResponse for external URL redirect.
+    return new TrustedRedirectResponse($authUrl);
   }
 
   /**
