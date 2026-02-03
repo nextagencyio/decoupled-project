@@ -712,3 +712,587 @@
 .dc-config-logo-text {
   font-size: 0 !important;
 }
+
+/* =============================================================================
+   VERCEL INTEGRATION STYLES
+   ============================================================================= */
+
+/* Vercel Integration Section */
+.dc-config-vercel-integration {
+  margin-top: 1.5rem;
+}
+
+.dc-config-vercel-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+  margin: 1.5rem 0;
+}
+
+/* Connected State */
+.dc-config-vercel-connected {
+  padding: 1rem 0;
+}
+
+.dc-config-vercel-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.dc-config-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dc-config-status-connected {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+.dc-config-status-disconnected {
+  background-color: #94a3b8;
+}
+
+/* Project Selector */
+.dc-config-vercel-project-selector {
+  margin-bottom: 1rem;
+}
+
+.dc-config-vercel-project-selector label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.dc-config-select {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #1f2937;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dc-config-select:hover {
+  border-color: #9ca3af;
+}
+
+.dc-config-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Vercel Actions */
+.dc-config-vercel-actions {
+  margin-bottom: 1rem;
+}
+
+.dc-config-sync-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.dc-config-sync-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.dc-config-sync-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dc-config-vercel-last-sync {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0.5rem 0;
+}
+
+/* Disconnect Link */
+.dc-config-vercel-disconnect {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dc-config-disconnect-link {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.dc-config-disconnect-link:hover {
+  color: #ef4444;
+  text-decoration: underline;
+}
+
+/* Not Connected State */
+.dc-config-vercel-connect {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.dc-config-vercel-connect-text {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 1rem !important;
+}
+
+.dc-config-connect-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dc-config-connect-button:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1f2937;
+  text-decoration: none;
+}
+
+.dc-config-connect-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dc-config-vercel-connect-help {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* =============================================================================
+   VERCEL HERO SECTION - New Redesigned Layout
+   ============================================================================= */
+
+.dc-config-vercel-hero {
+  margin-bottom: 2rem;
+}
+
+/* Sequential steps layout */
+.dc-config-vercel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dc-config-vercel-step {
+  display: flex;
+  gap: 1.25rem;
+}
+
+/* Step marker (number + connecting line) */
+.dc-config-step-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.dc-config-step-number-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.dc-config-step-line {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background: linear-gradient(180deg, #8B5CF6 0%, #e5e7eb 100%);
+  margin: 0.5rem 0;
+}
+
+/* Step card */
+.dc-config-vercel-step-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.dc-config-vercel-step-card--deploy {
+  background: #fafafa;
+  border: 1px solid #e5e5e5;
+}
+
+.dc-config-vercel-step-card--deploy:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dc-config-vercel-step-card--connect {
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  border: 2px solid #333;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  position: relative;
+}
+
+.dc-config-vercel-step-card--connect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+}
+
+/* Step content */
+.dc-config-vercel-step-content {
+  flex: 1;
+}
+
+.dc-config-vercel-step-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.375rem 0;
+}
+
+.dc-config-vercel-step-card--deploy .dc-config-vercel-step-content h3 {
+  color: #1f2937;
+}
+
+.dc-config-vercel-step-card--connect .dc-config-vercel-step-content h3 {
+  color: #fff;
+}
+
+.dc-config-vercel-step-content p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dc-config-vercel-step-card--deploy .dc-config-vercel-step-content p {
+  color: #6b7280;
+}
+
+.dc-config-vercel-step-card--connect .dc-config-vercel-step-content p {
+  color: #a1a1aa;
+}
+
+/* Responsive: Stack on mobile */
+@media (max-width: 768px) {
+  .dc-config-vercel-step-card {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .dc-config-vercel-step-content {
+    width: 100%;
+  }
+}
+
+/* Connect Button (Primary) */
+.dc-config-vercel-connect-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.625rem !important;
+  background: #fff !important;
+  color: #000 !important;
+  padding: 0.875rem 1.5rem !important;
+  border: none !important;
+  border-radius: 10px !important;
+  text-decoration: none !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.dc-config-vercel-connect-btn:hover {
+  background: #f5f5f5 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2) !important;
+  color: #000 !important;
+  text-decoration: none !important;
+}
+
+.dc-config-vercel-connect-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Deploy Button (Secondary) */
+.dc-config-vercel-deploy-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.625rem !important;
+  background: #000 !important;
+  color: #fff !important;
+  padding: 0.875rem 1.5rem !important;
+  border: none !important;
+  border-radius: 10px !important;
+  text-decoration: none !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.dc-config-vercel-deploy-btn:hover {
+  background: #1a1a1a !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2) !important;
+  color: #fff !important;
+  text-decoration: none !important;
+}
+
+.dc-config-vercel-deploy-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dc-config-vercel-deploy-btn .dc-config-arrow {
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.dc-config-vercel-deploy-btn:hover .dc-config-arrow {
+  transform: translateX(3px);
+}
+
+/* Connected State Card */
+.dc-config-vercel-connected-card {
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  border: 2px solid #333;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.dc-config-vercel-connected-card::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, #22c55e, #10b981, #059669);
+}
+
+.dc-config-vercel-connected-header {
+  padding: 1.5rem 2rem 0;
+}
+
+.dc-config-vercel-connected-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #22c55e;
+}
+
+.dc-config-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dc-config-status-dot--connected {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+  50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.8); }
+}
+
+.dc-config-vercel-connected-body {
+  padding: 1.5rem 2rem;
+}
+
+.dc-config-vercel-connected-body .dc-config-vercel-project-selector {
+  margin-bottom: 1.25rem;
+}
+
+.dc-config-vercel-connected-body .dc-config-vercel-project-selector label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  margin-bottom: 0.625rem;
+}
+
+.dc-config-vercel-connected-body .dc-config-select {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  font-size: 0.875rem;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  background-color: #262626;
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px;
+}
+
+.dc-config-vercel-connected-body .dc-config-select:hover {
+  border-color: #525252;
+}
+
+.dc-config-vercel-connected-body .dc-config-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.dc-config-vercel-connected-body .dc-config-vercel-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dc-config-vercel-connected-body .dc-config-sync-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dc-config-vercel-connected-body .dc-config-sync-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.dc-config-vercel-connected-body .dc-config-sync-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dc-config-sync-status {
+  font-size: 0.8125rem;
+  color: #a1a1aa;
+  flex: 1;
+}
+
+/* Spin animation for loading */
+@keyframes dc-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.dc-config-spin {
+  animation: dc-spin 1s linear infinite;
+}
+
+.dc-config-vercel-connected-body .dc-config-vercel-last-sync {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin: 1rem 0 0 0;
+}
+
+.dc-config-vercel-connected-footer {
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid #333;
+}
+
+.dc-config-vercel-connected-footer .dc-config-disconnect-link {
+  background: none;
+  border: none;
+  color: #71717a;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.dc-config-vercel-connected-footer .dc-config-disconnect-link:hover {
+  color: #ef4444;
+}
+
+/* Divider */
+.dc-config-divider {
+  display: flex;
+  align-items: center;
+  margin: 2rem 0;
+  color: #9ca3af;
+  font-size: 0.8125rem;
+}
+
+.dc-config-divider::before,
+.dc-config-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e5e7eb, transparent);
+}
+
+.dc-config-divider span {
+  padding: 0 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}

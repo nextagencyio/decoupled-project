@@ -39,3 +39,46 @@ decoupled.admin_category:
     _title: 'Decoupled Drupal'
   requirements:
     _permission: 'administer site configuration'
+
+# Vercel OAuth Integration Routes
+dc_config.vercel_connect:
+  path: '/dc-config/vercel/connect'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelConnect'
+    _title: 'Connect to Vercel'
+  requirements:
+    _permission: 'administer site configuration'
+
+dc_config.vercel_callback:
+  path: '/dc-config/vercel/callback'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelCallback'
+    _title: 'Vercel OAuth Callback'
+  requirements:
+    _access: 'TRUE'
+
+dc_config.vercel_disconnect:
+  path: '/dc-config/vercel/disconnect'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelDisconnect'
+    _title: 'Disconnect from Vercel'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [POST]
+
+dc_config.vercel_projects:
+  path: '/dc-config/vercel/projects'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelProjects'
+    _title: 'List Vercel Projects'
+  requirements:
+    _permission: 'administer site configuration'
+
+dc_config.vercel_sync:
+  path: '/dc-config/vercel/sync'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelSync'
+    _title: 'Sync Environment Variables to Vercel'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [POST]

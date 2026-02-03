@@ -6,6 +6,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Url;
+use Drupal\dc_config\Service\VercelApiService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,16 +34,30 @@ class DcConfigController extends ControllerBase {
   protected $configFactory;
 
   /**
+   * The Vercel API service.
+   *
+   * @var \Drupal\dc_config\Service\VercelApiService
+   */
+  protected $vercelApi;
+
+  /**
    * Constructs a DcConfigController object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
+   * @param \Drupal\dc_config\Service\VercelApiService $vercel_api
+   *   The Vercel API service.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory) {
+  public function __construct(
+    EntityTypeManagerInterface $entity_type_manager,
+    ConfigFactoryInterface $config_factory,
+    VercelApiService $vercel_api
+  ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->configFactory = $config_factory;
+    $this->vercelApi = $vercel_api;
   }
 
   /**
@@ -51,7 +66,8 @@ class DcConfigController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('dc_config.vercel_api')
     );
   }
 
@@ -124,6 +140,21 @@ class DcConfigController extends ControllerBase {
     // Attach the custom library for styling and JavaScript.
     $build['#attached']['library'][] = 'dc_config/dc_config';
 
+    // Get Vercel connection status.
+    $vercel_status = $this->vercelApi->getConnectionStatus();
+    $vercel_connected = $vercel_status['connected'];
+    $vercel_project_name = $vercel_status['project_name'];
+    $vercel_last_synced = $vercel_status['last_synced'];
+
+    // Pass Vercel status to JavaScript.
+    $build['#attached']['drupalSettings']['dcConfig'] = [
+      'vercelConnected' => $vercel_connected,
+      'vercelProjectName' => $vercel_project_name,
+      'vercelLastSynced' => $vercel_last_synced,
+      'csrfToken' => \Drupal::csrfToken()->get('dc_config_vercel_sync'),
+      'disconnectToken' => \Drupal::csrfToken()->get('dc_config_vercel_disconnect'),
+    ];
+
     // Get or create Next.js consumer information.
     $client_id = '';
     $client_secret = '';
@@ -160,16 +191,15 @@ class DcConfigController extends ControllerBase {
         $consumer = reset($consumers);
         $client_id = $consumer->getClientId();
 
-        // Get the secret from the secret field
+        // Get secret from consumer (only works if not hashed)
         $stored_secret = $consumer->get('secret')->value;
 
-        // If the consumer exists but has no secret, or if it's hashed,
-        // show placeholder instead of auto-generating.
         if (empty($stored_secret) || preg_match('/^\$2[ayb]\$/', $stored_secret)) {
-          $client_secret = '[OAuth consumer needs secret - contact administrator]';
+          // Secret is hashed or missing - user needs to generate a new one
+          // (Vercel sync will auto-generate fresh secrets)
+          $client_secret = '[Click "Generate New Client Secret" below]';
         }
         else {
-          // If we have a plain text secret already, use it.
           $client_secret = $stored_secret;
         }
       }
@@ -254,11 +284,94 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
           </div>
 
           <div class="dc-config-main-content">
-            <div class="dc-config-tip">
-              <div class="dc-config-tip-icon">💡</div>
-              <div>
-                <p><strong>Pro Tip:</strong> All code blocks below have copy buttons (📋) in the top-right corner. Click to copy instantly!</p>
-              </div>
+            <!-- Vercel Integration Section - Prioritized -->
+            <div class="dc-config-vercel-hero">
+              ' . ($vercel_connected ?
+                // Connected State - Full width card
+                '<div class="dc-config-vercel-connected-card">
+                  <div class="dc-config-vercel-connected-header">
+                    <div class="dc-config-vercel-connected-status">
+                      <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
+                      <span>Connected to Vercel</span>
+                    </div>
+                  </div>
+
+                  <div class="dc-config-vercel-connected-body">
+                    <div class="dc-config-vercel-project-selector">
+                      <label for="vercel-project">Select a project to sync environment variables:</label>
+                      <select id="vercel-project" class="dc-config-select">
+                        <option value="">Loading projects...</option>
+                      </select>
+                    </div>
+
+                    <div class="dc-config-vercel-actions">
+                      <button type="button" id="vercel-sync-btn" class="dc-config-sync-button" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                        Sync Environment Variables
+                      </button>
+                      <div id="vercel-sync-status" class="dc-config-sync-status"></div>
+                    </div>
+
+                    ' . ($vercel_last_synced ? '<p class="dc-config-vercel-last-sync">Last synced: ' . date('M j, Y g:i A', $vercel_last_synced) . '</p>' : '') . '
+                  </div>
+
+                  <div class="dc-config-vercel-connected-footer">
+                    <form method="post" action="/dc-config/vercel/disconnect" style="display: inline;">
+                      <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_vercel_disconnect') . '">
+                      <button type="submit" class="dc-config-disconnect-link">Disconnect from Vercel</button>
+                    </form>
+                  </div>
+                </div>'
+                :
+                // Not Connected State - Sequential steps layout
+                '<div class="dc-config-vercel-steps">
+                  <!-- Step 1: Deploy -->
+                  <div class="dc-config-vercel-step">
+                    <div class="dc-config-step-marker">
+                      <span class="dc-config-step-number-badge">1</span>
+                      <div class="dc-config-step-line"></div>
+                    </div>
+                    <div class="dc-config-vercel-step-card dc-config-vercel-step-card--deploy">
+                      <div class="dc-config-vercel-step-content">
+                        <h3>Deploy your Next.js frontend</h3>
+                        <p>Create a new project from our starter template with one click.</p>
+                      </div>
+                      <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter&project-name=my-app"
+                         target="_blank"
+                         class="dc-config-vercel-deploy-btn">
+                        <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
+                        </svg>
+                        Deploy with Vercel
+                        <span class="dc-config-arrow">→</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <!-- Step 2: Connect -->
+                  <div class="dc-config-vercel-step">
+                    <div class="dc-config-step-marker">
+                      <span class="dc-config-step-number-badge">2</span>
+                    </div>
+                    <div class="dc-config-vercel-step-card dc-config-vercel-step-card--connect">
+                      <div class="dc-config-vercel-step-content">
+                        <h3>Connect to sync environment variables</h3>
+                        <p>Automatically configure your Vercel project with the credentials it needs.</p>
+                      </div>
+                      <a href="/dc-config/vercel/connect" class="dc-config-vercel-connect-btn">
+                        <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
+                        </svg>
+                        Connect to Vercel
+                      </a>
+                    </div>
+                  </div>
+                </div>'
+              ) . '
+            </div>
+
+            <div class="dc-config-divider">
+              <span>or configure manually</span>
             </div>
 
             <div class="dc-config-section">
@@ -278,59 +391,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               </div>
             </div>
 
-            <div class="dc-config-section">
-              <h2>🚀 Get Started</h2>
-              <p>Choose your preferred setup method:</p>
-
-              <!-- Featured Vercel Deploy Option -->
-              <div class="dc-config-featured-option">
-                <div class="dc-config-featured-card">
-                  <div class="dc-config-featured-header">
-                    <div class="dc-config-featured-badge">⚡ RECOMMENDED</div>
-                    <h3>☁️ Deploy to Vercel</h3>
-                    <p>Get your site live in production with one click - no setup required!</p>
-                  </div>
-                  <div class="dc-config-vercel-deploy">
-                    <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter&project-name=my-app"
-                       target="_blank"
-                       class="dc-config-vercel-button-large">
-                      <svg width="24" height="24" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
-                      </svg>
-                      Deploy with Vercel
-                      <span class="dc-config-arrow">→</span>
-                    </a>
-
-                  </div>
-                </div>
-              </div>
-
-              <!-- Alternative Options -->
-              <div class="dc-config-alternative-header">
-                <h3>Or choose an alternative setup:</h3>
-              </div>
-
-              <div class="dc-config-setup-options">
-                <div class="dc-config-option-card dc-config-single-option">
-                  <div class="dc-config-option-header">
-                    <h3>🆕 New Project</h3>
-                    <p>Create a new project with our starter template</p>
-                  </div>
-                  ' . $this->createCodeBlock("# Create new project with starter template
-npx degit nextagencyio/decoupled-starter my-app
-cd my-app
-
-# Install dependencies
-npm install
-
-# Copy or download the .env.local variables above
-# and add them to your project root
-
-# Start the development server
-npm run dev", 'bash', 'Quick Start Commands') . '
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -399,9 +459,13 @@ npm run dev", 'bash', 'Quick Start Commands') . '
       'button',
       'form',
       'input',
+      'select',
+      'option',
+      'label',
       'ul',
       'li',
       'a',
+      'span',
       'strong',
       'br',
       'script',
@@ -496,7 +560,7 @@ npm run dev", 'bash', 'Quick Start Commands') . '
         $consumer_storage->resetCache([$consumer->id()]);
         \Drupal::entityTypeManager()->clearCachedDefinitions();
 
-        \Drupal::logger('dc_config')->info('Generated new OAuth client secret: @secret', ['@secret' => $client_secret]);
+        \Drupal::logger('dc_config')->info('Generated new OAuth client secret');
       }
     }
     catch (\Exception $e) {
@@ -589,6 +653,300 @@ npm run dev", 'bash', 'Quick Start Commands') . '
     }
 
     return new JsonResponse($response_data);
+  }
+
+  // ============================================================
+  // Vercel OAuth Integration Methods
+  // ============================================================
+
+  /**
+   * Initiates the Vercel OAuth flow.
+   *
+   * Redirects to the central MCP server which handles OAuth with Vercel.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   A redirect response to the OAuth authorization URL.
+   */
+  public function vercelConnect() {
+    // Check if Vercel OAuth is available on the central server.
+    if (!$this->vercelApi->isConfigured()) {
+      $this->messenger()->addError($this->t('Vercel integration is not available. Please try again later.'));
+      return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+    }
+
+    // Build the callback URL for this Drupal site.
+    $callbackUrl = Url::fromRoute('dc_config.vercel_callback', [], ['absolute' => TRUE])->toString();
+
+    // Get the authorization URL from the central server.
+    $authUrl = $this->vercelApi->getAuthorizationUrl($callbackUrl);
+
+    \Drupal::logger('dc_config')->info('Initiating Vercel OAuth flow, redirecting to: @url', ['@url' => $authUrl]);
+
+    return new RedirectResponse($authUrl);
+  }
+
+  /**
+   * Handles the OAuth callback from the central MCP server.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   A redirect response to the configuration page.
+   */
+  public function vercelCallback(Request $request) {
+    $exchangeCode = $request->query->get('exchange_code');
+    $teamId = $request->query->get('team_id');
+    $error = $request->query->get('error');
+    $errorDescription = $request->query->get('error_description');
+
+    // Handle errors.
+    if ($error) {
+      $message = $errorDescription ?: $error;
+      $this->messenger()->addError($this->t('Failed to connect to Vercel: @message', ['@message' => $message]));
+      \Drupal::logger('dc_config')->error('Vercel OAuth error: @error - @description', [
+        '@error' => $error,
+        '@description' => $errorDescription,
+      ]);
+      return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+    }
+
+    // Validate exchange code.
+    if (empty($exchangeCode)) {
+      $this->messenger()->addError($this->t('Invalid OAuth callback: missing exchange code.'));
+      return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+    }
+
+    // Exchange the code for an access token.
+    $success = $this->vercelApi->exchangeCodeForToken($exchangeCode, $teamId);
+
+    if ($success) {
+      $this->messenger()->addStatus($this->t('Successfully connected to Vercel! You can now sync environment variables.'));
+      \Drupal::logger('dc_config')->info('Vercel OAuth completed successfully');
+    }
+    else {
+      $this->messenger()->addError($this->t('Failed to complete Vercel connection. Please try again.'));
+    }
+
+    return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+  }
+
+  /**
+   * Disconnects from Vercel.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse|\Symfony\Component\HttpFoundation\JsonResponse
+   *   A redirect or JSON response.
+   */
+  public function vercelDisconnect(Request $request) {
+    // Verify CSRF token.
+    $token = $request->request->get('form_token');
+    if (!\Drupal::csrfToken()->validate($token, 'dc_config_vercel_disconnect')) {
+      if ($request->isXmlHttpRequest()) {
+        return new JsonResponse(['error' => 'Invalid form token'], 403);
+      }
+      $this->messenger()->addError($this->t('Invalid form token. Please try again.'));
+      return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+    }
+
+    $this->vercelApi->disconnect();
+    $this->messenger()->addStatus($this->t('Disconnected from Vercel.'));
+    \Drupal::logger('dc_config')->info('Disconnected from Vercel');
+
+    if ($request->isXmlHttpRequest()) {
+      return new JsonResponse(['success' => TRUE, 'message' => 'Disconnected from Vercel']);
+    }
+
+    return new RedirectResponse(Url::fromRoute('dc_config.homepage')->toString());
+  }
+
+  /**
+   * Returns a list of Vercel projects as JSON.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response with the list of projects.
+   */
+  public function vercelProjects() {
+    if (!$this->vercelApi->isConnected()) {
+      return new JsonResponse(['error' => 'Not connected to Vercel'], 401);
+    }
+
+    $projects = $this->vercelApi->getProjects();
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'projects' => array_map(function ($project) {
+        return [
+          'id' => $project['id'],
+          'name' => $project['name'],
+          'framework' => $project['framework'] ?? NULL,
+          'link' => $project['link']['productionBranch'] ?? NULL,
+        ];
+      }, $projects),
+    ]);
+  }
+
+  /**
+   * Syncs environment variables to a Vercel project.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response indicating success or failure.
+   */
+  public function vercelSync(Request $request) {
+    // Verify CSRF token.
+    $token = $request->request->get('form_token');
+    if (!\Drupal::csrfToken()->validate($token, 'dc_config_vercel_sync')) {
+      return new JsonResponse(['error' => 'Invalid form token'], 403);
+    }
+
+    if (!$this->vercelApi->isConnected()) {
+      return new JsonResponse(['error' => 'Not connected to Vercel'], 401);
+    }
+
+    $projectId = $request->request->get('project_id');
+    $projectName = $request->request->get('project_name');
+
+    if (empty($projectId)) {
+      return new JsonResponse(['error' => 'Missing project_id'], 400);
+    }
+
+    // Generate fresh secrets for this sync (more secure than storing plain text).
+    $freshSecrets = $this->generateFreshSecrets();
+    if (!$freshSecrets['success']) {
+      return new JsonResponse(['error' => $freshSecrets['error']], 500);
+    }
+
+    // Get the environment variables with fresh secrets.
+    $envVars = $this->getEnvironmentVariablesWithSecrets(
+      $freshSecrets['client_id'],
+      $freshSecrets['client_secret'],
+      $freshSecrets['revalidate_secret']
+    );
+
+    // Sync to Vercel.
+    $success = $this->vercelApi->setEnvironmentVariables($projectId, $envVars);
+
+    if ($success) {
+      // Save the connected project info.
+      if ($projectName) {
+        $this->vercelApi->connectProject($projectId, $projectName);
+      }
+
+      \Drupal::logger('dc_config')->info('Synced environment variables to Vercel project: @project (with fresh secrets)', [
+        '@project' => $projectName ?: $projectId,
+      ]);
+
+      return new JsonResponse([
+        'success' => TRUE,
+        'message' => 'Environment variables synced with fresh secrets!',
+        'variables_synced' => array_keys($envVars),
+      ]);
+    }
+
+    return new JsonResponse([
+      'error' => 'Failed to sync environment variables to Vercel',
+    ], 500);
+  }
+
+  /**
+   * Generate fresh OAuth and revalidation secrets.
+   *
+   * This regenerates secrets atomically so both Drupal and Vercel stay in sync.
+   *
+   * @return array
+   *   Array with success status and secrets or error message.
+   */
+  protected function generateFreshSecrets(): array {
+    $random = new Random();
+
+    try {
+      // Generate new client secret and update consumer.
+      $consumerStorage = $this->entityTypeManager->getStorage('consumer');
+      $consumers = $consumerStorage->loadByProperties(['label' => 'Next.js Frontend']);
+
+      if (empty($consumers)) {
+        return ['success' => FALSE, 'error' => 'OAuth consumer not found'];
+      }
+
+      $consumer = reset($consumers);
+      $clientId = $consumer->getClientId();
+      $clientSecret = $random->word(8);
+
+      // Update the consumer with fresh secret.
+      $consumer->set('secret', $clientSecret);
+      $consumer->save();
+      $consumerStorage->resetCache([$consumer->id()]);
+
+      // Generate or get revalidate secret.
+      $revalidateConfig = $this->configFactory->get('dc_revalidate.settings');
+      $revalidateSecret = $revalidateConfig->get('revalidate_secret');
+
+      if (empty($revalidateSecret) || $revalidateSecret === 'not-set') {
+        $revalidateSecret = bin2hex(random_bytes(16));
+        $this->configFactory->getEditable('dc_revalidate.settings')
+          ->set('revalidate_secret', $revalidateSecret)
+          ->save();
+      }
+
+      return [
+        'success' => TRUE,
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'revalidate_secret' => $revalidateSecret,
+      ];
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_config')->error('Failed to generate fresh secrets: @message', ['@message' => $e->getMessage()]);
+      return ['success' => FALSE, 'error' => 'Failed to generate secrets: ' . $e->getMessage()];
+    }
+  }
+
+  /**
+   * Get environment variables with provided secrets.
+   *
+   * @param string $clientId
+   *   The OAuth client ID.
+   * @param string $clientSecret
+   *   The OAuth client secret (plain text).
+   * @param string $revalidateSecret
+   *   The revalidation secret.
+   *
+   * @return array
+   *   Array of environment variable key-value pairs.
+   */
+  protected function getEnvironmentVariablesWithSecrets(string $clientId, string $clientSecret, string $revalidateSecret): array {
+    global $base_url;
+    $siteUrl = $base_url ?: \Drupal::request()->getSchemeAndHttpHost();
+
+    // Use HTTPS for production URLs.
+    $host = parse_url($siteUrl, PHP_URL_HOST);
+    $isLocal = (strpos($host, 'localhost') !== FALSE || strpos($host, '127.0.0.1') !== FALSE || strpos($host, '.local') !== FALSE);
+    if (!$isLocal && parse_url($siteUrl, PHP_URL_SCHEME) === 'http') {
+      $siteUrl = str_replace('http://', 'https://', $siteUrl);
+    }
+
+    return [
+      'NEXT_PUBLIC_DRUPAL_BASE_URL' => $siteUrl,
+      'NEXT_IMAGE_DOMAIN' => parse_url($siteUrl, PHP_URL_HOST),
+      'DRUPAL_CLIENT_ID' => $clientId,
+      'DRUPAL_CLIENT_SECRET' => $clientSecret,
+      'DRUPAL_REVALIDATE_SECRET' => $revalidateSecret,
+    ];
+  }
+
+  /**
+   * Get the Vercel connection status.
+   *
+   * @return array
+   *   The connection status.
+   */
+  public function getVercelStatus(): array {
+    return $this->vercelApi->getConnectionStatus();
   }
 
 }

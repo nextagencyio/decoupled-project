@@ -196,6 +196,7 @@
   function generateSecretsAjax(button) {
     const form = button.closest('form');
     const formData = new FormData(form);
+    const helpText = button.parentElement.querySelector('.dc-config-generate-help');
 
     // Show loading state
     const originalText = button.textContent;
@@ -212,8 +213,15 @@
           // Update both secrets in the code block
           updateSecrets(data.client_secret, data.revalidate_secret);
 
-          // Show success message
-          showMessage(data.message, 'success');
+          // Show inline success message
+          if (helpText) {
+            helpText.textContent = '✅ ' + (data.message || 'New secrets generated successfully!');
+            helpText.style.color = '#22c55e';
+            setTimeout(function () {
+              helpText.textContent = 'Generate a new OAuth client secret for enhanced security.';
+              helpText.style.color = '';
+            }, 5000);
+          }
 
           // Reset button
           button.textContent = '✅ Generated!';
@@ -222,8 +230,15 @@
             button.disabled = false;
           }, 2000);
         } else {
-          // Show error message
-          showMessage(data.error || 'Failed to generate secrets', 'error');
+          // Show inline error message
+          if (helpText) {
+            helpText.textContent = '❌ ' + (data.error || 'Failed to generate secrets');
+            helpText.style.color = '#ef4444';
+            setTimeout(function () {
+              helpText.textContent = 'Generate a new OAuth client secret for enhanced security.';
+              helpText.style.color = '';
+            }, 5000);
+          }
 
           // Reset button
           button.textContent = '❌ Failed';
@@ -235,7 +250,16 @@
       })
       .catch(error => {
         console.error('Error:', error);
-        showMessage('Network error occurred', 'error');
+
+        // Show inline error message
+        if (helpText) {
+          helpText.textContent = '❌ Network error occurred';
+          helpText.style.color = '#ef4444';
+          setTimeout(function () {
+            helpText.textContent = 'Generate a new OAuth client secret for enhanced security.';
+            helpText.style.color = '';
+          }, 5000);
+        }
 
         // Reset button
         button.textContent = '❌ Error';
@@ -273,8 +297,10 @@
     messageDiv.className = `messages messages--${type}`;
     messageDiv.innerHTML = `<p>${message}</p>`;
 
-    // Insert at top of page
-    const container = document.querySelector('.dc-config-container');
+    // Insert at top of main content area
+    const container = document.querySelector('.dc-config-main-layout') ||
+                      document.querySelector('.dc-config-container') ||
+                      document.querySelector('main');
     if (container) {
       container.insertBefore(messageDiv, container.firstChild);
 
@@ -285,6 +311,163 @@
         }
       }, 5000);
     }
+  }
+
+  // ============================================================
+  // Vercel Integration
+  // ============================================================
+
+  /**
+   * Vercel integration functionality.
+   */
+  Drupal.behaviors.decoupledConfigVercel = {
+    attach: function (context, settings) {
+      const projectSelect = document.getElementById('vercel-project');
+      const syncButton = document.getElementById('vercel-sync-btn');
+
+      if (!projectSelect || !syncButton) {
+        return;
+      }
+
+      // Only run once
+      if (projectSelect.dataset.initialized) {
+        return;
+      }
+      projectSelect.dataset.initialized = 'true';
+
+      // Load projects if connected
+      if (settings.dcConfig && settings.dcConfig.vercelConnected) {
+        loadVercelProjects(projectSelect, syncButton);
+      }
+
+      // Handle project selection
+      projectSelect.addEventListener('change', function () {
+        syncButton.disabled = !this.value;
+      });
+
+      // Handle sync button click
+      syncButton.addEventListener('click', function () {
+        syncToVercel(projectSelect, syncButton);
+      });
+    }
+  };
+
+  /**
+   * Load Vercel projects via AJAX.
+   */
+  function loadVercelProjects(selectElement, syncButton) {
+    fetch('/dc-config/vercel/projects')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.projects) {
+          // Clear existing options
+          selectElement.innerHTML = '<option value="">Select a project...</option>';
+
+          // Add projects
+          data.projects.forEach(function (project) {
+            const option = document.createElement('option');
+            option.value = project.id;
+            option.textContent = project.name;
+            option.dataset.name = project.name;
+            if (project.framework) {
+              option.textContent += ` (${project.framework})`;
+            }
+            selectElement.appendChild(option);
+          });
+
+          // Pre-select if we have a connected project
+          if (drupalSettings.dcConfig && drupalSettings.dcConfig.vercelProjectName) {
+            const connectedProject = Array.from(selectElement.options).find(
+              opt => opt.dataset.name === drupalSettings.dcConfig.vercelProjectName
+            );
+            if (connectedProject) {
+              selectElement.value = connectedProject.value;
+              syncButton.disabled = false;
+            }
+          }
+        } else {
+          selectElement.innerHTML = '<option value="">Error loading projects</option>';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading Vercel projects:', error);
+        selectElement.innerHTML = '<option value="">Error loading projects</option>';
+      });
+  }
+
+  /**
+   * Sync environment variables to Vercel.
+   */
+  function syncToVercel(selectElement, syncButton) {
+    const projectId = selectElement.value;
+    const projectName = selectElement.options[selectElement.selectedIndex].dataset.name;
+    const statusEl = document.getElementById('vercel-sync-status');
+
+    if (!projectId) {
+      if (statusEl) {
+        statusEl.textContent = 'Please select a project';
+        statusEl.style.color = '#ef4444';
+      }
+      return;
+    }
+
+    // Show loading state
+    const originalHTML = syncButton.innerHTML;
+    syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dc-config-spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Syncing...';
+    syncButton.disabled = true;
+    if (statusEl) {
+      statusEl.textContent = '';
+    }
+
+    const formData = new FormData();
+    formData.append('project_id', projectId);
+    formData.append('project_name', projectName || '');
+    formData.append('form_token', drupalSettings.dcConfig.csrfToken);
+
+    fetch('/dc-config/vercel/sync', {
+      method: 'POST',
+      body: formData
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Synced!';
+          if (statusEl) {
+            statusEl.textContent = data.message || 'Environment variables synced successfully!';
+            statusEl.style.color = '#22c55e';
+          }
+
+          // Update last synced text if it exists
+          const lastSyncEl = document.querySelector('.dc-config-vercel-last-sync');
+          if (lastSyncEl) {
+            lastSyncEl.textContent = 'Last synced: Just now';
+          }
+        } else {
+          syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Failed';
+          if (statusEl) {
+            statusEl.textContent = data.error || 'Failed to sync to Vercel';
+            statusEl.style.color = '#ef4444';
+          }
+        }
+
+        setTimeout(function () {
+          syncButton.innerHTML = originalHTML;
+          syncButton.disabled = false;
+        }, 3000);
+      })
+      .catch(error => {
+        console.error('Error syncing to Vercel:', error);
+        syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Error';
+        if (statusEl) {
+          statusEl.textContent = 'Network error occurred';
+          statusEl.style.color = '#ef4444';
+        }
+
+        setTimeout(function () {
+          syncButton.innerHTML = originalHTML;
+          syncButton.disabled = false;
+        }, 3000);
+      });
   }
 
 })(Drupal);

@@ -1,0 +1,11 @@
+services:
+  dc_config.vercel_api:
+    class: Drupal\dc_config\Service\VercelApiService
+    arguments:
+      - '@http_client'
+      - '@config.factory'
+      - '@logger.channel.dc_config'
+
+  logger.channel.dc_config:
+    parent: logger.channel_base
+    arguments: ['dc_config']
