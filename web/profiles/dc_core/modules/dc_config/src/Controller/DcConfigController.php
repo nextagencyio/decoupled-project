@@ -130,6 +130,113 @@ class DcConfigController extends ControllerBase {
   }
 
   /**
+   * Fetch starters from the solutions registry.
+   *
+   * @return array
+   *   Array of starter data.
+   */
+  private function fetchStartersRegistry() {
+    $cid = 'dc_config:starters_registry';
+    $cache = \Drupal::cache()->get($cid);
+
+    if ($cache) {
+      return $cache->data;
+    }
+
+    try {
+      $client = \Drupal::httpClient();
+      $response = $client->get('https://www.decoupled.io/solutions.json', [
+        'timeout' => 5,
+      ]);
+      $data = json_decode($response->getBody()->getContents(), TRUE);
+      $starters = $data['starters'] ?? [];
+
+      // Cache for 1 hour.
+      \Drupal::cache()->set($cid, $starters, time() + 3600);
+
+      return $starters;
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_config')->warning('Failed to fetch starters registry: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return [];
+    }
+  }
+
+  /**
+   * Get SVG icon markup for a starter.
+   *
+   * @param string $icon
+   *   The icon name.
+   *
+   * @return string
+   *   SVG markup.
+   */
+  private function getIconSvg($icon) {
+    $icons = [
+      'newspaper' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>',
+      'shopping-cart' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
+      'message-circle' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
+      'search' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+      'graduation-cap' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
+      'globe' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+      'credit-card' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+      'plus' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+    ];
+
+    return $icons[$icon] ?? $icons['plus'];
+  }
+
+  /**
+   * Build the starter selection grid HTML.
+   *
+   * @return string
+   *   HTML markup for the starter grid.
+   */
+  private function buildStarterGrid() {
+    $starters = $this->fetchStartersRegistry();
+
+    if (empty($starters)) {
+      return '';
+    }
+
+    $cards = '';
+    foreach ($starters as $starter) {
+      $contentUrl = $starter['contentUrl'] ?? '';
+      $vercelUrl = $starter['vercelUrl'] ?? '';
+      $hasContent = !empty($contentUrl);
+      $disabledClass = $hasContent ? '' : ' dc-config-starter-card--no-content';
+
+      $cards .= '<div class="dc-config-starter-card' . $disabledClass . '"
+                      data-starter-id="' . htmlspecialchars($starter['id']) . '"
+                      data-content-url="' . htmlspecialchars($contentUrl) . '"
+                      data-vercel-url="' . htmlspecialchars($vercelUrl) . '">
+        <div class="dc-config-starter-icon" style="background-color: ' . htmlspecialchars($starter['color']) . '">
+          ' . $this->getIconSvg($starter['icon']) . '
+        </div>
+        <div class="dc-config-starter-name">' . htmlspecialchars($starter['name']) . '</div>
+      </div>';
+    }
+
+    return '
+    <div class="dc-config-section dc-config-starter-section">
+      <h2>Choose a Starter Template</h2>
+      <p class="dc-config-subtitle">Select a template to import content types and sample data into your Drupal site.</p>
+      <div class="dc-config-starter-grid">' . $cards . '</div>
+      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled>
+        Import Selected Starter
+      </button>
+      <div id="import-status" class="dc-config-import-status"></div>
+    </div>
+
+    <div class="dc-config-divider">
+      <span>then deploy to Vercel</span>
+    </div>
+    ';
+  }
+
+  /**
    * Displays the Next.js configuration page.
    *
    * @return array
@@ -275,6 +382,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
 
     $npm_run_dev = "npm run dev";
 
+    // Build starter grid.
+    $starter_grid = $this->buildStarterGrid();
+
     $build['instructions'] = [
       '#type' => 'markup',
       '#markup' => '<div class="dc-config-main-layout">
@@ -285,7 +395,10 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
           </div>
 
           <div class="dc-config-main-content">
-            <!-- Vercel Integration Section - Prioritized -->
+            <!-- Starter Selection Section -->
+            ' . $starter_grid . '
+
+            <!-- Vercel Integration Section -->
             <div class="dc-config-vercel-hero">
               ' . ($vercel_connected ?
                 // Connected State - Full width card
@@ -949,6 +1062,126 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    */
   public function getVercelStatus(): array {
     return $this->vercelApi->getConnectionStatus();
+  }
+
+  // ============================================================
+  // Starter Content Import Methods
+  // ============================================================
+
+  /**
+   * Import starter content from a remote JSON URL.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response indicating success or failure.
+   */
+  public function importStarter(Request $request) {
+    $contentUrl = $request->request->get('content_url');
+
+    if (empty($contentUrl)) {
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => 'No content URL provided',
+      ], 400);
+    }
+
+    // Validate URL is from allowed domains (GitHub raw content).
+    $allowedDomains = [
+      'raw.githubusercontent.com',
+      'gist.githubusercontent.com',
+    ];
+    $urlHost = parse_url($contentUrl, PHP_URL_HOST);
+    if (!in_array($urlHost, $allowedDomains)) {
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => 'Content URL must be from GitHub raw content',
+      ], 400);
+    }
+
+    try {
+      // Fetch content JSON from the remote URL.
+      $client = \Drupal::httpClient();
+      $response = $client->get($contentUrl, [
+        'timeout' => 30,
+        'headers' => [
+          'Accept' => 'application/json',
+        ],
+      ]);
+
+      $contentJson = json_decode($response->getBody()->getContents(), TRUE);
+
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        return new JsonResponse([
+          'success' => FALSE,
+          'error' => 'Invalid JSON in content file: ' . json_last_error_msg(),
+        ], 400);
+      }
+
+      // Check if dc_import service exists.
+      if (\Drupal::hasService('dc_import.content_importer')) {
+        $importer = \Drupal::service('dc_import.content_importer');
+        $result = $importer->import($contentJson);
+
+        return new JsonResponse([
+          'success' => TRUE,
+          'message' => 'Content imported successfully',
+          'stats' => $result,
+        ]);
+      }
+
+      // Fallback: Call internal dc-import API endpoint.
+      // Get the base URL of this site.
+      global $base_url;
+      $siteUrl = $base_url ?: \Drupal::request()->getSchemeAndHttpHost();
+
+      // Make internal request to /api/dc-import.
+      $importResponse = $client->post($siteUrl . '/api/dc-import', [
+        'json' => $contentJson,
+        'timeout' => 120,
+        'headers' => [
+          'Content-Type' => 'application/json',
+        ],
+      ]);
+
+      $importResult = json_decode($importResponse->getBody()->getContents(), TRUE);
+
+      if (!empty($importResult['success']) || !empty($importResult['status'])) {
+        return new JsonResponse([
+          'success' => TRUE,
+          'message' => $importResult['message'] ?? 'Content imported successfully',
+          'stats' => $importResult['stats'] ?? $importResult,
+        ]);
+      }
+
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => $importResult['error'] ?? 'Import failed with unknown error',
+      ], 500);
+
+    }
+    catch (\GuzzleHttp\Exception\RequestException $e) {
+      \Drupal::logger('dc_config')->error('Failed to fetch content from @url: @message', [
+        '@url' => $contentUrl,
+        '@message' => $e->getMessage(),
+      ]);
+
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => 'Failed to fetch content: ' . $e->getMessage(),
+      ], 500);
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_config')->error('Import failed: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => 'Import failed: ' . $e->getMessage(),
+      ], 500);
+    }
   }
 
 }

@@ -470,4 +470,157 @@
       });
   }
 
+  // ============================================================
+  // Starter Selection & Import
+  // ============================================================
+
+  /**
+   * Starter selection functionality.
+   */
+  Drupal.behaviors.decoupledConfigStarters = {
+    attach: function (context, settings) {
+      const starterCards = context.querySelectorAll('.dc-config-starter-card');
+      const importBtn = document.getElementById('import-starter-btn');
+
+      if (!starterCards.length || !importBtn) {
+        return;
+      }
+
+      // Only initialize once
+      if (importBtn.dataset.initialized) {
+        return;
+      }
+      importBtn.dataset.initialized = 'true';
+
+      let selectedStarter = null;
+
+      // Handle starter card selection
+      starterCards.forEach(function (card) {
+        card.addEventListener('click', function () {
+          // Remove selection from all cards
+          starterCards.forEach(function (c) {
+            c.classList.remove('dc-config-starter-card--selected');
+          });
+
+          // Select this card
+          this.classList.add('dc-config-starter-card--selected');
+
+          // Store selected starter data
+          selectedStarter = {
+            id: this.dataset.starterId,
+            contentUrl: this.dataset.contentUrl,
+            vercelUrl: this.dataset.vercelUrl
+          };
+
+          // Enable import button only if starter has content
+          importBtn.disabled = !selectedStarter.contentUrl;
+
+          // Update Vercel deploy button URL if exists
+          updateVercelDeployUrl(selectedStarter.vercelUrl);
+
+          // Clear any previous status messages
+          const statusEl = document.getElementById('import-status');
+          if (statusEl) {
+            statusEl.innerHTML = '';
+          }
+        });
+      });
+
+      // Handle import button click
+      importBtn.addEventListener('click', function () {
+        if (!selectedStarter || !selectedStarter.contentUrl) {
+          return;
+        }
+        importStarterContent(selectedStarter, importBtn);
+      });
+    }
+  };
+
+  /**
+   * Update Vercel deploy button URL based on selected starter.
+   */
+  function updateVercelDeployUrl(vercelUrl) {
+    const deployBtn = document.querySelector('.dc-config-vercel-deploy-btn');
+    if (deployBtn && vercelUrl) {
+      deployBtn.href = vercelUrl;
+    }
+  }
+
+  /**
+   * Import starter content via AJAX.
+   */
+  function importStarterContent(starter, button) {
+    const statusEl = document.getElementById('import-status');
+    const originalText = button.textContent;
+
+    // Show loading state
+    button.disabled = true;
+    button.textContent = 'Importing...';
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="dc-config-import-loading">Fetching and importing content...</span>';
+    }
+
+    const formData = new FormData();
+    formData.append('content_url', starter.contentUrl);
+
+    fetch('/dc-config/import-starter', {
+      method: 'POST',
+      body: formData
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          button.textContent = 'Imported!';
+          if (statusEl) {
+            let statsHtml = '';
+            if (data.stats) {
+              statsHtml = '<div class="dc-config-import-stats">';
+              if (data.stats.content_types) {
+                statsHtml += `<span>Content types: ${data.stats.content_types}</span>`;
+              }
+              if (data.stats.nodes) {
+                statsHtml += `<span>Nodes: ${data.stats.nodes}</span>`;
+              }
+              if (data.stats.media) {
+                statsHtml += `<span>Media: ${data.stats.media}</span>`;
+              }
+              statsHtml += '</div>';
+            }
+            statusEl.innerHTML = '<span class="dc-config-import-success">&#10003; ' +
+              (data.message || 'Content imported successfully!') + '</span>' + statsHtml;
+          }
+
+          // Optionally reload the page after a delay
+          setTimeout(function () {
+            // Keep success state visible but allow new imports
+            button.textContent = originalText;
+            button.disabled = false;
+          }, 3000);
+        } else {
+          button.textContent = 'Failed';
+          if (statusEl) {
+            statusEl.innerHTML = '<span class="dc-config-import-error">&#10007; ' +
+              (data.error || 'Import failed') + '</span>';
+          }
+
+          setTimeout(function () {
+            button.textContent = originalText;
+            button.disabled = false;
+          }, 3000);
+        }
+      })
+      .catch(error => {
+        console.error('Error importing starter:', error);
+        button.textContent = 'Error';
+        if (statusEl) {
+          statusEl.innerHTML = '<span class="dc-config-import-error">&#10007; Network error occurred</span>';
+        }
+
+        setTimeout(function () {
+          button.textContent = originalText;
+          button.disabled = false;
+        }, 3000);
+      });
+  }
+
 })(Drupal);
