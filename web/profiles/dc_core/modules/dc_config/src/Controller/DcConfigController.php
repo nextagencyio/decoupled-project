@@ -207,12 +207,13 @@ class DcConfigController extends ControllerBase {
       $vercelUrl = $starter['vercelUrl'] ?? '';
       $hasContent = !empty($contentUrl);
       $disabledClass = $hasContent ? '' : ' dc-config-starter-card--no-content';
+      $colorClass = 'dc-config-starter-icon--' . htmlspecialchars($starter['id']);
 
       $cards .= '<div class="dc-config-starter-card' . $disabledClass . '"
                       data-starter-id="' . htmlspecialchars($starter['id']) . '"
                       data-content-url="' . htmlspecialchars($contentUrl) . '"
                       data-vercel-url="' . htmlspecialchars($vercelUrl) . '">
-        <div class="dc-config-starter-icon" style="background-color: ' . htmlspecialchars($starter['color']) . '">
+        <div class="dc-config-starter-icon ' . $colorClass . '">
           ' . $this->getIconSvg($starter['icon']) . '
         </div>
         <div class="dc-config-starter-name">' . htmlspecialchars($starter['name']) . '</div>
@@ -583,6 +584,15 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'strong',
       'br',
       'script',
+      // SVG elements for icons.
+      'svg',
+      'path',
+      'circle',
+      'line',
+      'rect',
+      'polyline',
+      'polygon',
+      'g',
     ];
 
     return $build;

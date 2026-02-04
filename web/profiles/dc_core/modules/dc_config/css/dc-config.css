@@ -1400,6 +1400,16 @@
   stroke: white;
 }
 
+/* Starter Icon Colors */
+.dc-config-starter-icon--starter { background-color: #3B82F6; }
+.dc-config-starter-icon--commerce { background-color: #10B981; }
+.dc-config-starter-icon--chat { background-color: #8B5CF6; }
+.dc-config-starter-icon--search { background-color: #F59E0B; }
+.dc-config-starter-icon--university { background-color: #EC4899; }
+.dc-config-starter-icon--lang { background-color: #06B6D4; }
+.dc-config-starter-icon--sub { background-color: #EF4444; }
+.dc-config-starter-icon--empty { background-color: #6B7280; }
+
 /* Starter Name */
 .dc-config-starter-name {
   font-size: 0.875rem;
