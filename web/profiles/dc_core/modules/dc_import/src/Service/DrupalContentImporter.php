@@ -1659,22 +1659,43 @@ class DrupalContentImporter {
       return;
     }
 
-    // Check if already enabled.
-    $config_name = "language.content_settings.{$entity_type}.{$bundle}";
-    $config = $this->configFactory->getEditable($config_name);
+    // Use the ContentLanguageSettings entity API instead of raw config.
+    // This ensures the config entity is properly structured with all required fields.
+    $config_id = "{$entity_type}.{$bundle}";
 
-    if ($config->get('third_party_settings.content_translation.enabled')) {
+    /** @var \Drupal\language\ContentLanguageSettingsInterface $content_language_settings */
+    $content_language_settings = $this->entityTypeManager
+      ->getStorage('language_content_settings')
+      ->load($config_id);
+
+    if (!$content_language_settings) {
+      // Create new content language settings entity.
+      $content_language_settings = $this->entityTypeManager
+        ->getStorage('language_content_settings')
+        ->create([
+          'id' => $config_id,
+          'target_entity_type_id' => $entity_type,
+          'target_bundle' => $bundle,
+        ]);
+    }
+
+    // Check if already enabled for content translation.
+    if ($content_language_settings->getThirdPartySetting('content_translation', 'enabled')) {
       return; // Already enabled.
     }
 
     // Enable content translation for this bundle.
-    $config->set('target_entity_type_id', $entity_type);
-    $config->set('target_bundle', $bundle);
-    $config->set('default_langcode', 'site_default');
-    $config->set('language_alterable', TRUE);
-    $config->set('third_party_settings.content_translation.enabled', TRUE);
-    $config->set('third_party_settings.content_translation.bundle_settings.untranslatable_fields_hide', '0');
-    $config->save();
+    $content_language_settings->setDefaultLangcode('site_default');
+    $content_language_settings->setLanguageAlterable(TRUE);
+    $content_language_settings->setThirdPartySetting('content_translation', 'enabled', TRUE);
+    $content_language_settings->setThirdPartySetting('content_translation', 'bundle_settings', [
+      'untranslatable_fields_hide' => '0',
+    ]);
+    $content_language_settings->save();
+
+    // Clear caches so Drupal recognizes the new translation settings.
+    \Drupal::entityTypeManager()->clearCachedDefinitions();
+    drupal_static_reset();
 
     $result['summary'][] = "Enabled content translation for {$entity_type}.{$bundle}";
   }

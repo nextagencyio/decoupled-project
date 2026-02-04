@@ -516,3 +516,52 @@ function dc_core_update_10013() {
     '@keys' => implode(', ', $fixed),
   ]);
 }
+
+/**
+ * Install multilingual modules for existing sites.
+ */
+function dc_core_update_10014() {
+  $modules_to_install = [
+    'language',
+    'locale',
+    'content_translation',
+    'config_translation',
+  ];
+
+  $module_installer = \Drupal::service('module_installer');
+  $module_handler = \Drupal::service('module_handler');
+
+  $installed = [];
+  $already_installed = [];
+
+  foreach ($modules_to_install as $module) {
+    if ($module_handler->moduleExists($module)) {
+      $already_installed[] = $module;
+    }
+    else {
+      try {
+        $module_installer->install([$module]);
+        $installed[] = $module;
+        \Drupal::logger('dc_core')->notice('Installed multilingual module: @module', [
+          '@module' => $module,
+        ]);
+      }
+      catch (\Exception $e) {
+        \Drupal::logger('dc_core')->error('Failed to install @module: @error', [
+          '@module' => $module,
+          '@error' => $e->getMessage(),
+        ]);
+      }
+    }
+  }
+
+  $messages = [];
+  if (!empty($installed)) {
+    $messages[] = t('Installed: @modules', ['@modules' => implode(', ', $installed)]);
+  }
+  if (!empty($already_installed)) {
+    $messages[] = t('Already installed: @modules', ['@modules' => implode(', ', $already_installed)]);
+  }
+
+  return implode('. ', $messages) ?: t('Multilingual modules installation complete.');
+}

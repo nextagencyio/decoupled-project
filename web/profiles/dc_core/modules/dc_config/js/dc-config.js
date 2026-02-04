@@ -433,8 +433,8 @@
         if (data.success) {
           syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Synced!';
           if (statusEl) {
-            statusEl.textContent = data.message || 'Environment variables synced successfully!';
-            statusEl.style.color = '#22c55e';
+            statusEl.innerHTML = '<span style="color: #22c55e;">' + (data.message || 'Environment variables synced!') + '</span>' +
+              ' <a href="https://vercel.com/dashboard" target="_blank" style="color: #3b82f6; text-decoration: underline; margin-left: 0.5rem;">Open Vercel to redeploy →</a>';
           }
 
           // Update last synced text if it exists
@@ -442,6 +442,9 @@
           if (lastSyncEl) {
             lastSyncEl.textContent = 'Last synced: Just now';
           }
+
+          // Update sidebar checklist step 4 with a link
+          updateChecklistWithVercelLink(projectName);
         } else {
           syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Failed';
           if (statusEl) {
@@ -468,6 +471,20 @@
           syncButton.disabled = false;
         }, 3000);
       });
+  }
+
+  /**
+   * Update sidebar checklist step 4 with Vercel dashboard link.
+   */
+  function updateChecklistWithVercelLink(projectName) {
+    const checklistItems = document.querySelectorAll('.dc-config-checklist-item');
+    if (checklistItems.length >= 4) {
+      const step4 = checklistItems[3]; // 0-indexed, so step 4 is index 3
+      const descEl = step4.querySelector('.dc-config-step-description');
+      if (descEl) {
+        descEl.innerHTML = '<a href="https://vercel.com/dashboard" target="_blank" style="color: #3b82f6; text-decoration: underline;">Open Vercel Dashboard →</a>';
+      }
+    }
   }
 
   // ============================================================
@@ -506,8 +523,10 @@
           this.classList.add('dc-config-starter-card--selected');
 
           // Store selected starter data
+          const nameEl = this.querySelector('.dc-config-starter-name');
           selectedStarter = {
             id: this.dataset.starterId,
+            name: nameEl ? nameEl.textContent.trim() : this.dataset.starterId,
             contentUrl: this.dataset.contentUrl,
             vercelUrl: this.dataset.vercelUrl
           };
@@ -540,11 +559,29 @@
    * Update Vercel deploy button URL based on selected starter.
    */
   function updateVercelDeployUrl(vercelUrl) {
-    const deployBtn = document.querySelector('.dc-config-vercel-deploy-btn');
+    const deployBtn = document.getElementById('vercel-deploy-btn');
     if (deployBtn && vercelUrl) {
       deployBtn.href = vercelUrl;
     }
   }
+
+  /**
+   * Initialize Vercel deploy URL from default on page load.
+   */
+  Drupal.behaviors.decoupledConfigVercelUrl = {
+    attach: function (context, settings) {
+      const defaultUrlInput = document.getElementById('default-vercel-url');
+      const deployBtn = document.getElementById('vercel-deploy-btn');
+
+      if (defaultUrlInput && deployBtn && !deployBtn.dataset.initialized) {
+        deployBtn.dataset.initialized = 'true';
+        const defaultUrl = defaultUrlInput.value;
+        if (defaultUrl) {
+          deployBtn.href = defaultUrl;
+        }
+      }
+    }
+  };
 
   /**
    * Import starter content via AJAX.
@@ -562,6 +599,8 @@
 
     const formData = new FormData();
     formData.append('content_url', starter.contentUrl);
+    formData.append('starter_id', starter.id);
+    formData.append('starter_name', starter.name);
 
     fetch('/dc-config/import-starter', {
       method: 'POST',
@@ -570,32 +609,29 @@
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          button.textContent = 'Imported!';
-          if (statusEl) {
-            let statsHtml = '';
-            if (data.stats) {
-              statsHtml = '<div class="dc-config-import-stats">';
-              if (data.stats.content_types) {
-                statsHtml += `<span>Content types: ${data.stats.content_types}</span>`;
-              }
-              if (data.stats.nodes) {
-                statsHtml += `<span>Nodes: ${data.stats.nodes}</span>`;
-              }
-              if (data.stats.media) {
-                statsHtml += `<span>Media: ${data.stats.media}</span>`;
-              }
-              statsHtml += '</div>';
-            }
-            statusEl.innerHTML = '<span class="dc-config-import-success">&#10003; ' +
-              (data.message || 'Content imported successfully!') + '</span>' + statsHtml;
-          }
+          // Smoothly transition to installed state
+          const starterSection = document.querySelector('.dc-config-starter-section');
+          if (starterSection) {
+            // Fade out current content
+            starterSection.style.transition = 'opacity 0.3s ease';
+            starterSection.style.opacity = '0';
 
-          // Optionally reload the page after a delay
-          setTimeout(function () {
-            // Keep success state visible but allow new imports
-            button.textContent = originalText;
-            button.disabled = false;
-          }, 3000);
+            setTimeout(function () {
+              // Replace with installed state
+              starterSection.innerHTML = `
+                <h2>Starter Template Installed</h2>
+                <div class="dc-config-starter-installed">
+                  <div class="dc-config-starter-installed-icon">&#10003;</div>
+                  <div class="dc-config-starter-installed-text">
+                    <strong>${starter.name}</strong> has been imported.
+                    <p>Your site is configured with this starter's content types and sample data.</p>
+                  </div>
+                </div>
+              `;
+              // Fade in new content
+              starterSection.style.opacity = '1';
+            }, 300);
+          }
         } else {
           button.textContent = 'Failed';
           if (statusEl) {

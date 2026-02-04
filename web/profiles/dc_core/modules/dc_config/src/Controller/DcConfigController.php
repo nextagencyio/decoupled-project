@@ -182,6 +182,7 @@ class DcConfigController extends ControllerBase {
       'graduation-cap' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
       'globe' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
       'credit-card' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+      'layout' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>',
       'plus' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
     ];
 
@@ -195,6 +196,30 @@ class DcConfigController extends ControllerBase {
    *   HTML markup for the starter grid.
    */
   private function buildStarterGrid() {
+    // Check if a starter has already been imported.
+    $importedStarter = \Drupal::state()->get('dc_config.imported_starter');
+
+    // If already imported, show success message instead of grid.
+    if ($importedStarter) {
+      $starterName = $importedStarter['name'] ?? $importedStarter['id'] ?? 'Unknown';
+      return '
+      <div class="dc-config-section dc-config-starter-section">
+        <h2>Starter Template Installed</h2>
+        <div class="dc-config-starter-installed">
+          <div class="dc-config-starter-installed-icon">&#10003;</div>
+          <div class="dc-config-starter-installed-text">
+            <strong>' . htmlspecialchars($starterName) . '</strong> has been imported.
+            <p>Your site is configured with this starter\'s content types and sample data.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-config-divider">
+        <span>then deploy to Vercel</span>
+      </div>
+      ';
+    }
+
     $starters = $this->fetchStartersRegistry();
 
     if (empty($starters)) {
@@ -220,12 +245,21 @@ class DcConfigController extends ControllerBase {
       </div>';
     }
 
+    // Get the first starter's Vercel URL as the default
+    $defaultVercelUrl = '';
+    foreach ($starters as $starter) {
+      if (!empty($starter['vercelUrl'])) {
+        $defaultVercelUrl = $starter['vercelUrl'];
+        break;
+      }
+    }
+
     return '
     <div class="dc-config-section dc-config-starter-section">
-      <h2>Choose a Starter Template</h2>
-      <p class="dc-config-subtitle">Select a template to import content types and sample data into your Drupal site.</p>
+      <h2>Choose a Starter Template <span class="dc-config-optional-badge">Optional</span></h2>
+      <p class="dc-config-subtitle">Import sample content and content types, or skip this step to start with a blank site.</p>
       <div class="dc-config-starter-grid">' . $cards . '</div>
-      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled>
+      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled title="Select a starter template above to enable import">
         Import Selected Starter
       </button>
       <div id="import-status" class="dc-config-import-status"></div>
@@ -234,6 +268,7 @@ class DcConfigController extends ControllerBase {
     <div class="dc-config-divider">
       <span>then deploy to Vercel</span>
     </div>
+    <input type="hidden" id="default-vercel-url" value="' . htmlspecialchars($defaultVercelUrl) . '">
     ';
   }
 
@@ -254,6 +289,9 @@ class DcConfigController extends ControllerBase {
     $vercel_connected = $vercel_status['connected'];
     $vercel_project_name = $vercel_status['project_name'];
     $vercel_last_synced = $vercel_status['last_synced'];
+
+    // Check if a starter has been imported.
+    $importedStarter = \Drupal::state()->get('dc_config.imported_starter');
 
     // Pass Vercel status to JavaScript.
     $build['#attached']['drupalSettings']['dcConfig'] = [
@@ -449,10 +487,11 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                     <div class="dc-config-vercel-step-card dc-config-vercel-step-card--deploy">
                       <div class="dc-config-vercel-step-content">
                         <h3>Deploy your Next.js frontend</h3>
-                        <p>Create a new project from our starter template with one click.</p>
+                        <p>Create a new project from the selected starter template.</p>
                       </div>
                       <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter&project-name=my-app"
                          target="_blank"
+                         id="vercel-deploy-btn"
                          class="dc-config-vercel-deploy-btn">
                         <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
@@ -478,6 +517,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                           <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
                         </svg>
                         Connect to Vercel
+                        <span class="dc-config-arrow">→</span>
                       </a>
                     </div>
                   </div>
@@ -485,26 +525,42 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               ) . '
             </div>
 
-            <div class="dc-config-divider">
-              <span>or configure manually</span>
-            </div>
+            <details class="dc-config-manual-section">
+              <summary class="dc-config-manual-toggle">
+                <span class="dc-config-manual-toggle-icon">▶</span>
+                <span class="dc-config-manual-toggle-text">Manual Setup / Local Development</span>
+                <span class="dc-config-manual-toggle-hint">Configure your Next.js project manually without Vercel</span>
+              </summary>
 
-            <div class="dc-config-section">
-              <h2>🔧 Environment Configuration</h2>
-              <p>Create or update your <code>.env.local</code> file in your Next.js project root:</p>
+              <div class="dc-config-manual-content">
+                <div class="dc-config-section">
+                  <h3>🔧 Environment Configuration</h3>
+                  <p>Create or update your <code>.env.local</code> file in your Next.js project root:</p>
 
-              ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
+                  ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
 
-              <div class="dc-config-generate-secret">
-                <form method="post" action="/dc-config/generate-secret" style="display: inline;">
-                  <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
-                  <button type="submit" class="dc-config-generate-button">
-                    🔑&nbsp;&nbsp;Generate New Client Secret
-                  </button>
-                </form>
-                <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
+                  <div class="dc-config-generate-secret">
+                    <form method="post" action="/dc-config/generate-secret" style="display: inline;">
+                      <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
+                      <button type="submit" class="dc-config-generate-button">
+                        🔑&nbsp;&nbsp;Generate New Client Secret
+                      </button>
+                    </form>
+                    <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
+                  </div>
+                </div>
+
+                <div class="dc-config-local-steps">
+                  <h4>Local Development Steps</h4>
+                  <ol>
+                    <li>Copy the environment variables above to your <code>.env.local</code> file</li>
+                    <li>Run <code>npm install</code> in your project directory</li>
+                    <li>Run <code>npm run dev</code> to start your development server</li>
+                    <li>Visit <code>http://localhost:3000</code> to see your site</li>
+                  </ol>
+                </div>
               </div>
-            </div>
+            </details>
 
           </div>
         </div>
@@ -517,32 +573,32 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               Setup Checklist
             </h3>
             <div class="dc-config-checklist">
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">1</div>
+              <div class="dc-config-checklist-item' . ($importedStarter ? ' dc-config-checklist-item--done' : '') . '">
+                <div class="dc-config-step-icon">' . ($importedStarter ? '✓' : '1') . '</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Copy Environment Variables</div>
-                  <div class="dc-config-step-description">Add the .env.local configuration to your Next.js project</div>
+                  <div class="dc-config-step-title">Import Starter Content</div>
+                  <div class="dc-config-step-description">Choose a template above (optional)</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">2</div>
+                <div class="dc-config-step-icon">2</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Install Dependencies</div>
-                  <div class="dc-config-step-description">Run npm install in your project directory</div>
+                  <div class="dc-config-step-title">Deploy to Vercel</div>
+                  <div class="dc-config-step-description">Click "Deploy with Vercel" button</div>
+                </div>
+              </div>
+              <div class="dc-config-checklist-item' . ($vercel_connected ? ' dc-config-checklist-item--done' : '') . '">
+                <div class="dc-config-step-icon">' . ($vercel_connected ? '✓' : '3') . '</div>
+                <div class="dc-config-step-content">
+                  <div class="dc-config-step-title">Connect & Sync</div>
+                  <div class="dc-config-step-description">Link Vercel and push env variables</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">3</div>
+                <div class="dc-config-step-icon">4</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Start Development Server</div>
-                  <div class="dc-config-step-description">Run npm run dev to start your application</div>
-                </div>
-              </div>
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">4</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Test Connection</div>
-                  <div class="dc-config-step-description">Verify your frontend connects to this Drupal backend</div>
+                  <div class="dc-config-step-title">Redeploy Project</div>
+                  <div class="dc-config-step-description">Trigger rebuild on Vercel dashboard</div>
                 </div>
               </div>
             </div>
@@ -550,7 +606,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             <div class="dc-config-help-links">
               <h4>📚 Resources</h4>
               <ul>
-                <li><a href="https://github.com/nextagencyio/decoupled-starter" target="_blank">Starter Project →</a></li>
+                <li><a href="https://www.decoupled.io/solutions/" target="_blank">Starters Page →</a></li>
                 <li><a href="https://nextjs.org/docs" target="_blank">Next.js Docs →</a></li>
                 <li><a href="/admin/config" target="_blank">Drupal Config →</a></li>
               </ul>
@@ -578,12 +634,16 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'option',
       'label',
       'ul',
+      'ol',
       'li',
       'a',
       'span',
       'strong',
       'br',
       'script',
+      // Details/summary for collapsible sections.
+      'details',
+      'summary',
       // SVG elements for icons.
       'svg',
       'path',
@@ -1088,7 +1148,18 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    *   A JSON response indicating success or failure.
    */
   public function importStarter(Request $request) {
+    // Check if a starter has already been imported.
+    $importedStarter = \Drupal::state()->get('dc_config.imported_starter');
+    if ($importedStarter) {
+      return new JsonResponse([
+        'success' => FALSE,
+        'error' => 'A starter has already been imported. Only one starter can be installed per site.',
+      ], 400);
+    }
+
     $contentUrl = $request->request->get('content_url');
+    $starterId = $request->request->get('starter_id');
+    $starterName = $request->request->get('starter_name');
 
     if (empty($contentUrl)) {
       return new JsonResponse([
@@ -1129,45 +1200,54 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         ], 400);
       }
 
-      // Check if dc_import service exists.
-      if (\Drupal::hasService('dc_import.content_importer')) {
-        $importer = \Drupal::service('dc_import.content_importer');
+      // Use dc_import.importer service to import content directly.
+      if (\Drupal::hasService('dc_import.importer')) {
+        $importer = \Drupal::service('dc_import.importer');
         $result = $importer->import($contentJson);
+
+        // Calculate stats from result summary.
+        $stats = [
+          'content_types' => 0,
+          'nodes' => 0,
+          'paragraphs' => 0,
+          'media' => 0,
+        ];
+
+        if (!empty($result['summary'])) {
+          foreach ($result['summary'] as $message) {
+            if (strpos($message, 'Created node type:') !== FALSE) {
+              $stats['content_types']++;
+            }
+            elseif (strpos($message, 'Created node:') !== FALSE) {
+              $stats['nodes']++;
+            }
+            elseif (strpos($message, 'Created paragraph:') !== FALSE) {
+              $stats['paragraphs']++;
+            }
+            elseif (strpos($message, 'Created media:') !== FALSE) {
+              $stats['media']++;
+            }
+          }
+        }
+
+        // Save state to prevent future imports.
+        \Drupal::state()->set('dc_config.imported_starter', [
+          'id' => $starterId ?? 'unknown',
+          'name' => $starterName ?? 'Unknown Starter',
+          'imported_at' => date('c'),
+          'stats' => $stats,
+        ]);
 
         return new JsonResponse([
           'success' => TRUE,
           'message' => 'Content imported successfully',
-          'stats' => $result,
-        ]);
-      }
-
-      // Fallback: Call internal dc-import API endpoint.
-      // Get the base URL of this site.
-      global $base_url;
-      $siteUrl = $base_url ?: \Drupal::request()->getSchemeAndHttpHost();
-
-      // Make internal request to /api/dc-import.
-      $importResponse = $client->post($siteUrl . '/api/dc-import', [
-        'json' => $contentJson,
-        'timeout' => 120,
-        'headers' => [
-          'Content-Type' => 'application/json',
-        ],
-      ]);
-
-      $importResult = json_decode($importResponse->getBody()->getContents(), TRUE);
-
-      if (!empty($importResult['success']) || !empty($importResult['status'])) {
-        return new JsonResponse([
-          'success' => TRUE,
-          'message' => $importResult['message'] ?? 'Content imported successfully',
-          'stats' => $importResult['stats'] ?? $importResult,
+          'stats' => $stats,
         ]);
       }
 
       return new JsonResponse([
         'success' => FALSE,
-        'error' => $importResult['error'] ?? 'Import failed with unknown error',
+        'error' => 'Import service not available. Please ensure dc_import module is enabled.',
       ], 500);
 
     }

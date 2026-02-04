@@ -535,6 +535,46 @@
   flex-shrink: 0;
 }
 
+/* Step icon (arrow/checkmark) - alternative to numbered steps */
+.dc-config-step-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Completed checklist item */
+.dc-config-checklist-item--done .dc-config-step-icon {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.dc-config-checklist-item--done .dc-config-step-title {
+  color: #22c55e;
+}
+
+/* Optional badge */
+.dc-config-optional-badge {
+  display: inline-block;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+
 
 .dc-config-step-content {
   flex: 1;
@@ -1068,6 +1108,15 @@
   height: 18px;
 }
 
+.dc-config-vercel-connect-btn .dc-config-arrow {
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.dc-config-vercel-connect-btn:hover .dc-config-arrow {
+  transform: translateX(3px);
+}
+
 /* Deploy Button (Secondary) */
 .dc-config-vercel-deploy-btn {
   display: inline-flex !important;
@@ -1106,6 +1155,13 @@
 
 .dc-config-vercel-deploy-btn:hover .dc-config-arrow {
   transform: translateX(3px);
+}
+
+/* Consistent button sizing */
+.dc-config-vercel-deploy-btn,
+.dc-config-vercel-connect-btn {
+  min-width: 220px;
+  justify-content: center;
 }
 
 /* Connected State Card */
@@ -1408,7 +1464,7 @@
 .dc-config-starter-icon--university { background-color: #EC4899; }
 .dc-config-starter-icon--lang { background-color: #06B6D4; }
 .dc-config-starter-icon--sub { background-color: #EF4444; }
-.dc-config-starter-icon--empty { background-color: #6B7280; }
+.dc-config-starter-icon--components { background-color: #6366F1; }
 
 /* Starter Name */
 .dc-config-starter-name {
@@ -1496,4 +1552,205 @@
   background: #f1f5f9;
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
+}
+
+/* Starter Installed State */
+.dc-config-starter-installed {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.dc-config-starter-installed-icon {
+  width: 48px;
+  height: 48px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.dc-config-starter-installed-text {
+  flex: 1;
+}
+
+.dc-config-starter-installed-text strong {
+  display: block;
+  font-size: 1.125rem;
+  color: #065f46;
+  margin-bottom: 0.25rem;
+}
+
+.dc-config-starter-installed-text p {
+  margin: 0;
+  color: #047857;
+  font-size: 0.875rem;
+}
+
+/* =============================================================================
+   COLLAPSIBLE MANUAL SETUP SECTION
+   ============================================================================= */
+
+.dc-config-manual-section {
+  margin-top: 2.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.dc-config-manual-section[open] {
+  background: #fff;
+}
+
+.dc-config-manual-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  list-style: none;
+}
+
+.dc-config-manual-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.dc-config-manual-toggle:hover {
+  background: #f3f4f6;
+}
+
+.dc-config-manual-section[open] .dc-config-manual-toggle {
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.dc-config-manual-toggle-icon {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dc-config-manual-section[open] .dc-config-manual-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.dc-config-manual-toggle-text {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.dc-config-manual-toggle-hint {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  margin-left: auto;
+}
+
+.dc-config-manual-content {
+  padding: 1.5rem;
+}
+
+.dc-config-manual-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.75rem 0;
+}
+
+.dc-config-manual-content p {
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+/* Local Development Steps */
+.dc-config-local-steps {
+  margin: 1.5rem 0;
+}
+
+.dc-config-local-steps h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+}
+
+.dc-config-local-steps ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  counter-reset: step-counter;
+}
+
+.dc-config-local-steps ol li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.5;
+  counter-increment: step-counter;
+}
+
+.dc-config-local-steps ol li::before {
+  content: counter(step-counter);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #64748b, #475569);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dc-config-local-steps ol li code {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+/* Responsive adjustments for manual section */
+@media (max-width: 768px) {
+  .dc-config-manual-toggle {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .dc-config-manual-toggle-hint {
+    width: 100%;
+    margin-left: 1.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .dc-config-local-steps li {
+    padding: 0.875rem;
+  }
 }
