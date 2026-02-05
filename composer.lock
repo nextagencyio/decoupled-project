@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "33bca2064f352e4d0d4679cc4d04198d",
+    "content-hash": "4fa7b9b88f0c03a8657d0d87017a8c9a",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -1663,91 +1663,6 @@
             "time": "2025-10-13T16:03:31+00:00"
         },
         {
-            "name": "drupal/core-project-message",
-            "version": "11.3.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/drupal/core-project-message.git",
-                "reference": "656efa00f296415ed6be2ff366ef67ae2725d7d6"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/drupal/core-project-message/zipball/656efa00f296415ed6be2ff366ef67ae2725d7d6",
-                "reference": "656efa00f296415ed6be2ff366ef67ae2725d7d6",
-                "shasum": ""
-            },
-            "require": {
-                "composer-plugin-api": "^2",
-                "php": ">=7.3.0"
-            },
-            "type": "composer-plugin",
-            "extra": {
-                "class": "Drupal\\Composer\\Plugin\\ProjectMessage\\MessagePlugin"
-            },
-            "autoload": {
-                "psr-4": {
-                    "Drupal\\Composer\\Plugin\\ProjectMessage\\": "."
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "description": "Adds a message after Composer installation.",
-            "homepage": "https://www.drupal.org/project/drupal",
-            "keywords": [
-                "drupal"
-            ],
-            "support": {
-                "source": "https://github.com/drupal/core-project-message/tree/11.3.1"
-            },
-            "time": "2025-02-03T10:59:29+00:00"
-        },
-        {
-            "name": "drupal/core-recipe-unpack",
-            "version": "11.3.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/drupal/core-recipe-unpack.git",
-                "reference": "bcd7f0416d6197f684bb4f2e52374821e937fb64"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/drupal/core-recipe-unpack/zipball/bcd7f0416d6197f684bb4f2e52374821e937fb64",
-                "reference": "bcd7f0416d6197f684bb4f2e52374821e937fb64",
-                "shasum": ""
-            },
-            "require": {
-                "composer-plugin-api": "^2",
-                "php": ">=8.3"
-            },
-            "require-dev": {
-                "composer/composer": "^2.7"
-            },
-            "type": "composer-plugin",
-            "extra": {
-                "class": "Drupal\\Composer\\Plugin\\RecipeUnpack\\Plugin"
-            },
-            "autoload": {
-                "psr-4": {
-                    "Drupal\\Composer\\Plugin\\RecipeUnpack\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "description": "A Composer project unpacker for Drupal recipes.",
-            "homepage": "https://www.drupal.org/project/drupal",
-            "keywords": [
-                "drupal"
-            ],
-            "support": {
-                "source": "https://github.com/drupal/core-recipe-unpack/tree/11.3.1"
-            },
-            "time": "2025-10-28T11:20:22+00:00"
-        },
-        {
             "name": "drupal/core-recommended",
             "version": "11.3.1",
             "source": {
@@ -1950,83 +1865,6 @@
                 "source": "https://git.drupalcode.org/project/decoupled_preview_iframe"
             },
             "time": "2025-08-30T00:57:51+00:00"
-        },
-        {
-            "name": "drupal/default_content",
-            "version": "2.0.0-alpha3",
-            "source": {
-                "type": "git",
-                "url": "https://git.drupalcode.org/project/default_content.git",
-                "reference": "2.0.0-alpha3"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/default_content-2.0.0-alpha3.zip",
-                "reference": "2.0.0-alpha3",
-                "shasum": "fdd90c70bd91896835f6ba5ec42c260c1a144a2b"
-            },
-            "require": {
-                "drupal/core": "^9.1 || ^10 || ^11"
-            },
-            "require-dev": {
-                "drupal/hal": "^1 || ^2",
-                "drupal/paragraphs": "^1"
-            },
-            "type": "drupal-module",
-            "extra": {
-                "drupal": {
-                    "version": "2.0.0-alpha3",
-                    "datestamp": "1724492420",
-                    "security-coverage": {
-                        "status": "not-covered",
-                        "message": "Alpha releases are not covered by Drupal security advisories."
-                    }
-                },
-                "drush": {
-                    "services": {
-                        "drush.services.yml": "^9 || ^10 || ^11 || ^12"
-                    }
-                }
-            },
-            "notification-url": "https://packages.drupal.org/8/downloads",
-            "license": [
-                "GPL-2.0+"
-            ],
-            "authors": [
-                {
-                    "name": "andypost",
-                    "homepage": "https://www.drupal.org/user/118908"
-                },
-                {
-                    "name": "benjy",
-                    "homepage": "https://www.drupal.org/user/1852732"
-                },
-                {
-                    "name": "berdir",
-                    "homepage": "https://www.drupal.org/user/214652"
-                },
-                {
-                    "name": "dawehner",
-                    "homepage": "https://www.drupal.org/user/99340"
-                },
-                {
-                    "name": "jibran",
-                    "homepage": "https://www.drupal.org/user/1198144"
-                },
-                {
-                    "name": "larowlan",
-                    "homepage": "https://www.drupal.org/user/395439"
-                },
-                {
-                    "name": "sam152",
-                    "homepage": "https://www.drupal.org/user/1485048"
-                }
-            ],
-            "description": "Imports default content when a module is enabled",
-            "homepage": "https://www.drupal.org/project/default_content",
-            "support": {
-                "source": "https://git.drupalcode.org/project/default_content"
-            }
         },
         {
             "name": "drupal/entity_reference_revisions",
@@ -8419,12 +8257,11 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "drupal/decoupled_preview_iframe": 20,
-        "drupal/default_content": 15,
         "drupal/simple_oauth": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

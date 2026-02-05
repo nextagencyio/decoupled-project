@@ -43,11 +43,8 @@
         "drupal/admin_toolbar": "^3.4",
         "drupal/admin_toolbar_tools": "^3.4",
         "drupal/core-composer-scaffold": "^11.2",
-        "drupal/core-project-message": "^11.2",
-        "drupal/core-recipe-unpack": "^11.2",
         "drupal/core-recommended": "^11.2",
         "drupal/decoupled_preview_iframe": "dev-3543929-drupal-11-fixes",
-        "drupal/default_content": "^2.0@alpha",
         "drupal/field_group": "^3.6",
         "drupal/gin": "^5.0",
         "drupal/gin_login": "^2.1",
@@ -57,7 +54,7 @@
         "drupal/paragraphs": "^1.18",
         "drupal/pathauto": "^1.13",
         "drupal/redis": "^1.8",
-        "drupal/simple_oauth": "5.2.x-dev",
+        "drupal/simple_oauth": "5.2.x-dev#aa4a3566c2ff156b1dde5eea4b4896bb7a880127",
         "drush/drush": "^13.6"
     },
     "conflict": {
@@ -71,8 +68,6 @@
             "cweagans/composer-patches": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "drupal/core-composer-scaffold": true,
-            "drupal/core-project-message": true,
-            "drupal/core-recipe-unpack": true,
             "php-http/discovery": true,
             "php-tuf/composer-integration": true,
             "phpstan/extension-installer": true
@@ -115,27 +110,6 @@
             ],
             "recipes/{$name}": [
                 "type:drupal-recipe"
-            ]
-        },
-        "drupal-core-project-message": {
-            "include-keys": [
-                "homepage",
-                "support"
-            ],
-            "post-create-project-cmd-message": [
-                "<bg=blue;fg=white>                                                         </>",
-                "<bg=blue;fg=white>  Congratulations, you've installed the Drupal codebase  </>",
-                "<bg=blue;fg=white>  from the drupal/recommended-project template!          </>",
-                "<bg=blue;fg=white>                                                         </>",
-                "",
-                "<bg=yellow;fg=black>Next steps</>:",
-                "  * Install the site: https://www.drupal.org/docs/installing-drupal",
-                "  * Read the user guide: https://www.drupal.org/docs/user_guide/en/index.html",
-                "  * Get support: https://www.drupal.org/support",
-                "  * Get involved with the Drupal community:",
-                "      https://www.drupal.org/getting-involved",
-                "  * Remove the plugin that prints this message:",
-                "      composer remove drupal/core-project-message"
             ]
         }
     }
