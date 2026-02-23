@@ -91,3 +91,20 @@ dc_config.vercel_sync:
   requirements:
     _permission: 'administer site configuration'
   methods: [POST]
+
+dc_config.vercel_rebuild:
+  path: '/dc-config/vercel/rebuild'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelRebuild'
+    _title: 'Trigger Vercel Rebuild'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [POST]
+
+dc_config.vercel_deployment_status:
+  path: '/dc-config/vercel/deployment-status'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::vercelDeploymentStatus'
+    _title: 'Vercel Deployment Status'
+  requirements:
+    _permission: 'administer site configuration'

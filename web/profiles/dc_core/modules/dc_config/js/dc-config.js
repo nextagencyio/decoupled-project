@@ -324,6 +324,7 @@
     attach: function (context, settings) {
       const projectSelect = document.getElementById('vercel-project');
       const syncButton = document.getElementById('vercel-sync-btn');
+      const rebuildButton = document.getElementById('vercel-rebuild-btn');
 
       if (!projectSelect || !syncButton) {
         return;
@@ -338,6 +339,11 @@
       // Load projects if connected
       if (settings.dcConfig && settings.dcConfig.vercelConnected) {
         loadVercelProjects(projectSelect, syncButton);
+
+        // Check current deployment status on load
+        if (settings.dcConfig.vercelProjectId) {
+          checkDeploymentStatus();
+        }
       }
 
       // Handle project selection
@@ -349,6 +355,13 @@
       syncButton.addEventListener('click', function () {
         syncToVercel(projectSelect, syncButton);
       });
+
+      // Handle rebuild button click
+      if (rebuildButton) {
+        rebuildButton.addEventListener('click', function () {
+          triggerRebuild(rebuildButton);
+        });
+      }
     }
   };
 
@@ -402,6 +415,7 @@
     const projectId = selectElement.value;
     const projectName = selectElement.options[selectElement.selectedIndex].dataset.name;
     const statusEl = document.getElementById('vercel-sync-status');
+    const deployStatusEl = document.getElementById('vercel-deploy-status');
 
     if (!projectId) {
       if (statusEl) {
@@ -433,8 +447,8 @@
         if (data.success) {
           syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Synced!';
           if (statusEl) {
-            statusEl.innerHTML = '<span style="color: #22c55e;">' + (data.message || 'Environment variables synced!') + '</span>' +
-              ' <a href="https://vercel.com/dashboard" target="_blank" style="color: #3b82f6; text-decoration: underline; margin-left: 0.5rem;">Open Vercel to redeploy →</a>';
+            statusEl.textContent = data.message || 'Environment variables synced successfully!';
+            statusEl.style.color = '#22c55e';
           }
 
           // Update last synced text if it exists
@@ -443,8 +457,10 @@
             lastSyncEl.textContent = 'Last synced: Just now';
           }
 
-          // Update sidebar checklist step 4 with a link
-          updateChecklistWithVercelLink(projectName);
+          // Show deployment status if a rebuild was triggered
+          if (data.deployment) {
+            showDeploymentProgress(data.deployment, deployStatusEl);
+          }
         } else {
           syncButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Failed';
           if (statusEl) {
@@ -474,17 +490,144 @@
   }
 
   /**
-   * Update sidebar checklist step 4 with Vercel dashboard link.
+   * Trigger a Vercel rebuild.
    */
-  function updateChecklistWithVercelLink(projectName) {
-    const checklistItems = document.querySelectorAll('.dc-config-checklist-item');
-    if (checklistItems.length >= 4) {
-      const step4 = checklistItems[3]; // 0-indexed, so step 4 is index 3
-      const descEl = step4.querySelector('.dc-config-step-description');
-      if (descEl) {
-        descEl.innerHTML = '<a href="https://vercel.com/dashboard" target="_blank" style="color: #3b82f6; text-decoration: underline;">Open Vercel Dashboard →</a>';
+  function triggerRebuild(button) {
+    const deployStatusEl = document.getElementById('vercel-deploy-status');
+
+    // Show loading state
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dc-config-spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Triggering...';
+    button.disabled = true;
+
+    const formData = new FormData();
+    formData.append('form_token', drupalSettings.dcConfig.csrfToken);
+
+    fetch('/dc-config/vercel/rebuild', {
+      method: 'POST',
+      body: formData
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Triggered!';
+
+          // Show deployment progress
+          if (data.deployment) {
+            showDeploymentProgress(data.deployment, deployStatusEl);
+          }
+        } else {
+          button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Failed';
+          if (deployStatusEl) {
+            deployStatusEl.innerHTML = '<span style="color: #ef4444;">' + (data.error || 'Failed to trigger rebuild') + '</span>';
+          }
+        }
+
+        setTimeout(function () {
+          button.innerHTML = originalHTML;
+          button.disabled = false;
+        }, 3000);
+      })
+      .catch(error => {
+        console.error('Error triggering rebuild:', error);
+        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Error';
+
+        setTimeout(function () {
+          button.innerHTML = originalHTML;
+          button.disabled = false;
+        }, 3000);
+      });
+  }
+
+  /**
+   * Show deployment progress indicator.
+   */
+  function showDeploymentProgress(deployment, statusEl) {
+    if (!statusEl) return;
+
+    var deployUrl = deployment.url ? 'https://' + deployment.url : '';
+    statusEl.innerHTML = '<div class="dc-config-deploy-progress">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dc-config-spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ' +
+      '<span>Building... deployment in progress</span>' +
+      '</div>';
+    statusEl.style.color = '#3b82f6';
+
+    // Poll for deployment status
+    pollDeploymentStatus(statusEl, deployUrl);
+  }
+
+  /**
+   * Poll deployment status until complete.
+   */
+  function pollDeploymentStatus(statusEl, deployUrl) {
+    var pollCount = 0;
+    var maxPolls = 60; // 5 minutes max (every 5 seconds)
+
+    var pollInterval = setInterval(function () {
+      pollCount++;
+
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        statusEl.innerHTML = '<span style="color: #f59e0b;">Build is taking longer than expected. Check Vercel dashboard for status.</span>';
+        return;
       }
-    }
+
+      fetch('/dc-config/vercel/deployment-status')
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data.success && data.deployment) {
+            var state = data.deployment.state;
+
+            if (state === 'READY') {
+              clearInterval(pollInterval);
+              var linkHtml = deployUrl ? ' <a href="' + deployUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
+              statusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Build complete! Site is live.' + linkHtml + '</span>';
+            } else if (state === 'ERROR' || state === 'CANCELED') {
+              clearInterval(pollInterval);
+              statusEl.innerHTML = '<span style="color: #ef4444;">&#10007; Build ' + state.toLowerCase() + '. Check Vercel dashboard for details.</span>';
+            }
+            // Otherwise keep polling (BUILDING, QUEUED, INITIALIZING)
+          }
+        })
+        .catch(function () {
+          // Silently continue polling on network errors
+        });
+    }, 5000);
+  }
+
+  /**
+   * Check current deployment status on page load.
+   */
+  function checkDeploymentStatus() {
+    var deployStatusEl = document.getElementById('vercel-deploy-status');
+    if (!deployStatusEl) return;
+
+    fetch('/dc-config/vercel/deployment-status')
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.success && data.deployment) {
+          var state = data.deployment.state;
+          var deployUrl = data.deployment.url ? 'https://' + data.deployment.url : '';
+
+          if (state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING') {
+            // There's an active build, show progress
+            showDeploymentProgress(data.deployment, deployStatusEl);
+          } else if (state === 'READY' && data.deployment.created) {
+            // Show last successful deploy time
+            var created = new Date(data.deployment.created);
+            var now = new Date();
+            var diffMinutes = Math.round((now - created) / 60000);
+
+            if (diffMinutes < 5) {
+              var linkHtml = deployUrl ? ' <a href="' + deployUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
+              deployStatusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Latest build succeeded.' + linkHtml + '</span>';
+            }
+          }
+        }
+      })
+      .catch(function () {
+        // Silently ignore errors on page load check
+      });
   }
 
   // ============================================================
@@ -559,29 +702,11 @@
    * Update Vercel deploy button URL based on selected starter.
    */
   function updateVercelDeployUrl(vercelUrl) {
-    const deployBtn = document.getElementById('vercel-deploy-btn');
+    const deployBtn = document.querySelector('.dc-config-vercel-deploy-btn');
     if (deployBtn && vercelUrl) {
       deployBtn.href = vercelUrl;
     }
   }
-
-  /**
-   * Initialize Vercel deploy URL from default on page load.
-   */
-  Drupal.behaviors.decoupledConfigVercelUrl = {
-    attach: function (context, settings) {
-      const defaultUrlInput = document.getElementById('default-vercel-url');
-      const deployBtn = document.getElementById('vercel-deploy-btn');
-
-      if (defaultUrlInput && deployBtn && !deployBtn.dataset.initialized) {
-        deployBtn.dataset.initialized = 'true';
-        const defaultUrl = defaultUrlInput.value;
-        if (defaultUrl) {
-          deployBtn.href = defaultUrl;
-        }
-      }
-    }
-  };
 
   /**
    * Import starter content via AJAX.

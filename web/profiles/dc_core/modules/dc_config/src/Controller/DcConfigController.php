@@ -245,21 +245,12 @@ class DcConfigController extends ControllerBase {
       </div>';
     }
 
-    // Get the first starter's Vercel URL as the default
-    $defaultVercelUrl = '';
-    foreach ($starters as $starter) {
-      if (!empty($starter['vercelUrl'])) {
-        $defaultVercelUrl = $starter['vercelUrl'];
-        break;
-      }
-    }
-
     return '
     <div class="dc-config-section dc-config-starter-section">
-      <h2>Choose a Starter Template <span class="dc-config-optional-badge">Optional</span></h2>
-      <p class="dc-config-subtitle">Import sample content and content types, or skip this step to start with a blank site.</p>
+      <h2>Choose a Starter Template</h2>
+      <p class="dc-config-subtitle">Select a template to import content types and sample data into your Drupal site.</p>
       <div class="dc-config-starter-grid">' . $cards . '</div>
-      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled title="Select a starter template above to enable import">
+      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled>
         Import Selected Starter
       </button>
       <div id="import-status" class="dc-config-import-status"></div>
@@ -268,7 +259,6 @@ class DcConfigController extends ControllerBase {
     <div class="dc-config-divider">
       <span>then deploy to Vercel</span>
     </div>
-    <input type="hidden" id="default-vercel-url" value="' . htmlspecialchars($defaultVercelUrl) . '">
     ';
   }
 
@@ -290,13 +280,11 @@ class DcConfigController extends ControllerBase {
     $vercel_project_name = $vercel_status['project_name'];
     $vercel_last_synced = $vercel_status['last_synced'];
 
-    // Check if a starter has been imported.
-    $importedStarter = \Drupal::state()->get('dc_config.imported_starter');
-
     // Pass Vercel status to JavaScript.
     $build['#attached']['drupalSettings']['dcConfig'] = [
       'vercelConnected' => $vercel_connected,
       'vercelProjectName' => $vercel_project_name,
+      'vercelProjectId' => $vercel_status['project_id'],
       'vercelLastSynced' => $vercel_last_synced,
       'csrfToken' => \Drupal::csrfToken()->get('dc_config_vercel_sync'),
       'disconnectToken' => \Drupal::csrfToken()->get('dc_config_vercel_disconnect'),
@@ -462,7 +450,12 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                         Sync Environment Variables
                       </button>
+                      <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h6"/><path d="M4 6v6"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M20 18h-6"/><path d="M20 18v-6"/></svg>
+                        Trigger Rebuild
+                      </button>
                       <div id="vercel-sync-status" class="dc-config-sync-status"></div>
+                      <div id="vercel-deploy-status" class="dc-config-deploy-status"></div>
                     </div>
 
                     ' . ($vercel_last_synced ? '<p class="dc-config-vercel-last-sync">Last synced: ' . date('M j, Y g:i A', $vercel_last_synced) . '</p>' : '') . '
@@ -487,11 +480,10 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                     <div class="dc-config-vercel-step-card dc-config-vercel-step-card--deploy">
                       <div class="dc-config-vercel-step-content">
                         <h3>Deploy your Next.js frontend</h3>
-                        <p>Create a new project from the selected starter template.</p>
+                        <p>Create a new project from our starter template with one click.</p>
                       </div>
                       <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter&project-name=my-app"
                          target="_blank"
-                         id="vercel-deploy-btn"
                          class="dc-config-vercel-deploy-btn">
                         <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
@@ -517,7 +509,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                           <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
                         </svg>
                         Connect to Vercel
-                        <span class="dc-config-arrow">→</span>
                       </a>
                     </div>
                   </div>
@@ -525,42 +516,26 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               ) . '
             </div>
 
-            <details class="dc-config-manual-section">
-              <summary class="dc-config-manual-toggle">
-                <span class="dc-config-manual-toggle-icon">▶</span>
-                <span class="dc-config-manual-toggle-text">Manual Setup / Local Development</span>
-                <span class="dc-config-manual-toggle-hint">Configure your Next.js project manually without Vercel</span>
-              </summary>
+            <div class="dc-config-divider">
+              <span>or configure manually</span>
+            </div>
 
-              <div class="dc-config-manual-content">
-                <div class="dc-config-section">
-                  <h3>🔧 Environment Configuration</h3>
-                  <p>Create or update your <code>.env.local</code> file in your Next.js project root:</p>
+            <div class="dc-config-section">
+              <h2>🔧 Environment Configuration</h2>
+              <p>Create or update your <code>.env.local</code> file in your Next.js project root:</p>
 
-                  ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
+              ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
 
-                  <div class="dc-config-generate-secret">
-                    <form method="post" action="/dc-config/generate-secret" style="display: inline;">
-                      <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
-                      <button type="submit" class="dc-config-generate-button">
-                        🔑&nbsp;&nbsp;Generate New Client Secret
-                      </button>
-                    </form>
-                    <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
-                  </div>
-                </div>
-
-                <div class="dc-config-local-steps">
-                  <h4>Local Development Steps</h4>
-                  <ol>
-                    <li>Copy the environment variables above to your <code>.env.local</code> file</li>
-                    <li>Run <code>npm install</code> in your project directory</li>
-                    <li>Run <code>npm run dev</code> to start your development server</li>
-                    <li>Visit <code>http://localhost:3000</code> to see your site</li>
-                  </ol>
-                </div>
+              <div class="dc-config-generate-secret">
+                <form method="post" action="/dc-config/generate-secret" style="display: inline;">
+                  <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
+                  <button type="submit" class="dc-config-generate-button">
+                    🔑&nbsp;&nbsp;Generate New Client Secret
+                  </button>
+                </form>
+                <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
               </div>
-            </details>
+            </div>
 
           </div>
         </div>
@@ -573,32 +548,32 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               Setup Checklist
             </h3>
             <div class="dc-config-checklist">
-              <div class="dc-config-checklist-item' . ($importedStarter ? ' dc-config-checklist-item--done' : '') . '">
-                <div class="dc-config-step-icon">' . ($importedStarter ? '✓' : '1') . '</div>
+              <div class="dc-config-checklist-item">
+                <div class="dc-config-step-number">1</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Import Starter Content</div>
-                  <div class="dc-config-step-description">Choose a template above (optional)</div>
+                  <div class="dc-config-step-title">Copy Environment Variables</div>
+                  <div class="dc-config-step-description">Add the .env.local configuration to your Next.js project</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
-                <div class="dc-config-step-icon">2</div>
+                <div class="dc-config-step-number">2</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Deploy to Vercel</div>
-                  <div class="dc-config-step-description">Click "Deploy with Vercel" button</div>
-                </div>
-              </div>
-              <div class="dc-config-checklist-item' . ($vercel_connected ? ' dc-config-checklist-item--done' : '') . '">
-                <div class="dc-config-step-icon">' . ($vercel_connected ? '✓' : '3') . '</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Connect & Sync</div>
-                  <div class="dc-config-step-description">Link Vercel and push env variables</div>
+                  <div class="dc-config-step-title">Install Dependencies</div>
+                  <div class="dc-config-step-description">Run npm install in your project directory</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
-                <div class="dc-config-step-icon">4</div>
+                <div class="dc-config-step-number">3</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Redeploy Project</div>
-                  <div class="dc-config-step-description">Trigger rebuild on Vercel dashboard</div>
+                  <div class="dc-config-step-title">Start Development Server</div>
+                  <div class="dc-config-step-description">Run npm run dev to start your application</div>
+                </div>
+              </div>
+              <div class="dc-config-checklist-item">
+                <div class="dc-config-step-number">4</div>
+                <div class="dc-config-step-content">
+                  <div class="dc-config-step-title">Test Connection</div>
+                  <div class="dc-config-step-description">Verify your frontend connects to this Drupal backend</div>
                 </div>
               </div>
             </div>
@@ -606,7 +581,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             <div class="dc-config-help-links">
               <h4>📚 Resources</h4>
               <ul>
-                <li><a href="https://www.decoupled.io/solutions/" target="_blank">Starters Page →</a></li>
+                <li><a href="https://github.com/nextagencyio/decoupled-starter" target="_blank">Starter Project →</a></li>
                 <li><a href="https://nextjs.org/docs" target="_blank">Next.js Docs →</a></li>
                 <li><a href="/admin/config" target="_blank">Drupal Config →</a></li>
               </ul>
@@ -634,16 +609,12 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'option',
       'label',
       'ul',
-      'ol',
       'li',
       'a',
       'span',
       'strong',
       'br',
       'script',
-      // Details/summary for collapsible sections.
-      'details',
-      'summary',
       // SVG elements for icons.
       'svg',
       'path',
@@ -1026,11 +997,25 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         '@project' => $projectName ?: $projectId,
       ]);
 
-      return new JsonResponse([
+      // Auto-trigger a rebuild so the new env vars take effect.
+      $deployResult = $this->vercelApi->triggerDeployment($projectId, $projectName ?: $projectId);
+
+      $response = [
         'success' => TRUE,
         'message' => 'Environment variables synced with fresh secrets!',
         'variables_synced' => array_keys($envVars),
-      ]);
+      ];
+
+      if ($deployResult['success']) {
+        $response['message'] .= ' A rebuild has been triggered automatically.';
+        $response['deployment'] = $deployResult['deployment'];
+      }
+      else {
+        $response['message'] .= ' Note: Could not auto-trigger rebuild. You can trigger it manually.';
+        $response['rebuild_error'] = $deployResult['error'] ?? 'Unknown error';
+      }
+
+      return new JsonResponse($response);
     }
 
     return new JsonResponse([
@@ -1132,6 +1117,87 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    */
   public function getVercelStatus(): array {
     return $this->vercelApi->getConnectionStatus();
+  }
+
+  /**
+   * Triggers a Vercel rebuild for the connected project.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response indicating success or failure.
+   */
+  public function vercelRebuild(Request $request) {
+    // Verify CSRF token.
+    $token = $request->request->get('form_token');
+    if (!\Drupal::csrfToken()->validate($token, 'dc_config_vercel_sync')) {
+      return new JsonResponse(['error' => 'Invalid form token'], 403);
+    }
+
+    if (!$this->vercelApi->isConnected()) {
+      return new JsonResponse(['error' => 'Not connected to Vercel'], 401);
+    }
+
+    $status = $this->vercelApi->getConnectionStatus();
+    $projectId = $status['project_id'];
+    $projectName = $status['project_name'];
+
+    if (empty($projectId)) {
+      return new JsonResponse(['error' => 'No Vercel project connected. Please sync environment variables first.'], 400);
+    }
+
+    $result = $this->vercelApi->triggerDeployment($projectId, $projectName ?: $projectId);
+
+    if ($result['success']) {
+      \Drupal::logger('dc_config')->info('Triggered manual Vercel rebuild for project: @project', [
+        '@project' => $projectName ?: $projectId,
+      ]);
+
+      return new JsonResponse([
+        'success' => TRUE,
+        'message' => 'Rebuild triggered! Your site will be updated shortly.',
+        'deployment' => $result['deployment'],
+      ]);
+    }
+
+    return new JsonResponse([
+      'error' => $result['error'] ?? 'Failed to trigger rebuild',
+    ], 500);
+  }
+
+  /**
+   * Returns the latest deployment status for the connected project.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response with deployment status.
+   */
+  public function vercelDeploymentStatus() {
+    if (!$this->vercelApi->isConnected()) {
+      return new JsonResponse(['error' => 'Not connected to Vercel'], 401);
+    }
+
+    $status = $this->vercelApi->getConnectionStatus();
+    $projectId = $status['project_id'];
+
+    if (empty($projectId)) {
+      return new JsonResponse(['error' => 'No project connected'], 400);
+    }
+
+    $deployment = $this->vercelApi->getLatestDeployment($projectId);
+
+    if ($deployment) {
+      return new JsonResponse([
+        'success' => TRUE,
+        'deployment' => $deployment,
+      ]);
+    }
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'deployment' => NULL,
+      'message' => 'No deployments found',
+    ]);
   }
 
   // ============================================================

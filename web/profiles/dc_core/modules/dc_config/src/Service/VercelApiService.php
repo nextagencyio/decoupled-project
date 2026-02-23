@@ -366,6 +366,133 @@ class VercelApiService {
   }
 
   /**
+   * Trigger a new deployment for the connected Vercel project.
+   *
+   * Uses the Vercel API to create a new deployment, which rebuilds
+   * the project with the latest environment variables.
+   *
+   * @param string $project_id
+   *   The Vercel project ID.
+   * @param string $project_name
+   *   The Vercel project name (used for API call).
+   *
+   * @return array
+   *   Array with 'success' boolean and 'deployment' data or 'error' message.
+   */
+  public function triggerDeployment(string $project_id, string $project_name): array {
+    $config = $this->getConfig();
+    $accessToken = $config->get('access_token');
+
+    if (empty($accessToken)) {
+      return ['success' => FALSE, 'error' => 'Not connected to Vercel'];
+    }
+
+    try {
+      $url = self::API_BASE . '/v13/deployments';
+      $teamId = $config->get('team_id');
+
+      $body = [
+        'name' => $project_name,
+        'project' => $project_id,
+        'target' => 'production',
+      ];
+
+      if (!empty($teamId)) {
+        $url .= '?teamId=' . $teamId;
+      }
+
+      $response = $this->httpClient->request('POST', $url, [
+        'headers' => [
+          'Authorization' => 'Bearer ' . $accessToken,
+          'Content-Type' => 'application/json',
+        ],
+        'json' => $body,
+      ]);
+
+      $statusCode = $response->getStatusCode();
+      $data = json_decode($response->getBody()->getContents(), TRUE);
+
+      if ($statusCode >= 200 && $statusCode < 300) {
+        $this->logger->info('Triggered Vercel deployment for project @project', [
+          '@project' => $project_name,
+        ]);
+        return [
+          'success' => TRUE,
+          'deployment' => [
+            'id' => $data['id'] ?? NULL,
+            'url' => $data['url'] ?? NULL,
+            'readyState' => $data['readyState'] ?? 'QUEUED',
+          ],
+        ];
+      }
+
+      return [
+        'success' => FALSE,
+        'error' => $data['error']['message'] ?? 'Unknown error',
+      ];
+    }
+    catch (GuzzleException $e) {
+      $this->logger->error('Failed to trigger Vercel deployment: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return ['success' => FALSE, 'error' => $e->getMessage()];
+    }
+  }
+
+  /**
+   * Get the latest deployment for a project.
+   *
+   * @param string $project_id
+   *   The Vercel project ID.
+   *
+   * @return array|null
+   *   Deployment data or NULL if not found.
+   */
+  public function getLatestDeployment(string $project_id): ?array {
+    $config = $this->getConfig();
+    $accessToken = $config->get('access_token');
+
+    if (empty($accessToken)) {
+      return NULL;
+    }
+
+    try {
+      $url = self::API_BASE . '/v6/deployments?projectId=' . $project_id . '&limit=1&target=production';
+      $teamId = $config->get('team_id');
+      if (!empty($teamId)) {
+        $url .= '&teamId=' . $teamId;
+      }
+
+      $response = $this->httpClient->request('GET', $url, [
+        'headers' => [
+          'Authorization' => 'Bearer ' . $accessToken,
+        ],
+      ]);
+
+      $data = json_decode($response->getBody()->getContents(), TRUE);
+      $deployments = $data['deployments'] ?? [];
+
+      if (!empty($deployments)) {
+        $deployment = $deployments[0];
+        return [
+          'id' => $deployment['uid'] ?? NULL,
+          'url' => $deployment['url'] ?? NULL,
+          'state' => $deployment['readyState'] ?? $deployment['state'] ?? 'UNKNOWN',
+          'created' => $deployment['created'] ?? NULL,
+        ];
+      }
+
+      return NULL;
+    }
+    catch (GuzzleException $e) {
+      $this->logger->error('Failed to get latest Vercel deployment: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return NULL;
+    }
+  }
+
+  /**
    * Get connection status.
    *
    * @return array
