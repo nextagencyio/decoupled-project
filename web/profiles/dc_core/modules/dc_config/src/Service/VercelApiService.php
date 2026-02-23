@@ -395,6 +395,7 @@ class VercelApiService {
         'name' => $project_name,
         'project' => $project_id,
         'target' => 'production',
+        'files' => [],
       ];
 
       if (!empty($teamId)) {
