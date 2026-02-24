@@ -1148,6 +1148,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         'success' => TRUE,
         'message' => 'Rebuild triggered! Your site will be updated shortly.',
         'deployment' => $result['deployment'],
+        'productionUrl' => 'https://' . ($projectName ?: $projectId) . '.vercel.app',
       ]);
     }
 
@@ -1175,11 +1176,13 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     }
 
     $deployment = $this->vercelApi->getLatestDeployment($projectId);
+    $projectName = $status['project_name'];
 
     if ($deployment) {
       return new JsonResponse([
         'success' => TRUE,
         'deployment' => $deployment,
+        'productionUrl' => 'https://' . ($projectName ?: $projectId) . '.vercel.app',
       ]);
     }
 

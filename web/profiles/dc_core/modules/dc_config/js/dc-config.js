@@ -509,7 +509,7 @@
 
           // Show deployment progress
           if (data.deployment) {
-            showDeploymentProgress(data.deployment, deployStatusEl);
+            showDeploymentProgress(data.deployment, deployStatusEl, data.productionUrl);
           }
         } else {
           button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Failed';
@@ -537,10 +537,10 @@
   /**
    * Show deployment progress indicator.
    */
-  function showDeploymentProgress(deployment, statusEl) {
+  function showDeploymentProgress(deployment, statusEl, productionUrl) {
     if (!statusEl) return;
 
-    var deployUrl = deployment.url ? 'https://' + deployment.url : '';
+    var siteUrl = productionUrl || (deployment.url ? 'https://' + deployment.url : '');
     statusEl.innerHTML = '<div class="dc-config-deploy-progress">' +
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dc-config-spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ' +
       '<span>Building... deployment in progress</span>' +
@@ -548,7 +548,7 @@
     statusEl.style.color = '#3b82f6';
 
     // Poll for deployment status
-    pollDeploymentStatus(statusEl, deployUrl);
+    pollDeploymentStatus(statusEl, siteUrl);
   }
 
   /**
@@ -602,11 +602,11 @@
       .then(function (data) {
         if (data.success && data.deployment) {
           var state = data.deployment.state;
-          var deployUrl = data.deployment.url ? 'https://' + data.deployment.url : '';
+          var siteUrl = data.productionUrl || (data.deployment.url ? 'https://' + data.deployment.url : '');
 
           if (state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING') {
             // There's an active build, show progress
-            showDeploymentProgress(data.deployment, deployStatusEl);
+            showDeploymentProgress(data.deployment, deployStatusEl, data.productionUrl);
           } else if (state === 'READY' && data.deployment.created) {
             // Show last successful deploy time
             var created = new Date(data.deployment.created);
@@ -614,7 +614,7 @@
             var diffMinutes = Math.round((now - created) / 60000);
 
             if (diffMinutes < 5) {
-              var linkHtml = deployUrl ? ' <a href="' + deployUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
+              var linkHtml = siteUrl ? ' <a href="' + siteUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
               deployStatusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Latest build succeeded.' + linkHtml + '</span>';
             }
           }
