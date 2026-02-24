@@ -388,33 +388,34 @@ class VercelApiService {
     }
 
     try {
-      $url = self::API_BASE . '/v13/deployments';
+      // Get the latest deployment to redeploy it.
+      $latestDeployment = $this->getLatestDeployment($project_id);
+      if (empty($latestDeployment['id'])) {
+        return ['success' => FALSE, 'error' => 'No existing deployment found to redeploy'];
+      }
+
+      $url = self::API_BASE . '/v13/deployments/' . $latestDeployment['id'] . '/redeploy';
       $teamId = $config->get('team_id');
 
-      $body = [
-        'name' => $project_name,
-        'project' => $project_id,
-        'target' => 'production',
-        'files' => [],
-      ];
-
+      $query = ['target' => 'production'];
       if (!empty($teamId)) {
-        $url .= '?teamId=' . $teamId;
+        $query['teamId'] = $teamId;
       }
+      $url .= '?' . http_build_query($query);
 
       $response = $this->httpClient->request('POST', $url, [
         'headers' => [
           'Authorization' => 'Bearer ' . $accessToken,
           'Content-Type' => 'application/json',
         ],
-        'json' => $body,
+        'json' => (object) [],
       ]);
 
       $statusCode = $response->getStatusCode();
       $data = json_decode($response->getBody()->getContents(), TRUE);
 
       if ($statusCode >= 200 && $statusCode < 300) {
-        $this->logger->info('Triggered Vercel deployment for project @project', [
+        $this->logger->info('Triggered Vercel redeployment for project @project', [
           '@project' => $project_name,
         ]);
         return [
