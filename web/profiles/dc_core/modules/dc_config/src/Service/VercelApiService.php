@@ -466,7 +466,7 @@ class VercelApiService {
     }
 
     try {
-      $url = self::API_BASE . '/v6/deployments?projectId=' . $project_id . '&limit=1&target=production';
+      $url = self::API_BASE . '/v6/deployments?projectId=' . $project_id . '&limit=1&target=production&state=READY';
       $teamId = $config->get('team_id');
       if (!empty($teamId)) {
         $url .= '&teamId=' . $teamId;
