@@ -394,21 +394,28 @@ class VercelApiService {
         return ['success' => FALSE, 'error' => 'No existing deployment found to redeploy'];
       }
 
-      $url = self::API_BASE . '/v13/deployments/' . $latestDeployment['id'] . '/redeploy';
+      $url = self::API_BASE . '/v13/deployments';
       $teamId = $config->get('team_id');
 
-      $query = ['target' => 'production'];
+      $query = ['forceNew' => '1'];
       if (!empty($teamId)) {
         $query['teamId'] = $teamId;
       }
       $url .= '?' . http_build_query($query);
+
+      $body = [
+        'deploymentId' => $latestDeployment['id'],
+        'name' => $project_name,
+        'target' => 'production',
+        'withLatestCommit' => TRUE,
+      ];
 
       $response = $this->httpClient->request('POST', $url, [
         'headers' => [
           'Authorization' => 'Bearer ' . $accessToken,
           'Content-Type' => 'application/json',
         ],
-        'json' => (object) [],
+        'json' => $body,
       ]);
 
       $statusCode = $response->getStatusCode();
