@@ -285,7 +285,7 @@ class VercelApiService {
    * @return bool
    *   TRUE on success.
    */
-  public function setEnvironmentVariables(string $project_id, array $env_vars, array $targets = ['production', 'preview']): bool {
+  public function setEnvironmentVariables(string $project_id, array $env_vars, array $targets = ['production', 'preview', 'development']): bool {
     $config = $this->getConfig();
     $accessToken = $config->get('access_token');
 

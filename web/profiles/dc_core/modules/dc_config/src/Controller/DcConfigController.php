@@ -446,16 +446,20 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                     </div>
 
                     <div class="dc-config-vercel-actions">
-                      <button type="button" id="vercel-sync-btn" class="dc-config-sync-button" disabled>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                        Sync Environment Variables
-                      </button>
-                      <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h6"/><path d="M4 6v6"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M20 18h-6"/><path d="M20 18v-6"/></svg>
-                        Trigger Rebuild
-                      </button>
-                      <div id="vercel-sync-status" class="dc-config-sync-status"></div>
-                      <div id="vercel-deploy-status" class="dc-config-deploy-status"></div>
+                      <div class="dc-config-vercel-buttons">
+                        <button type="button" id="vercel-sync-btn" class="dc-config-sync-button" disabled>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                          Sync Environment Variables
+                        </button>
+                        <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h6"/><path d="M4 6v6"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M20 18h-6"/><path d="M20 18v-6"/></svg>
+                          Trigger Rebuild
+                        </button>
+                      </div>
+                      <div class="dc-config-vercel-status-row">
+                        <div id="vercel-sync-status" class="dc-config-sync-status"></div>
+                        <div id="vercel-deploy-status" class="dc-config-deploy-status"></div>
+                      </div>
                     </div>
 
                     ' . ($vercel_last_synced ? '<p class="dc-config-vercel-last-sync">Last synced: ' . date('M j, Y g:i A', $vercel_last_synced) . '</p>' : '') . '
@@ -997,25 +1001,11 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         '@project' => $projectName ?: $projectId,
       ]);
 
-      // Auto-trigger a rebuild so the new env vars take effect.
-      $deployResult = $this->vercelApi->triggerDeployment($projectId, $projectName ?: $projectId);
-
-      $response = [
+      return new JsonResponse([
         'success' => TRUE,
-        'message' => 'Environment variables synced with fresh secrets!',
+        'message' => 'Environment variables synced! Click "Trigger Rebuild" to apply changes.',
         'variables_synced' => array_keys($envVars),
-      ];
-
-      if ($deployResult['success']) {
-        $response['message'] .= ' A rebuild has been triggered automatically.';
-        $response['deployment'] = $deployResult['deployment'];
-      }
-      else {
-        $response['message'] .= ' Note: Could not auto-trigger rebuild. You can trigger it manually.';
-        $response['rebuild_error'] = $deployResult['error'] ?? 'Unknown error';
-      }
-
-      return new JsonResponse($response);
+      ]);
     }
 
     return new JsonResponse([

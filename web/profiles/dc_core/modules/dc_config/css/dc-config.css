@@ -1201,9 +1201,18 @@
 
 .dc-config-vercel-connected-body .dc-config-vercel-actions {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dc-config-vercel-buttons {
+  display: flex;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
+}
+
+.dc-config-vercel-status-row {
+  min-height: 1.25rem;
 }
 
 .dc-config-vercel-connected-body .dc-config-sync-button {
@@ -1259,7 +1268,6 @@
 .dc-config-sync-status {
   font-size: 0.8125rem;
   color: #a1a1aa;
-  flex: 1;
 }
 
 /* Rebuild button */
@@ -1293,7 +1301,6 @@
 /* Deployment status */
 .dc-config-deploy-status {
   font-size: 0.8125rem;
-  margin-top: 0.5rem;
 }
 
 .dc-config-deploy-progress {
