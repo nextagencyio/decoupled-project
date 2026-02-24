@@ -388,8 +388,8 @@ class VercelApiService {
     }
 
     try {
-      // Get the latest deployment to redeploy it.
-      $latestDeployment = $this->getLatestDeployment($project_id);
+      // Get the latest READY deployment to redeploy it.
+      $latestDeployment = $this->getLatestDeployment($project_id, 'READY');
       if (empty($latestDeployment['id'])) {
         return ['success' => FALSE, 'error' => 'No existing deployment found to redeploy'];
       }
@@ -453,11 +453,13 @@ class VercelApiService {
    *
    * @param string $project_id
    *   The Vercel project ID.
+   * @param string|null $state
+   *   Filter by deployment state (e.g. 'READY'). NULL for any state.
    *
    * @return array|null
    *   Deployment data or NULL if not found.
    */
-  public function getLatestDeployment(string $project_id): ?array {
+  public function getLatestDeployment(string $project_id, ?string $state = NULL): ?array {
     $config = $this->getConfig();
     $accessToken = $config->get('access_token');
 
@@ -466,7 +468,10 @@ class VercelApiService {
     }
 
     try {
-      $url = self::API_BASE . '/v6/deployments?projectId=' . $project_id . '&limit=1&target=production&state=READY';
+      $url = self::API_BASE . '/v6/deployments?projectId=' . $project_id . '&limit=1';
+      if ($state) {
+        $url .= '&state=' . $state;
+      }
       $teamId = $config->get('team_id');
       if (!empty($teamId)) {
         $url .= '&teamId=' . $teamId;
