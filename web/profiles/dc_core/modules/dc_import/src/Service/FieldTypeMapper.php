@@ -426,10 +426,10 @@ class FieldTypeMapper {
         ];
 
       case 'paragraph':
-        // Support multiple paragraph types separated by | (e.g., "hero|card_group|sidebyside")
+        // Support multiple paragraph types separated by | or , (e.g., "hero|card_group|sidebyside")
         $target_bundles = [];
         if ($param) {
-          $types = explode('|', $param);
+          $types = preg_split('/[|,]/', $param);
           foreach ($types as $type) {
             $type = trim($type);
             if ($type) {
@@ -493,10 +493,10 @@ class FieldTypeMapper {
           [$target_type, $bundle] = explode(':', $param, 2);
         }
         if ($target_type === 'paragraph') {
-          // Support multiple paragraph types separated by |
+          // Support multiple paragraph types separated by | or ,
           $target_bundles = [];
           if ($bundle) {
-            $types = explode('|', $bundle);
+            $types = preg_split('/[|,]/', $bundle);
             foreach ($types as $type) {
               $type = trim($type);
               if ($type) {
