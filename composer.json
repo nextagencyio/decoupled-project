@@ -51,6 +51,7 @@
         "drupal/gin_toolbar": "^3.0",
         "drupal/graphql": "^4.7",
         "drupal/graphql_compose": "^2.2",
+        "drupal/graphql_compose_preview": "^1.1",
         "drupal/paragraphs": "^1.18",
         "drupal/pathauto": "^1.13",
         "drupal/redis": "^1.8",
