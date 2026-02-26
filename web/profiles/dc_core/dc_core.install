@@ -518,6 +518,32 @@ function dc_core_update_10013() {
 }
 
 /**
+ * Enable graphql_compose_preview module for draft preview support.
+ */
+function dc_core_update_10015() {
+  $module_installer = \Drupal::service('module_installer');
+  $module_handler = \Drupal::service('module_handler');
+
+  if ($module_handler->moduleExists('graphql_compose_preview')) {
+    return t('graphql_compose_preview already enabled.');
+  }
+
+  try {
+    $module_installer->install(['graphql_compose_preview']);
+    \Drupal::logger('dc_core')->notice('Enabled graphql_compose_preview module.');
+    return t('Enabled graphql_compose_preview module for draft preview support.');
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('dc_core')->error('Failed to enable graphql_compose_preview: @error', [
+      '@error' => $e->getMessage(),
+    ]);
+    return t('Failed to enable graphql_compose_preview: @error', [
+      '@error' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
  * Install multilingual modules for existing sites.
  */
 function dc_core_update_10014() {

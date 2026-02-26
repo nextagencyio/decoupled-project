@@ -50,6 +50,7 @@ dependencies:
   - graphql_compose:graphql_compose_image_style
   - graphql_compose:graphql_compose_menus
   - graphql_compose:graphql_compose_routes
+  - graphql_compose_preview:graphql_compose_preview
 
   # OAuth authentication for headless apps
   - simple_oauth:simple_oauth
