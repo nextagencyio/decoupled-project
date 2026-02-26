@@ -4,8 +4,8 @@ dependencies: {  }
 _core:
   default_config_hash: null
 redirect_anonymous: false
-redirect_url: '/profiles/dc_core/modules/dc_config/preview-setup.html?'
-preview_url: '/profiles/dc_core/modules/dc_config/preview-setup.html?'
+redirect_url: ''
+preview_url: ''
 preview_types:
   node:
     homepage: homepage

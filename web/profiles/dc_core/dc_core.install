@@ -544,6 +544,40 @@ function dc_core_update_10015() {
 }
 
 /**
+ * Clear preview iframe redirect_url placeholder on existing sites.
+ */
+function dc_core_update_10016() {
+  $config = \Drupal::configFactory()->getEditable('decoupled_preview_iframe.settings');
+
+  if ($config->isNew()) {
+    return t('Decoupled preview iframe not configured, skipping.');
+  }
+
+  $redirect_url = $config->get('redirect_url');
+  $preview_url = $config->get('preview_url');
+  $updated = FALSE;
+
+  // Clear redirect_url if it points to the old preview-setup placeholder.
+  if (!empty($redirect_url) && strpos($redirect_url, 'preview-setup.html') !== FALSE) {
+    $config->set('redirect_url', '');
+    $updated = TRUE;
+  }
+
+  // Clear preview_url if it points to the old preview-setup placeholder.
+  if (!empty($preview_url) && strpos($preview_url, 'preview-setup.html') !== FALSE) {
+    $config->set('preview_url', '');
+    $updated = TRUE;
+  }
+
+  if ($updated) {
+    $config->save();
+    return t('Cleared preview iframe placeholder URLs.');
+  }
+
+  return t('Preview iframe URLs already configured by user, no changes made.');
+}
+
+/**
  * Install multilingual modules for existing sites.
  */
 function dc_core_update_10014() {
