@@ -578,6 +578,41 @@ function dc_core_update_10016() {
 }
 
 /**
+ * Enable dc_config_import module for config import via MCP.
+ */
+function dc_core_update_10017() {
+  $module_installer = \Drupal::service('module_installer');
+  $module_handler = \Drupal::service('module_handler');
+
+  if ($module_handler->moduleExists('dc_config_import')) {
+    return t('dc_config_import already enabled.');
+  }
+
+  try {
+    $module_installer->install(['dc_config_import']);
+    \Drupal::logger('dc_core')->notice('Enabled dc_config_import module.');
+
+    // Grant permission to previewer role.
+    $role = Role::load('previewer');
+    if ($role && !$role->hasPermission('import drupal configuration')) {
+      $role->grantPermission('import drupal configuration');
+      $role->save();
+      \Drupal::logger('dc_core')->notice('Granted "import drupal configuration" permission to previewer role.');
+    }
+
+    return t('Enabled dc_config_import module and granted permissions.');
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('dc_core')->error('Failed to enable dc_config_import: @error', [
+      '@error' => $e->getMessage(),
+    ]);
+    return t('Failed to enable dc_config_import: @error', [
+      '@error' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
  * Install multilingual modules for existing sites.
  */
 function dc_core_update_10014() {
