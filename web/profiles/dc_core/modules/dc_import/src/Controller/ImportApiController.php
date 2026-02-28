@@ -159,21 +159,29 @@ class ImportApiController extends ControllerBase {
       return TRUE;
     }
 
-    // Try OAuth Bearer token authentication
-    $authHeader = $request->headers->get('Authorization');
-    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-      $oauthToken = substr($authHeader, 7); // Remove 'Bearer ' prefix
-      if ($this->validateOAuthToken($oauthToken)) {
-        return TRUE;
+    // All tokens come via X-Decoupled-Token header to avoid conflicts
+    // with Drupal's simple_oauth module intercepting Authorization: Bearer.
+    $token = $request->headers->get('X-Decoupled-Token');
+    if (empty($token)) {
+      // Legacy fallback: also check Authorization: Bearer header.
+      $authHeader = $request->headers->get('Authorization');
+      if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+        $token = substr($authHeader, 7);
       }
     }
 
-    // Decoupled Personal Access Token authentication (legacy support)
-    $token = $request->headers->get('X-Decoupled-Token');
-    if ($token && str_starts_with($token, 'dc_tok_')) {
-      if ($this->validatePlatformToken($token)) {
-        return TRUE;
-      }
+    if (empty($token)) {
+      return FALSE;
+    }
+
+    // Try platform PAT validation first (dc_tok_ tokens).
+    if (str_starts_with($token, 'dc_tok_')) {
+      return $this->validatePlatformToken($token);
+    }
+
+    // Otherwise treat as OAuth access token (format check).
+    if ($this->validateOAuthToken($token)) {
+      return TRUE;
     }
 
     return FALSE;

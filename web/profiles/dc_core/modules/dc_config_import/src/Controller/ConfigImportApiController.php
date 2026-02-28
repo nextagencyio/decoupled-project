@@ -135,7 +135,11 @@ class ConfigImportApiController extends ControllerBase {
   }
 
   /**
-   * Authenticate the request using personal access tokens or OAuth.
+   * Authenticate the request via X-Decoupled-Token header.
+   *
+   * Accepts both platform PAT tokens (dc_tok_...) and OAuth access tokens.
+   * All tokens are sent via X-Decoupled-Token to avoid conflicts with
+   * Drupal's simple_oauth module intercepting Authorization: Bearer headers.
    */
   private function authenticateRequest(Request $request) {
     // Development mode bypass for .ddev.site domains.
@@ -148,28 +152,27 @@ class ConfigImportApiController extends ControllerBase {
       return TRUE;
     }
 
-    // Try OAuth Bearer token authentication.
-    $authHeader = $request->headers->get('Authorization');
-    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-      $oauthToken = substr($authHeader, 7);
-      if ($this->validateOAuthToken($oauthToken)) {
-        return TRUE;
-      }
+    // All tokens come via X-Decoupled-Token header.
+    $token = $request->headers->get('X-Decoupled-Token');
+    if (empty($token)) {
+      return FALSE;
     }
 
-    // Decoupled Personal Access Token authentication.
-    $token = $request->headers->get('X-Decoupled-Token');
-    if ($token && str_starts_with($token, 'dc_tok_')) {
-      if ($this->validatePlatformToken($token)) {
-        return TRUE;
-      }
+    // Try platform PAT validation first (dc_tok_ tokens).
+    if (str_starts_with($token, 'dc_tok_')) {
+      return $this->validatePlatformToken($token);
+    }
+
+    // Otherwise treat as OAuth access token (format check).
+    if (strlen($token) >= 32 && preg_match('/^[a-zA-Z0-9_.-]+$/', $token)) {
+      return TRUE;
     }
 
     return FALSE;
   }
 
   /**
-   * Validate platform personal access token.
+   * Validate platform personal access token against dashboard API.
    */
   private function validatePlatformToken($token) {
     $platformUrl = getenv('DECOUPLED_PLATFORM_URL') ?:
@@ -206,16 +209,6 @@ class ConfigImportApiController extends ControllerBase {
       }
     }
 
-    return FALSE;
-  }
-
-  /**
-   * Validate OAuth Bearer token.
-   */
-  private function validateOAuthToken($token) {
-    if (strlen($token) >= 32 && preg_match('/^[a-zA-Z0-9_.-]+$/', $token)) {
-      return TRUE;
-    }
     return FALSE;
   }
 
