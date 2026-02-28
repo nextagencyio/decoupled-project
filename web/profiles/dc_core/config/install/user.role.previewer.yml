@@ -16,6 +16,7 @@ is_admin: false
 permissions:
   - 'access dc import api'
   - 'execute graphql_compose_server arbitrary graphql requests'
+  - 'import drupal configuration'
   - 'grant simple_oauth codes'
   - 'view all revisions'
   - 'view any unpublished content'

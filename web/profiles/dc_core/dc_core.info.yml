@@ -78,6 +78,7 @@ dependencies:
   - dc_chatbot
   - dc_config
   - dc_import
+  - dc_config_import
   - dc_login
   - dc_mail
   - dc_revalidate
