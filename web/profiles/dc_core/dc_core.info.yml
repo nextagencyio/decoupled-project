@@ -37,6 +37,10 @@ dependencies:
   - drupal:jsonapi
   - drupal:serialization
 
+  # Core caching for performance
+  - drupal:page_cache
+  - drupal:dynamic_page_cache
+
   # Redis caching for performance
   - redis:redis
 

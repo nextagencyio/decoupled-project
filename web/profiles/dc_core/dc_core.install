@@ -613,6 +613,44 @@ function dc_core_update_10017() {
 }
 
 /**
+ * Enable page_cache and dynamic_page_cache modules, set max-age to 1 day.
+ */
+function dc_core_update_10018() {
+  $module_installer = \Drupal::service('module_installer');
+  $module_handler = \Drupal::service('module_handler');
+  $messages = [];
+
+  $modules = ['page_cache', 'dynamic_page_cache'];
+  foreach ($modules as $module) {
+    if (!$module_handler->moduleExists($module)) {
+      try {
+        $module_installer->install([$module]);
+        $messages[] = t('Enabled @module.', ['@module' => $module]);
+      }
+      catch (\Exception $e) {
+        $messages[] = t('Failed to enable @module: @error', [
+          '@module' => $module,
+          '@error' => $e->getMessage(),
+        ]);
+      }
+    }
+    else {
+      $messages[] = t('@module already enabled.', ['@module' => $module]);
+    }
+  }
+
+  // Set page cache max-age to 1 day (86400 seconds).
+  $config = \Drupal::configFactory()->getEditable('system.performance');
+  $current_max_age = $config->get('cache.page.max_age');
+  $config->set('cache.page.max_age', 86400)->save();
+  $messages[] = t('Set page cache max-age to 86400 (1 day). Was: @old.', [
+    '@old' => $current_max_age ?? '0',
+  ]);
+
+  return implode(' ', $messages);
+}
+
+/**
  * Install multilingual modules for existing sites.
  */
 function dc_core_update_10014() {
