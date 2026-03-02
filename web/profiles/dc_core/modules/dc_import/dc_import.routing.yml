@@ -35,3 +35,11 @@ dc_import.api_oauth_credentials:
   requirements:
     _access: 'TRUE'
   methods: [GET]
+
+dc_import.api_mcp_credentials:
+  path: '/api/dc-import/mcp-credentials'
+  defaults:
+    _controller: '\Drupal\dc_import\Controller\ImportApiController::getMcpCredentials'
+  requirements:
+    _access: 'TRUE'
+  methods: [GET]

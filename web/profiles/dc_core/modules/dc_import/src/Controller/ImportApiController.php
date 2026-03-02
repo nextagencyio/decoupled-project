@@ -407,4 +407,85 @@ class ImportApiController extends ControllerBase {
     }
   }
 
+  /**
+   * Get MCP Agent OAuth credentials for JSON:API access.
+   *
+   * Returns credentials for the "MCP Agent" OAuth consumer which has
+   * admin-level permissions (non-third-party, user_id=1).
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The JSON response with MCP Agent OAuth credentials.
+   */
+  public function getMcpCredentials(Request $request) {
+    if (!$this->authenticateRequest($request)) {
+      return new JsonResponse([
+        'success' => false,
+        'error' => 'Authentication required.',
+      ], 401);
+    }
+
+    try {
+      $consumer_storage = \Drupal::entityTypeManager()->getStorage('consumer');
+      $consumer_storage->resetCache();
+      $consumers = $consumer_storage->loadByProperties(['label' => 'MCP Agent']);
+
+      $client_id = '';
+      $client_secret = '';
+
+      if (empty($consumers)) {
+        // Create the MCP Agent consumer if it doesn't exist.
+        $client_id = \Drupal\Component\Utility\Crypt::randomBytesBase64();
+        $client_secret = (new \Drupal\Component\Utility\Random())->word(8);
+
+        $consumer_data = [
+          'client_id' => $client_id,
+          'secret' => $client_secret,
+          'label' => 'MCP Agent',
+          'user_id' => 1,
+          'third_party' => FALSE,
+          'is_default' => FALSE,
+        ];
+
+        $consumer_storage->create($consumer_data)->save();
+        \Drupal::logger('dc_import')->info('Created MCP Agent OAuth consumer via API');
+      }
+      else {
+        $consumer = reset($consumers);
+        $client_id = $consumer->getClientId();
+
+        // Get or regenerate the secret.
+        $stored_secret = $consumer->get('secret')->value;
+
+        if (empty($stored_secret) || preg_match('/^\$2[ayb]\$/', $stored_secret)) {
+          $client_secret = (new \Drupal\Component\Utility\Random())->word(8);
+          $consumer->set('secret', $client_secret);
+          $consumer->save();
+          $consumer_storage->resetCache([$consumer->id()]);
+          \Drupal::logger('dc_import')->info('Regenerated MCP Agent OAuth client secret');
+        }
+        else {
+          $client_secret = $stored_secret;
+        }
+      }
+
+      return new JsonResponse([
+        'success' => true,
+        'credentials' => [
+          'client_id' => $client_id,
+          'client_secret' => $client_secret,
+        ],
+      ]);
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_import')->error('Failed to get MCP credentials: @message', ['@message' => $e->getMessage()]);
+      return new JsonResponse([
+        'success' => false,
+        'error' => 'Failed to retrieve MCP credentials: ' . $e->getMessage(),
+      ], 500);
+    }
+  }
+
 }

@@ -651,6 +651,47 @@ function dc_core_update_10018() {
 }
 
 /**
+ * Create MCP Agent OAuth consumer and disable JSON:API read-only mode.
+ */
+function dc_core_update_10019() {
+  $messages = [];
+
+  // 1. Create MCP Agent OAuth consumer (non-third-party, inherits admin permissions).
+  $random = new Random();
+  $consumerStorage = \Drupal::entityTypeManager()->getStorage('consumer');
+
+  // Delete existing MCP Agent consumer if exists.
+  $existing = $consumerStorage->loadByProperties(['label' => 'MCP Agent']);
+  foreach ($existing as $consumer) {
+    $consumer->delete();
+  }
+
+  $mcpClientId = Crypt::randomBytesBase64();
+  $mcpClientSecret = $random->word(8);
+
+  $mcpData = [
+    'client_id' => $mcpClientId,
+    'client_secret' => $mcpClientSecret,
+    'label' => 'MCP Agent',
+    'user_id' => 1,
+    'third_party' => FALSE,
+    'is_default' => FALSE,
+  ];
+
+  $consumerStorage->create($mcpData)->save();
+  \Drupal::logger('dc_core')->notice('Created MCP Agent OAuth consumer (non-third-party, user 1).');
+  $messages[] = t('Created MCP Agent OAuth consumer.');
+
+  // 2. Disable JSON:API read-only mode (allows POST/PATCH/DELETE).
+  $config = \Drupal::configFactory()->getEditable('jsonapi.settings');
+  $config->set('read_only', FALSE)->save();
+  \Drupal::logger('dc_core')->notice('Set JSON:API read_only to FALSE.');
+  $messages[] = t('Disabled JSON:API read-only mode.');
+
+  return implode(' ', $messages);
+}
+
+/**
  * Install multilingual modules for existing sites.
  */
 function dc_core_update_10014() {
