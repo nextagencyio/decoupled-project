@@ -634,10 +634,8 @@
    */
   Drupal.behaviors.decoupledConfigStarters = {
     attach: function (context, settings) {
-      const starterCards = context.querySelectorAll('.dc-config-starter-card');
       const importBtn = document.getElementById('import-starter-btn');
-
-      if (!starterCards.length || !importBtn) {
+      if (!importBtn) {
         return;
       }
 
@@ -649,39 +647,19 @@
 
       let selectedStarter = null;
 
-      // Handle starter card selection
-      starterCards.forEach(function (card) {
-        card.addEventListener('click', function () {
-          // Remove selection from all cards
-          starterCards.forEach(function (c) {
-            c.classList.remove('dc-config-starter-card--selected');
-          });
-
-          // Select this card
-          this.classList.add('dc-config-starter-card--selected');
-
-          // Store selected starter data
-          const nameEl = this.querySelector('.dc-config-starter-name');
-          selectedStarter = {
-            id: this.dataset.starterId,
-            name: nameEl ? nameEl.textContent.trim() : this.dataset.starterId,
-            contentUrl: this.dataset.contentUrl,
-            vercelUrl: this.dataset.vercelUrl
-          };
-
-          // Enable import button only if starter has content
-          importBtn.disabled = !selectedStarter.contentUrl;
-
-          // Update Vercel deploy button URL if exists
-          updateVercelDeployUrl(selectedStarter.vercelUrl);
-
-          // Clear any previous status messages
-          const statusEl = document.getElementById('import-status');
-          if (statusEl) {
-            statusEl.innerHTML = '';
-          }
-        });
-      });
+      // Initialize from the single starter element or pre-selected card.
+      const starterEl = context.querySelector('.dc-config-starter-single') ||
+                        context.querySelector('.dc-config-starter-card--selected');
+      if (starterEl) {
+        const nameEl = starterEl.querySelector('.dc-config-starter-single-name') ||
+                       starterEl.querySelector('.dc-config-starter-name');
+        selectedStarter = {
+          id: starterEl.dataset.starterId,
+          name: nameEl ? nameEl.textContent.trim() : starterEl.dataset.starterId,
+          contentUrl: starterEl.dataset.contentUrl,
+          vercelUrl: starterEl.dataset.vercelUrl
+        };
+      }
 
       // Handle import button click
       importBtn.addEventListener('click', function () {

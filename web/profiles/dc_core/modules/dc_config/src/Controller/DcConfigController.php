@@ -130,38 +130,20 @@ class DcConfigController extends ControllerBase {
   }
 
   /**
-   * Fetch starters from the solutions registry.
+   * Get the default starter definition.
    *
    * @return array
-   *   Array of starter data.
+   *   The starter data.
    */
-  private function fetchStartersRegistry() {
-    $cid = 'dc_config:starters_registry';
-    $cache = \Drupal::cache()->get($cid);
-
-    if ($cache) {
-      return $cache->data;
-    }
-
-    try {
-      $client = \Drupal::httpClient();
-      $response = $client->get('https://www.decoupled.io/solutions.json', [
-        'timeout' => 5,
-      ]);
-      $data = json_decode($response->getBody()->getContents(), TRUE);
-      $starters = $data['starters'] ?? [];
-
-      // Cache for 1 hour.
-      \Drupal::cache()->set($cid, $starters, time() + 3600);
-
-      return $starters;
-    }
-    catch (\Exception $e) {
-      \Drupal::logger('dc_config')->warning('Failed to fetch starters registry: @message', [
-        '@message' => $e->getMessage(),
-      ]);
-      return [];
-    }
+  private function getDefaultStarter() {
+    return [
+      'id' => 'starter',
+      'name' => 'Basic Starter',
+      'description' => 'Articles, pages, and basic content site',
+      'icon' => 'newspaper',
+      'contentUrl' => 'https://raw.githubusercontent.com/nextagencyio/decoupled-starter/main/data/starter-content.json',
+      'vercelUrl' => 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter',
+    ];
   }
 
   /**
@@ -199,7 +181,7 @@ class DcConfigController extends ControllerBase {
     // Check if a starter has already been imported.
     $importedStarter = \Drupal::state()->get('dc_config.imported_starter');
 
-    // If already imported, show success message instead of grid.
+    // If already imported, show success message.
     if ($importedStarter) {
       $starterName = $importedStarter['name'] ?? $importedStarter['id'] ?? 'Unknown';
       return '
@@ -220,39 +202,25 @@ class DcConfigController extends ControllerBase {
       ';
     }
 
-    $starters = $this->fetchStartersRegistry();
-
-    if (empty($starters)) {
-      return '';
-    }
-
-    $cards = '';
-    foreach ($starters as $starter) {
-      $contentUrl = $starter['contentUrl'] ?? '';
-      $vercelUrl = $starter['vercelUrl'] ?? '';
-      $hasContent = !empty($contentUrl);
-      $disabledClass = $hasContent ? '' : ' dc-config-starter-card--no-content';
-      $colorClass = 'dc-config-starter-icon--' . htmlspecialchars($starter['id']);
-
-      $cards .= '<div class="dc-config-starter-card' . $disabledClass . '"
-                      data-starter-id="' . htmlspecialchars($starter['id']) . '"
-                      data-content-url="' . htmlspecialchars($contentUrl) . '"
-                      data-vercel-url="' . htmlspecialchars($vercelUrl) . '">
-        <div class="dc-config-starter-icon ' . $colorClass . '">
-          ' . $this->getIconSvg($starter['icon']) . '
-        </div>
-        <div class="dc-config-starter-name">' . htmlspecialchars($starter['name']) . '</div>
-      </div>';
-    }
+    $starter = $this->getDefaultStarter();
 
     return '
     <div class="dc-config-section dc-config-starter-section">
-      <h2>Choose a Starter Template</h2>
-      <p class="dc-config-subtitle">Select a template to import content types and sample data into your Drupal site.</p>
-      <div class="dc-config-starter-grid">' . $cards . '</div>
-      <button type="button" class="dc-config-import-btn" id="import-starter-btn" disabled>
-        Import Selected Starter
-      </button>
+      <div class="dc-config-starter-single"
+           data-starter-id="' . htmlspecialchars($starter['id']) . '"
+           data-content-url="' . htmlspecialchars($starter['contentUrl']) . '"
+           data-vercel-url="' . htmlspecialchars($starter['vercelUrl']) . '">
+        <div class="dc-config-starter-single-icon dc-config-starter-icon--starter">
+          ' . $this->getIconSvg($starter['icon']) . '
+        </div>
+        <div class="dc-config-starter-single-info">
+          <div class="dc-config-starter-single-name">' . htmlspecialchars($starter['name']) . '</div>
+          <div class="dc-config-starter-single-desc">' . htmlspecialchars($starter['description']) . '</div>
+        </div>
+        <button type="button" class="dc-config-import-btn" id="import-starter-btn">
+          Import Content
+        </button>
+      </div>
       <div id="import-status" class="dc-config-import-status"></div>
     </div>
 
@@ -521,12 +489,12 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             </div>
 
             <div class="dc-config-divider">
-              <span>or configure manually</span>
+              <span>advanced / local development</span>
             </div>
 
-            <div class="dc-config-section">
-              <h2>🔧 Environment Configuration</h2>
-              <p>Create or update your <code>.env.local</code> file in your Next.js project root:</p>
+            <div class="dc-config-section dc-config-advanced-section">
+              <h2>🔧 Manual Configuration</h2>
+              <p>For local development or manual setup, create a <code>.env.local</code> file in your Next.js project root:</p>
 
               ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
 
@@ -549,35 +517,35 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             <div class="dc-config-sidebar-content">
             <h3>
               <span class="dc-config-sidebar-icon">📋</span>
-              Setup Checklist
+              Quick Start
             </h3>
             <div class="dc-config-checklist">
               <div class="dc-config-checklist-item">
                 <div class="dc-config-step-number">1</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Copy Environment Variables</div>
-                  <div class="dc-config-step-description">Add the .env.local configuration to your Next.js project</div>
+                  <div class="dc-config-step-title">Import Starter Content</div>
+                  <div class="dc-config-step-description">Add content types and sample data to your site</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
                 <div class="dc-config-step-number">2</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Install Dependencies</div>
-                  <div class="dc-config-step-description">Run npm install in your project directory</div>
+                  <div class="dc-config-step-title">Deploy to Vercel</div>
+                  <div class="dc-config-step-description">One-click deploy creates your Next.js frontend</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
                 <div class="dc-config-step-number">3</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Start Development Server</div>
-                  <div class="dc-config-step-description">Run npm run dev to start your application</div>
+                  <div class="dc-config-step-title">Connect to Vercel</div>
+                  <div class="dc-config-step-description">Auto-sync environment variables to your project</div>
                 </div>
               </div>
               <div class="dc-config-checklist-item">
                 <div class="dc-config-step-number">4</div>
                 <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Test Connection</div>
-                  <div class="dc-config-step-description">Verify your frontend connects to this Drupal backend</div>
+                  <div class="dc-config-step-title">You\'re Live!</div>
+                  <div class="dc-config-step-description">Your headless Drupal site is ready to go</div>
                 </div>
               </div>
             </div>
