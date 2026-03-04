@@ -1659,19 +1659,32 @@ class DrupalContentImporter {
       return;
     }
 
-    // Use the ContentLanguageSettings entity API instead of raw config.
-    // This ensures the config entity is properly structured with all required fields.
+    // Use the language settings config entity API instead of raw config.
+    // Support both storage IDs used across Drupal/core variants.
+    $language_settings_storage = NULL;
+    if ($this->entityTypeManager->hasDefinition('language_content_settings')) {
+      $language_settings_storage = 'language_content_settings';
+    }
+    elseif ($this->entityTypeManager->hasDefinition('content_language_settings')) {
+      $language_settings_storage = 'content_language_settings';
+    }
+
+    if (!$language_settings_storage) {
+      $result['warnings'][] = "Skipped content translation enablement for {$entity_type}.{$bundle}: language settings entity type is unavailable";
+      return;
+    }
+
     $config_id = "{$entity_type}.{$bundle}";
 
     /** @var \Drupal\language\ContentLanguageSettingsInterface $content_language_settings */
     $content_language_settings = $this->entityTypeManager
-      ->getStorage('language_content_settings')
+      ->getStorage($language_settings_storage)
       ->load($config_id);
 
     if (!$content_language_settings) {
       // Create new content language settings entity.
       $content_language_settings = $this->entityTypeManager
-        ->getStorage('language_content_settings')
+        ->getStorage($language_settings_storage)
         ->create([
           'id' => $config_id,
           'target_entity_type_id' => $entity_type,
@@ -2151,5 +2164,3 @@ class DrupalContentImporter {
     return $cleared_any;
   }
 }
-
-
