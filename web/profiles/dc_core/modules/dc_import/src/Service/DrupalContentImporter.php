@@ -783,6 +783,11 @@ class DrupalContentImporter {
         }
       }
 
+      // Auto-create the body field instance if content uses it but the model didn't declare body: true.
+      if ($field_id === 'body') {
+        $this->addBodyFieldToContentType($bundle, FALSE, $result);
+      }
+
       if ($this->isReservedField($field_id, 'node')) {
         $node_data[$field_id] = $this->mapFieldValueConcise($value, $field_id);
       } else {
