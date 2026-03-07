@@ -233,10 +233,10 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       return rtrim($api_url, '/');
     }
 
-    // Check for site-specific configuration
+    // Check for site-specific configuration (ignore host.docker.internal in production)
     $config = $this->configFactory->get('dc_chatbot.settings');
     $configured_url = $config->get('api_url');
-    if ($configured_url) {
+    if ($configured_url && strpos($configured_url, 'host.docker.internal') === FALSE) {
       return rtrim($configured_url, '/');
     }
 

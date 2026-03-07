@@ -1,2 +1,2 @@
 enabled: false
-api_url: 'http://host.docker.internal:3333/api/chatbot'
+api_url: ''

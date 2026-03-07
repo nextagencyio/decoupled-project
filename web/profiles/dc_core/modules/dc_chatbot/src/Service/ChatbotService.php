@@ -128,12 +128,20 @@ class ChatbotService {
   protected function callNextjsAPI(string $message, array $context = []) {
     $config = $this->configFactory->get('dc_chatbot.settings');
 
-    // Get Next.js API URL from configuration
-    $nextjsApiUrl = $config->get('api_url');
-    if (empty($nextjsApiUrl)) {
-      // No fallback detection - require explicit configuration
-      \Drupal::logger('dc_chatbot')->error('Next.js API URL is not configured. Please configure it in the chatbot settings.');
-      throw new \Exception('Next.js API URL is not configured. Please configure the chatbot settings.');
+    // Get Next.js API URL from environment variable, config, or derive from hostname.
+    $nextjsApiUrl = getenv('NEXTJS_API_URL') ?: $config->get('api_url');
+    if (empty($nextjsApiUrl) || strpos($nextjsApiUrl, 'host.docker.internal') !== FALSE) {
+      // Derive dashboard URL from current hostname.
+      $request = \Drupal::request();
+      $host = $request->getHttpHost();
+      $parts = explode('.', $host);
+      if (count($parts) >= 2) {
+        $root_domain = implode('.', array_slice($parts, 1));
+        $nextjsApiUrl = 'https://dashboard.' . $root_domain . '/api/chatbot';
+      }
+      else {
+        throw new \Exception('Next.js API URL could not be determined. Please configure the chatbot settings.');
+      }
     }
 
     // Extract space ID from context or derive from hostname

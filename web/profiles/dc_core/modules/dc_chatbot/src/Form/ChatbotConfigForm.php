@@ -54,7 +54,7 @@ class ChatbotConfigForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#title' => $this->t('Decoupled Drupal Chatbot API URL'),
       '#description' => $this->t('The URL endpoint for communicating with Decoupled Drupal\'s centralized AI system. This connects your site\'s chatbot to our intelligent response engine.'),
-      '#default_value' => $config->get('api_url', 'http://host.docker.internal:3333/api/chatbot'),
+      '#default_value' => $config->get('api_url') ?: '',
       '#maxlength' => 255,
       '#disabled' => TRUE,
       '#attributes' => ['readonly' => 'readonly'],
