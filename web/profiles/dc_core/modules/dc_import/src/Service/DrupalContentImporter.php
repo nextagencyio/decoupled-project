@@ -1379,7 +1379,8 @@ class DrupalContentImporter {
     $field_storage = $this->entityTypeManager->getStorage('field_config');
     $existing_field = $field_storage->load($field_config_id);
     if ($existing_field) {
-      $result['warnings'][] = "Body field already exists for {$bundle}, skipping";
+      // Body field already exists — ensure it's visible on the form display.
+      $this->ensureBodyOnFormDisplay($bundle);
       return;
     }
     // Get or create the body field storage.
@@ -1410,6 +1411,37 @@ class DrupalContentImporter {
     ]);
     $field_config->save();
     $result['summary'][] = "Added body field to node type: {$bundle}";
+
+    // Ensure body is visible on the form display.
+    $this->ensureBodyOnFormDisplay($bundle);
+  }
+
+  /**
+   * Ensures the body field is visible on the form display.
+   */
+  private function ensureBodyOnFormDisplay($bundle) {
+    $form_display = $this->entityTypeManager
+      ->getStorage('entity_form_display')
+      ->load("node.{$bundle}.default");
+    if (!$form_display) {
+      return;
+    }
+    $body_component = $form_display->getComponent('body');
+    if (!$body_component) {
+      $form_display->setComponent('body', [
+        'type' => 'text_textarea_with_summary',
+        'weight' => 10,
+        'region' => 'content',
+        'settings' => [
+          'rows' => 9,
+          'summary_rows' => 3,
+          'placeholder' => '',
+          'show_summary' => FALSE,
+        ],
+        'third_party_settings' => [],
+      ]);
+      $form_display->save();
+    }
   }
 
   /**
