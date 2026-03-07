@@ -394,7 +394,8 @@ class ImportApiController extends ControllerBase {
           "NEXT_IMAGE_DOMAIN=" . parse_url($site_url, PHP_URL_HOST) . "\n" .
           "DRUPAL_CLIENT_ID=" . $client_id . "\n" .
           "DRUPAL_CLIENT_SECRET=" . $client_secret . "\n" .
-          "DRUPAL_REVALIDATE_SECRET=" . $revalidate_secret,
+          "DRUPAL_REVALIDATE_SECRET=" . $revalidate_secret . "\n" .
+          "NEXT_PUBLIC_DEMO_MODE=false",
       ]);
 
     }
