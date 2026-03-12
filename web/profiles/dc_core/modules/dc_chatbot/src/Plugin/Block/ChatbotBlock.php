@@ -157,6 +157,14 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       return [];
     }
 
+    // Only render on *.decoupled.website hosts (production platform).
+    // This prevents local network access prompts on non-production hosts.
+    $request = \Drupal::request();
+    $host = $request->getHttpHost();
+    if (substr($host, -20) !== '.decoupled.website') {
+      return [];
+    }
+
     return [
       '#theme' => 'dc_chatbot_block',
       '#button_text' => $block_config['button_text'],
@@ -225,38 +233,12 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
 
   /**
    * Get the Next.js API URL.
+   *
+   * Hardcoded to production. The chatbot only works on *.decoupled.website
+   * hosts and always calls the production dashboard API.
    */
   protected function getNextjsApiUrl() {
-    // Check for environment variable first
-    $api_url = getenv('NEXTJS_API_URL');
-    if ($api_url) {
-      return rtrim($api_url, '/');
-    }
-
-    // Check for site-specific configuration (ignore host.docker.internal in production)
-    $config = $this->configFactory->get('dc_chatbot.settings');
-    $configured_url = $config->get('api_url');
-    if ($configured_url && strpos($configured_url, 'host.docker.internal') === FALSE) {
-      return rtrim($configured_url, '/');
-    }
-
-    // Development/local fallback
-    $request = \Drupal::request();
-    $host = $request->getHttpHost();
-
-    if (strpos($host, 'localhost') !== FALSE || strpos($host, '127.0.0.1') !== FALSE || strpos($host, '.ddev.site') !== FALSE) {
-      return 'http://host.docker.internal:3333';
-    }
-
-    // Production fallback - determine dashboard URL based on current domain
-    $parts = explode('.', $host);
-    if (count($parts) >= 2) {
-      // Extract root domain (e.g., from site.decoupled.dev -> decoupled.dev)
-      $root_domain = implode('.', array_slice($parts, 1));
-      return 'https://dashboard.' . $root_domain;
-    }
-
-    return 'https://dashboard.drupalcloud.com/api/chatbot';
+    return 'https://dashboard.decoupled.io/api/chatbot';
   }
 
 }

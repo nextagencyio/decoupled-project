@@ -638,19 +638,12 @@
 
   // Helper method to determine Next.js API URL
   DecoupledChatbot.prototype.getNextjsApiUrl = function () {
-    // In development, the Next.js app typically runs on localhost:3333
-    // In production, this should be configured via drupalSettings
+    // Always use production dashboard API.
+    // The chatbot only renders on *.decoupled.website hosts.
     if (drupalSettings.decoupledChatbot && drupalSettings.decoupledChatbot.nextjsApiUrl) {
       return drupalSettings.decoupledChatbot.nextjsApiUrl;
     }
-
-    // Development fallback
-    if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
-      return 'http://localhost:3333';
-    }
-
-    // Production fallback - assume same domain but different port or subdomain
-    return 'https://dashboard.' + window.location.hostname.replace(/^[^.]+\./, '');
+    return 'https://dashboard.decoupled.io/api/chatbot';
   };
 
   DecoupledChatbot.prototype.parseMarkdown = function (text) {

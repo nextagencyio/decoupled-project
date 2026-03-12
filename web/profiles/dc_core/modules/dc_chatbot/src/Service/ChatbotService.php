@@ -128,21 +128,9 @@ class ChatbotService {
   protected function callNextjsAPI(string $message, array $context = []) {
     $config = $this->configFactory->get('dc_chatbot.settings');
 
-    // Get Next.js API URL from environment variable, config, or derive from hostname.
-    $nextjsApiUrl = getenv('NEXTJS_API_URL') ?: $config->get('api_url');
-    if (empty($nextjsApiUrl) || strpos($nextjsApiUrl, 'host.docker.internal') !== FALSE) {
-      // Derive dashboard URL from current hostname.
-      $request = \Drupal::request();
-      $host = $request->getHttpHost();
-      $parts = explode('.', $host);
-      if (count($parts) >= 2) {
-        $root_domain = implode('.', array_slice($parts, 1));
-        $nextjsApiUrl = 'https://dashboard.' . $root_domain . '/api/chatbot';
-      }
-      else {
-        throw new \Exception('Next.js API URL could not be determined. Please configure the chatbot settings.');
-      }
-    }
+    // Hardcoded production API URL. The chatbot only works on
+    // *.decoupled.website hosts and always calls the production dashboard.
+    $nextjsApiUrl = 'https://dashboard.decoupled.io/api/chatbot';
 
     // Extract space ID from context or derive from hostname
     $spaceId = $context['spaceId'] ?? '';
