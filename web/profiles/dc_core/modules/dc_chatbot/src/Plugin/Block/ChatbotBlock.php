@@ -170,7 +170,7 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     // This prevents local network access prompts on non-production hosts.
     $request = \Drupal::request();
     $host = $request->getHttpHost();
-    if (substr($host, -20) !== '.decoupled.website') {
+    if (!str_ends_with($host, '.decoupled.website')) {
       return $cache;
     }
 
