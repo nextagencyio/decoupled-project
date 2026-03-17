@@ -119,7 +119,16 @@ function _dc_core_configure_chatbot() {
   $config->set('api_url', $api_url);
   // API key will be set by the dashboard via webhook after installation.
   $config->save();
-  
+
+  // Grant chatbot permission to anonymous and authenticated users.
+  foreach (['anonymous', 'authenticated'] as $rid) {
+    $role = Role::load($rid);
+    if ($role && !$role->hasPermission('use decoupled chatbot')) {
+      $role->grantPermission('use decoupled chatbot');
+      $role->save();
+    }
+  }
+
   \Drupal::logger('dc_core')->notice('Configured chatbot with API URL: ' . $api_url);
 }
 
@@ -689,6 +698,24 @@ function dc_core_update_10019() {
   $messages[] = t('Disabled JSON:API read-only mode.');
 
   return implode(' ', $messages);
+}
+
+/**
+ * Grant 'use decoupled chatbot' permission to anonymous and authenticated.
+ */
+function dc_core_update_10020() {
+  $messages = [];
+
+  foreach (['anonymous', 'authenticated'] as $rid) {
+    $role = Role::load($rid);
+    if ($role && !$role->hasPermission('use decoupled chatbot')) {
+      $role->grantPermission('use decoupled chatbot');
+      $role->save();
+      $messages[] = t('Granted chatbot permission to @role.', ['@role' => $rid]);
+    }
+  }
+
+  return implode(' ', $messages) ?: t('Chatbot permissions already set.');
 }
 
 /**
