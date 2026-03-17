@@ -146,15 +146,24 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     $config = $this->configFactory->get('dc_chatbot.settings');
     $block_config = $this->getConfiguration();
 
-    // Don't render if chatbot is disabled
+    // Cache metadata must be present even on early returns so Drupal
+    // knows to vary the cached result by these dimensions.
+    $cache = [
+      '#cache' => [
+        'tags' => ['config:dc_chatbot.settings'],
+        'contexts' => ['user.permissions', 'url.site'],
+      ],
+    ];
+
+    // Don't render if chatbot is disabled.
     if (!$config->get('enabled', FALSE)) {
-      return [];
+      return $cache;
     }
 
-    // Don't render if API key is not configured (check environment variable)
+    // Don't render if API key is not configured (check environment variable).
     $apiKey = getenv('CHATBOT_API_KEY');
     if (empty($apiKey)) {
-      return [];
+      return $cache;
     }
 
     // Only render on *.decoupled.website hosts (production platform).
@@ -162,7 +171,7 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     $request = \Drupal::request();
     $host = $request->getHttpHost();
     if (substr($host, -20) !== '.decoupled.website') {
-      return [];
+      return $cache;
     }
 
     return [
@@ -192,7 +201,7 @@ class ChatbotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       ],
       '#cache' => [
         'tags' => ['config:dc_chatbot.settings'],
-        'contexts' => ['user.permissions'],
+        'contexts' => ['user.permissions', 'url.site'],
       ],
     ];
   }
