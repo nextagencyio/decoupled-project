@@ -22,16 +22,15 @@ function dc_config_page_attachments(array &$attachments) {
 }
 
 /**
- * Implements hook_preprocess_ginlogin().
+ * Implements hook_preprocess_page().
  *
  * Fix gin_login brand image and icon URLs to use relative paths.
  * The contrib module uses generateAbsoluteString() which resolves to the
- * request host. When Kubernetes liveness/readiness probes or drush cr hit
- * the pod directly, the cached URL contains the pod's internal IP (e.g.
- * http://10.42.0.119/...) instead of the public domain, triggering browser
+ * request host. When Kubernetes health probes hit the pod on localhost,
+ * the cached URL contains http://localhost/... which triggers browser
  * "access local network" prompts.
  */
-function dc_config_preprocess_ginlogin(&$variables) {
+function dc_config_preprocess_page(&$variables) {
   // Convert brand_image to a root-relative URL.
   if (!empty($variables['brand_image'])) {
     $parsed = parse_url($variables['brand_image']);
