@@ -9,6 +9,8 @@
  * Implements hook_install().
  */
 function dc_config_install() {
+  // Run after gin_login (weight 0) so our preprocess_page overrides its values.
+  module_set_weight('dc_config', 10);
   // Configure Gin theme settings
   $gin_config = \Drupal::configFactory()->getEditable('gin.settings');
   $gin_config->set('preset_accent_color', 'dark_purple');
@@ -77,4 +79,12 @@ function dc_config_update_9003() {
   $gin_config->save();
 
   return t('Updated Gin theme accent color to dark purple.');
+}
+
+/**
+ * Set module weight so dc_config preprocess runs after gin_login.
+ */
+function dc_config_update_9004() {
+  module_set_weight('dc_config', 10);
+  return t('Set dc_config module weight to 10 (runs after gin_login).');
 }
