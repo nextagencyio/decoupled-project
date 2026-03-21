@@ -420,7 +420,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                           Sync Environment Variables
                         </button>
                         <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h6"/><path d="M4 6v6"/><path d="M4.93 19.07A10 10 0 0 0 17.01 20.66"/><path d="M20 18h-6"/><path d="M20 18v-6"/></svg>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
                           Trigger Rebuild
                         </button>
                       </div>
@@ -883,6 +883,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     $this->messenger()->addStatus($this->t('Disconnected from Vercel.'));
     \Drupal::logger('dc_config')->info('Disconnected from Vercel');
 
+    // Invalidate render cache so the page reflects the disconnected state.
+    \Drupal::service('cache.render')->invalidateAll();
+
     if ($request->isXmlHttpRequest()) {
       return new JsonResponse(['success' => TRUE, 'message' => 'Disconnected from Vercel']);
     }
@@ -1064,6 +1067,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'DRUPAL_CLIENT_ID' => $clientId,
       'DRUPAL_CLIENT_SECRET' => $clientSecret,
       'DRUPAL_REVALIDATE_SECRET' => $revalidateSecret,
+      'NEXT_PUBLIC_DEMO_MODE' => 'false',
     ];
   }
 
