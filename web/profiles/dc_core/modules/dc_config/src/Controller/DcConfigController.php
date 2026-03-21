@@ -598,6 +598,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'g',
     ];
 
+    // Disable render caching so Vercel connection status is always fresh.
+    $build['#cache'] = ['max-age' => 0];
+
     return $build;
   }
 
@@ -882,9 +885,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     $this->vercelApi->disconnect();
     $this->messenger()->addStatus($this->t('Disconnected from Vercel.'));
     \Drupal::logger('dc_config')->info('Disconnected from Vercel');
-
-    // Invalidate render cache so the page reflects the disconnected state.
-    \Drupal::service('cache.render')->invalidateAll();
 
     if ($request->isXmlHttpRequest()) {
       return new JsonResponse(['success' => TRUE, 'message' => 'Disconnected from Vercel']);
