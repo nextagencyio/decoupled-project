@@ -22,15 +22,16 @@ function dc_config_page_attachments(array &$attachments) {
 }
 
 /**
- * Implements hook_preprocess_page().
+ * Implements hook_preprocess_ginlogin().
  *
  * Fix gin_login brand image and icon URLs to use relative paths.
- * The contrib module uses generateAbsoluteString() which resolves to the
- * request host. When Kubernetes health probes hit the pod on localhost,
- * the cached URL contains http://localhost/... which triggers browser
- * "access local network" prompts.
+ * The gin_login contrib module uses the 'ginlogin' theme hook (not 'page'),
+ * and calls generateAbsoluteString() which resolves to the request host.
+ * When Kubernetes health probes hit the pod on localhost, the cached URL
+ * contains http://localhost/... which triggers browser "access local network"
+ * prompts. dc_config module weight is set to 10 so this runs after gin_login.
  */
-function dc_config_preprocess_page(&$variables) {
+function dc_config_preprocess_ginlogin(&$variables) {
   // Convert brand_image to a root-relative URL.
   if (!empty($variables['brand_image'])) {
     $parsed = parse_url($variables['brand_image']);
