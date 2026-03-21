@@ -575,8 +575,7 @@
 
             if (state === 'READY') {
               clearInterval(pollInterval);
-              var linkHtml = deployUrl ? ' <a href="' + deployUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
-              statusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Build complete! Site is live.' + linkHtml + '</span>';
+              statusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Build complete! Visit your production Vercel URL to see changes.</span>';
             } else if (state === 'ERROR' || state === 'CANCELED') {
               clearInterval(pollInterval);
               statusEl.innerHTML = '<span style="color: #ef4444;">&#10007; Build ' + state.toLowerCase() + '. Check Vercel dashboard for details.</span>';
@@ -614,8 +613,7 @@
             var diffMinutes = Math.round((now - created) / 60000);
 
             if (diffMinutes < 5) {
-              var linkHtml = siteUrl ? ' <a href="' + siteUrl + '" target="_blank" style="color: #22c55e; text-decoration: underline;">Visit site &rarr;</a>' : '';
-              deployStatusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Latest build succeeded.' + linkHtml + '</span>';
+              deployStatusEl.innerHTML = '<span style="color: #22c55e;">&#10003; Latest build succeeded. Visit your production Vercel URL to see changes.</span>';
             }
           }
         }
