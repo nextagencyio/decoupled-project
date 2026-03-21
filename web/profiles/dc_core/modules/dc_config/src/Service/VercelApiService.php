@@ -273,6 +273,64 @@ class VercelApiService {
   }
 
   /**
+   * Get the production URL for a Vercel project.
+   *
+   * Queries the Vercel API for the actual production domain instead of
+   * assuming {project-name}.vercel.app (which is often wrong).
+   *
+   * @param string $project_id
+   *   The Vercel project ID.
+   *
+   * @return string|null
+   *   The production URL (with https://), or NULL if not found.
+   */
+  public function getProjectProductionUrl(string $project_id): ?string {
+    $config = $this->getConfig();
+    $accessToken = $config->get('access_token');
+
+    if (empty($accessToken)) {
+      return NULL;
+    }
+
+    try {
+      $url = self::API_BASE . '/v9/projects/' . $project_id;
+      $teamId = $config->get('team_id');
+      if (!empty($teamId)) {
+        $url .= '?teamId=' . $teamId;
+      }
+
+      $response = $this->httpClient->request('GET', $url, [
+        'headers' => [
+          'Authorization' => 'Bearer ' . $accessToken,
+        ],
+        'timeout' => 10,
+      ]);
+
+      $data = json_decode($response->getBody()->getContents(), TRUE);
+
+      // Try production alias first (the actual deployed URL).
+      if (!empty($data['targets']['production']['alias'][0])) {
+        return 'https://' . $data['targets']['production']['alias'][0];
+      }
+
+      // Fall back to project-level alias.
+      if (!empty($data['alias'][0]['domain'])) {
+        return 'https://' . $data['alias'][0]['domain'];
+      }
+
+      // Last resort: construct from project name.
+      $name = $data['name'] ?? $project_id;
+      return 'https://' . $name . '.vercel.app';
+    }
+    catch (GuzzleException $e) {
+      $this->logger->error('Failed to fetch Vercel project URL: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return NULL;
+    }
+  }
+
+  /**
    * Set environment variables on a Vercel project.
    *
    * @param string $project_id
