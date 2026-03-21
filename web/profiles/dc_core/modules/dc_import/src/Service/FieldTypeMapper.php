@@ -399,6 +399,31 @@ class FieldTypeMapper {
           'widget' => 'datetime_default',
         ];
 
+      case 'select':
+        // select(option1|option2|option3) → list_string with allowed values.
+        $allowed_values = [];
+        if ($param) {
+          $options = preg_split('/[|,]/', $param);
+          foreach ($options as $option) {
+            $option = trim($option);
+            if ($option) {
+              // Use the option as both key and label, with label prettified.
+              $label = ucwords(str_replace(['_', '-'], ' ', $option));
+              $allowed_values[] = ['value' => $option, 'label' => $label];
+            }
+          }
+        }
+        return [
+          'type' => 'list_string',
+          'settings' => [
+            'allowed_values' => $allowed_values,
+          ],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'options_select',
+        ];
+
       case 'image':
         return [
           'type' => 'image',
