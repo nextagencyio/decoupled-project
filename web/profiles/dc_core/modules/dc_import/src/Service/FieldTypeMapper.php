@@ -407,9 +407,9 @@ class FieldTypeMapper {
           foreach ($options as $option) {
             $option = trim($option);
             if ($option) {
-              // Use the option as both key and label, with label prettified.
+              // Drupal expects allowed_values as key => label pairs.
               $label = ucwords(str_replace(['_', '-'], ' ', $option));
-              $allowed_values[] = ['value' => $option, 'label' => $label];
+              $allowed_values[$option] = $label;
             }
           }
         }
