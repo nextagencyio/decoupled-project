@@ -45,6 +45,7 @@ class DrupalConfigImporter {
     'responsive_image.styles.',
     'graphql_compose.settings',
     'decoupled_preview_iframe.',
+    'dc_revalidate.',
   ];
 
   /**
