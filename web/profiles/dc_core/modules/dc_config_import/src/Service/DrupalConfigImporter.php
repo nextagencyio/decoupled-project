@@ -44,6 +44,7 @@ class DrupalConfigImporter {
     'metatag.metatag_defaults.',
     'responsive_image.styles.',
     'graphql_compose.settings',
+    'decoupled_preview_iframe.',
   ];
 
   /**
