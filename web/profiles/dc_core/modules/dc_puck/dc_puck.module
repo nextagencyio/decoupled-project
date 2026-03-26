@@ -1,0 +1,46 @@
+<?php
+
+/**
+ * @file
+ * Adds a "Design" button to node edit forms that opens the Puck visual editor.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for node forms.
+ */
+function dc_puck_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $node = $form_state->getFormObject()->getEntity();
+
+  // Only add to content types that have a paragraph sections field.
+  if (!$node->hasField('field_sections')) {
+    return;
+  }
+
+  // Get the Puck editor URL from state (set via drush or during setup).
+  $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
+  if (empty($puck_url)) {
+    return;
+  }
+
+  // Only show the Design button for existing nodes (not on create form).
+  if ($node->isNew()) {
+    return;
+  }
+
+  $nid = $node->id();
+
+  $form['actions']['design'] = [
+    '#type' => 'link',
+    '#title' => t('Design'),
+    '#url' => Url::fromUri($puck_url . '/editor/' . $nid),
+    '#attributes' => [
+      'class' => ['button', 'button--primary'],
+      'target' => '_blank',
+      'rel' => 'noopener',
+    ],
+    '#weight' => 10,
+  ];
+}

@@ -1,0 +1,7 @@
+name: 'DC Puck Editor'
+type: module
+description: 'Adds a Design button to node edit forms that launches the Puck visual editor'
+core_version_requirement: ^10 || ^11
+package: 'Decoupled'
+dependencies:
+  - drupal:node
