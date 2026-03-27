@@ -372,12 +372,18 @@ class PuckMappingService {
           $targetBundles = $handlerSettings['target_bundles'] ?? [];
           $targetType = !empty($targetBundles) ? reset($targetBundles) : '';
 
-          $fields[$puckProp] = [
-            'drupal_field' => $fieldName,
-            'type' => 'paragraphs',
-            'target_type' => $targetType,
-            'label' => $fieldConfig->getLabel(),
-          ];
+          if (!empty($targetType)) {
+            $fields[$puckProp] = [
+              'drupal_field' => $fieldName,
+              'type' => 'paragraphs',
+              'target_type' => $targetType,
+              'label' => $fieldConfig->getLabel(),
+            ];
+          }
+          else {
+            // No target bundle — treat as a skip (unsupported field).
+            // This handles edge cases like string[] imported as ERR without bundles.
+          }
         }
         elseif (in_array($fieldType, ['text_long', 'text_with_summary'])) {
           $fields[$puckProp] = [
