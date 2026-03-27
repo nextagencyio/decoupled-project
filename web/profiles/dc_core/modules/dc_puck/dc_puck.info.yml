@@ -1,7 +1,8 @@
 name: 'DC Puck Editor'
 type: module
-description: 'Adds a Design button to node edit forms that launches the Puck visual editor'
+description: 'Visual page builder integration with Puck editor — maps Puck components to Drupal paragraphs'
 core_version_requirement: ^10 || ^11
 package: 'Decoupled'
 dependencies:
   - drupal:node
+  - paragraphs:paragraphs

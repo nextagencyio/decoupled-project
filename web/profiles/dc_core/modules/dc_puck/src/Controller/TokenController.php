@@ -71,27 +71,6 @@ class TokenController extends ControllerBase {
       return new JsonResponse(['error' => 'User does not have edit access'], 403);
     }
 
-    // Generate an OAuth token for this user using the MCP Agent consumer.
-    $consumerStorage = $this->entityTypeManager()->getStorage('consumer');
-    $consumers = $consumerStorage->loadByProperties(['label' => 'MCP Agent']);
-    $consumer = reset($consumers);
-
-    if (!$consumer) {
-      return new JsonResponse(['error' => 'MCP Agent consumer not found'], 500);
-    }
-
-    // Get the client_id and generate a token via simple_oauth.
-    $clientId = $consumer->get('client_id')->value;
-
-    // Use the Drupal password grant to generate a token for the specific user.
-    // Since we've already validated the user, we generate the token directly.
-    try {
-      $tokenData = $this->generateOAuthToken($consumer, $user);
-    }
-    catch (\Exception $e) {
-      return new JsonResponse(['error' => 'Failed to generate OAuth token: ' . $e->getMessage()], 500);
-    }
-
     return new JsonResponse([
       'success' => TRUE,
       'user' => [
