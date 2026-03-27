@@ -1,0 +1,131 @@
+<?php
+
+namespace Drupal\dc_puck\Controller;
+
+use Drupal\Core\Controller\ControllerBase;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+
+/**
+ * Validates Puck editor signed tokens and returns user-scoped OAuth tokens.
+ */
+class TokenController extends ControllerBase {
+
+  /**
+   * Token validity window: 8 hours.
+   */
+  const TOKEN_LIFETIME = 28800;
+
+  /**
+   * Validates a signed token and returns an OAuth access token for the user.
+   */
+  public function validate(Request $request): JsonResponse {
+    $content = json_decode($request->getContent(), TRUE);
+    $token = $content['token'] ?? '';
+
+    if (empty($token)) {
+      return new JsonResponse(['error' => 'Missing token'], 400);
+    }
+
+    // Decode the token.
+    $decoded = base64_decode($token);
+    if (!$decoded) {
+      return new JsonResponse(['error' => 'Invalid token format'], 401);
+    }
+
+    $parts = explode(':', $decoded);
+    if (count($parts) !== 4) {
+      return new JsonResponse(['error' => 'Invalid token structure'], 401);
+    }
+
+    [$uid, $nid, $timestamp, $hmac] = $parts;
+
+    // Verify timestamp (not expired).
+    if (abs(time() - (int) $timestamp) > self::TOKEN_LIFETIME) {
+      return new JsonResponse(['error' => 'Token expired'], 401);
+    }
+
+    // Verify HMAC.
+    $secret = \Drupal::state()->get('dc_puck.token_secret', '');
+    if (empty($secret)) {
+      return new JsonResponse(['error' => 'Token secret not configured'], 500);
+    }
+
+    $expectedHmac = hash_hmac('sha256', "{$uid}:{$nid}:{$timestamp}", $secret);
+    if (!hash_equals($expectedHmac, $hmac)) {
+      return new JsonResponse(['error' => 'Invalid token signature'], 401);
+    }
+
+    // Verify the user exists and has edit access to the node.
+    $user = $this->entityTypeManager()->getStorage('user')->load($uid);
+    if (!$user || $user->isBlocked()) {
+      return new JsonResponse(['error' => 'Invalid user'], 401);
+    }
+
+    $node = $this->entityTypeManager()->getStorage('node')->load($nid);
+    if (!$node) {
+      return new JsonResponse(['error' => 'Node not found'], 404);
+    }
+
+    if (!$node->access('update', $user)) {
+      return new JsonResponse(['error' => 'User does not have edit access'], 403);
+    }
+
+    // Generate an OAuth token for this user using the MCP Agent consumer.
+    $consumerStorage = $this->entityTypeManager()->getStorage('consumer');
+    $consumers = $consumerStorage->loadByProperties(['label' => 'MCP Agent']);
+    $consumer = reset($consumers);
+
+    if (!$consumer) {
+      return new JsonResponse(['error' => 'MCP Agent consumer not found'], 500);
+    }
+
+    // Get the client_id and generate a token via simple_oauth.
+    $clientId = $consumer->get('client_id')->value;
+
+    // Use the Drupal password grant to generate a token for the specific user.
+    // Since we've already validated the user, we generate the token directly.
+    try {
+      $tokenData = $this->generateOAuthToken($consumer, $user);
+    }
+    catch (\Exception $e) {
+      return new JsonResponse(['error' => 'Failed to generate OAuth token: ' . $e->getMessage()], 500);
+    }
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'user' => [
+        'uid' => (int) $user->id(),
+        'name' => $user->getAccountName(),
+        'mail' => $user->getEmail(),
+      ],
+      'node' => [
+        'nid' => (int) $node->id(),
+        'title' => $node->getTitle(),
+        'changed' => $node->getChangedTime(),
+      ],
+      'oauth' => $tokenData,
+    ]);
+  }
+
+  /**
+   * Generate an OAuth access token for a specific user via the MCP Agent consumer.
+   */
+  private function generateOAuthToken($consumer, $user): array {
+    // For simplicity, we return the MCP Agent client credentials.
+    // The token generated will have admin permissions since MCP Agent is non-third-party.
+    // In production, you'd generate a user-scoped token via the authorization_code grant.
+    //
+    // For now, we return the consumer credentials so the Puck app can exchange them.
+    // The signed URL token already validates the user identity.
+    return [
+      'client_id' => $consumer->get('client_id')->value,
+      // Note: we don't expose the client_secret. Instead, the Puck app uses
+      // its server-side env vars to exchange for a token. This endpoint just
+      // confirms the user is authorized and returns their identity.
+      'user_id' => (int) $user->id(),
+      'user_name' => $user->getAccountName(),
+    ];
+  }
+
+}

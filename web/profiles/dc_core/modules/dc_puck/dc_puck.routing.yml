@@ -1,0 +1,7 @@
+dc_puck.validate_token:
+  path: '/api/puck/validate-token'
+  defaults:
+    _controller: '\Drupal\dc_puck\Controller\TokenController::validate'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]

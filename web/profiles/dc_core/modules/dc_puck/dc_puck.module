@@ -2,39 +2,75 @@
 
 /**
  * @file
- * Overrides the Edit tab to launch the Puck visual editor for supported nodes.
+ * Overrides the Edit tab to launch the Puck visual editor with signed auth tokens.
  */
 
+use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Url;
 
 /**
- * Implements hook_entity_operation_alter().
+ * Generate a signed token for a user to edit a specific node.
  *
- * Replaces the Edit operation URL with the Puck editor URL for nodes
- * that have a field_puck_data field.
+ * Token = base64(uid:nid:timestamp:hmac)
+ * HMAC = hash_hmac('sha256', uid:nid:timestamp, secret)
+ * Valid for 8 hours.
+ */
+function dc_puck_generate_token(int $uid, int $nid): string {
+  $secret = dc_puck_get_secret();
+  $timestamp = time();
+  $payload = "{$uid}:{$nid}:{$timestamp}";
+  $hmac = hash_hmac('sha256', $payload, $secret);
+  return base64_encode("{$payload}:{$hmac}");
+}
+
+/**
+ * Get or create the HMAC secret for token signing.
+ */
+function dc_puck_get_secret(): string {
+  $secret = \Drupal::state()->get('dc_puck.token_secret', '');
+  if (empty($secret)) {
+    $secret = Crypt::randomBytesBase64(32);
+    \Drupal::state()->set('dc_puck.token_secret', $secret);
+  }
+  return $secret;
+}
+
+/**
+ * Build the Puck editor URL with a signed auth token.
+ */
+function dc_puck_editor_url(int $nid): ?string {
+  $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
+  if (empty($puck_url)) {
+    return NULL;
+  }
+
+  $uid = \Drupal::currentUser()->id();
+  if (!$uid) {
+    return NULL;
+  }
+
+  $token = dc_puck_generate_token($uid, $nid);
+  return $puck_url . '/editor/' . $nid . '?token=' . urlencode($token);
+}
+
+/**
+ * Implements hook_entity_operation_alter().
  */
 function dc_puck_entity_operation_alter(array &$operations, \Drupal\Core\Entity\EntityInterface $entity) {
   if ($entity->getEntityTypeId() !== 'node' || !$entity->hasField('field_puck_data')) {
     return;
   }
 
-  $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
-  if (empty($puck_url)) {
-    return;
-  }
-
-  if (isset($operations['edit'])) {
-    $operations['edit']['url'] = Url::fromUri($puck_url . '/editor/' . $entity->id());
+  $url = dc_puck_editor_url($entity->id());
+  if ($url && isset($operations['edit'])) {
+    $operations['edit']['url'] = Url::fromUri($url);
   }
 }
 
 /**
- * Implements hook_local_tasks_alter().
- *
- * Changes the Edit tab to point to the Puck editor for nodes with puck_data.
+ * Implements hook_menu_local_tasks_alter().
  */
 function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
-  // Only alter on node pages.
   if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form'])) {
     return;
   }
@@ -44,16 +80,11 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
     return;
   }
 
-  $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
-  if (empty($puck_url)) {
-    return;
+  $url = dc_puck_editor_url($node->id());
+  if ($url && isset($data['tabs'][0]['entity.node.edit_form'])) {
+    $data['tabs'][0]['entity.node.edit_form']['#link']['url'] = Url::fromUri($url);
   }
 
-  // Override the Edit tab URL to point to Puck editor.
-  if (isset($data['tabs'][0]['entity.node.edit_form'])) {
-    $data['tabs'][0]['entity.node.edit_form']['#link']['url'] = Url::fromUri($puck_url . '/editor/' . $node->id());
-  }
-
-  // Ensure cache varies per node.
-  $cacheability->addCacheContexts(['route']);
+  // Vary cache per user (different tokens per user).
+  $cacheability->addCacheContexts(['user', 'route']);
 }
