@@ -2,7 +2,8 @@
 
 /**
  * @file
- * Overrides the Edit tab to launch the Puck visual editor with signed auth tokens.
+ * Adds a "Design Studio" tab to node pages that launches the Puck visual editor
+ * with signed auth tokens. Leaves the default Edit tab untouched.
  */
 
 use Drupal\Component\Utility\Crypt;
@@ -54,24 +55,13 @@ function dc_puck_editor_url(int $nid): ?string {
 }
 
 /**
- * Implements hook_entity_operation_alter().
- */
-function dc_puck_entity_operation_alter(array &$operations, \Drupal\Core\Entity\EntityInterface $entity) {
-  if ($entity->getEntityTypeId() !== 'node' || !$entity->hasField('field_puck_data')) {
-    return;
-  }
-
-  $url = dc_puck_editor_url($entity->id());
-  if ($url && isset($operations['edit'])) {
-    $operations['edit']['url'] = Url::fromUri($url);
-  }
-}
-
-/**
  * Implements hook_menu_local_tasks_alter().
+ *
+ * Adds a styled "Design Studio" tab to node pages for content types
+ * that have the field_puck_data field.
  */
 function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
-  if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form'])) {
+  if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form', 'dc_puck.design_studio'])) {
     return;
   }
 
@@ -81,10 +71,66 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
   }
 
   $url = dc_puck_editor_url($node->id());
-  if ($url && isset($data['tabs'][0]['entity.node.edit_form'])) {
-    $data['tabs'][0]['entity.node.edit_form']['#link']['url'] = Url::fromUri($url);
+  if (!$url) {
+    return;
   }
+
+  // Add the Design Studio tab with custom styling.
+  $data['tabs'][0]['dc_puck.design_studio'] = [
+    '#theme' => 'menu_local_task',
+    '#link' => [
+      'title' => [
+        '#markup' => '<span style="display:inline-flex;align-items:center;gap:6px;">'
+          . '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>'
+          . 'Design Studio</span>',
+      ],
+      'url' => Url::fromUri($url),
+      'localized_options' => [
+        'attributes' => [
+          'class' => ['dc-puck-design-tab'],
+        ],
+      ],
+    ],
+    '#active' => ($route_name === 'dc_puck.design_studio'),
+    '#weight' => 100,
+    '#access' => $node->access('update'),
+  ];
 
   // Vary cache per user (different tokens per user).
   $cacheability->addCacheContexts(['user', 'route']);
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Adds CSS to style the Design Studio tab.
+ */
+function dc_puck_page_attachments(array &$attachments) {
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#type' => 'html_tag',
+      '#tag' => 'style',
+      '#value' => '
+        .dc-puck-design-tab {
+          background: linear-gradient(135deg, #7c3aed, #2563eb) !important;
+          color: #fff !important;
+          border-radius: 6px !important;
+          padding: 6px 14px !important;
+          font-weight: 600 !important;
+          font-size: 13px !important;
+          text-decoration: none !important;
+          transition: opacity 0.2s !important;
+          border: none !important;
+        }
+        .dc-puck-design-tab:hover {
+          opacity: 0.9 !important;
+          color: #fff !important;
+        }
+        .dc-puck-design-tab svg {
+          vertical-align: middle;
+        }
+      ',
+    ],
+    'dc_puck_styles',
+  ];
 }
