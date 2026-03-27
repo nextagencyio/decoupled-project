@@ -9,8 +9,8 @@ use Drupal\node\NodeInterface;
 /**
  * Maps Puck editor JSON to/from Drupal paragraph entities.
  *
- * The mapping config (stored in state) defines how each Puck component type
- * maps to a paragraph bundle and which Puck props map to which Drupal fields.
+ * Handles both flat fields (string, text) and nested paragraph references
+ * (cards, FAQ items, testimonials, etc.) which become Puck array fields.
  */
 class PuckMappingService {
 
@@ -19,20 +19,6 @@ class PuckMappingService {
     protected StateInterface $state,
   ) {}
 
-  /**
-   * Get the component mapping configuration.
-   *
-   * Returns an array keyed by Puck component type:
-   * [
-   *   'Hero' => [
-   *     'paragraph_type' => 'hero',
-   *     'fields' => [
-   *       'title' => ['drupal_field' => 'field_title', 'type' => 'string'],
-   *       'subtitle' => ['drupal_field' => 'field_subtitle', 'type' => 'text'],
-   *     ],
-   *   ],
-   * ]
-   */
   public function getMapping(): array {
     $mapping = $this->state->get('dc_puck.component_map', []);
     if (empty($mapping)) {
@@ -42,9 +28,6 @@ class PuckMappingService {
     return $mapping;
   }
 
-  /**
-   * Save the component mapping configuration.
-   */
   public function setMapping(array $mapping): void {
     $this->state->set('dc_puck.component_map', $mapping);
   }
@@ -59,42 +42,10 @@ class PuckMappingService {
     $content = [];
     if ($node->hasField('field_sections')) {
       foreach ($node->get('field_sections')->referencedEntities() as $paragraph) {
-        $bundle = $paragraph->bundle();
-        if (!isset($reverseMap[$bundle])) {
-          continue;
+        $component = $this->paragraphToPuck($paragraph, $reverseMap, $mapping);
+        if ($component) {
+          $content[] = $component;
         }
-
-        $puckType = $reverseMap[$bundle]['puck_type'];
-        $fieldMap = $reverseMap[$bundle]['fields'];
-
-        $props = [
-          'id' => $puckType . '-' . substr($paragraph->uuid(), 0, 8),
-          '_drupalUuid' => $paragraph->uuid(),
-          '_drupalRevisionId' => $paragraph->getRevisionId(),
-        ];
-
-        foreach ($fieldMap as $drupalField => $puckProp) {
-          if (!$paragraph->hasField($drupalField)) {
-            continue;
-          }
-          $fieldItem = $paragraph->get($drupalField)->first();
-          if (!$fieldItem) {
-            $props[$puckProp['prop']] = '';
-            continue;
-          }
-
-          if ($puckProp['type'] === 'text') {
-            $props[$puckProp['prop']] = $fieldItem->value ?? '';
-          }
-          else {
-            $props[$puckProp['prop']] = $fieldItem->value ?? '';
-          }
-        }
-
-        $content[] = [
-          'type' => $puckType,
-          'props' => $props,
-        ];
       }
     }
 
@@ -110,13 +61,83 @@ class PuckMappingService {
   }
 
   /**
+   * Transform a single paragraph entity to a Puck component.
+   */
+  protected function paragraphToPuck($paragraph, array $reverseMap, array $mapping): ?array {
+    $bundle = $paragraph->bundle();
+    if (!isset($reverseMap[$bundle])) {
+      return NULL;
+    }
+
+    $puckType = $reverseMap[$bundle]['puck_type'];
+    $fieldMap = $reverseMap[$bundle]['fields'];
+
+    $props = [
+      'id' => $puckType . '-' . substr($paragraph->uuid(), 0, 8),
+      '_drupalUuid' => $paragraph->uuid(),
+      '_drupalRevisionId' => $paragraph->getRevisionId(),
+    ];
+
+    foreach ($fieldMap as $drupalField => $puckProp) {
+      if (!$paragraph->hasField($drupalField)) {
+        continue;
+      }
+
+      if ($puckProp['type'] === 'paragraphs') {
+        // Nested paragraph reference — load child paragraphs as an array.
+        $children = [];
+        foreach ($paragraph->get($drupalField)->referencedEntities() as $child) {
+          $childBundle = $child->bundle();
+          if (!isset($reverseMap[$childBundle])) {
+            continue;
+          }
+          $childFields = $reverseMap[$childBundle]['fields'];
+          $childProps = [
+            '_drupalUuid' => $child->uuid(),
+          ];
+          foreach ($childFields as $childDrupalField => $childPuckProp) {
+            if (!$child->hasField($childDrupalField)) {
+              continue;
+            }
+            $childProps[$childPuckProp['prop']] = $this->getFieldValue($child, $childDrupalField, $childPuckProp['type']);
+          }
+          $children[] = $childProps;
+        }
+        $props[$puckProp['prop']] = $children;
+      }
+      elseif ($puckProp['type'] === 'boolean') {
+        $props[$puckProp['prop']] = (bool) $paragraph->get($drupalField)->value;
+      }
+      else {
+        $props[$puckProp['prop']] = $this->getFieldValue($paragraph, $drupalField, $puckProp['type']);
+      }
+    }
+
+    return [
+      'type' => $puckType,
+      'props' => $props,
+    ];
+  }
+
+  /**
+   * Get a field value, handling text fields (extract .value) and plain strings.
+   */
+  protected function getFieldValue($entity, string $fieldName, string $type): mixed {
+    $fieldItem = $entity->get($fieldName)->first();
+    if (!$fieldItem) {
+      return '';
+    }
+    return $fieldItem->value ?? '';
+  }
+
+  /**
    * Transform Puck JSON data and save as paragraphs on a node.
    */
   public function savePuckData(NodeInterface $node, array $puckData): void {
     $mapping = $this->getMapping();
     $paragraphStorage = $this->entityTypeManager->getStorage('paragraph');
 
-    // Track existing paragraphs by UUID for update/delete detection.
+    // Track existing top-level paragraphs by UUID.
     $existingParagraphs = [];
     if ($node->hasField('field_sections')) {
       foreach ($node->get('field_sections')->referencedEntities() as $paragraph) {
@@ -139,17 +160,13 @@ class PuckMappingService {
       $paragraphType = $componentMap['paragraph_type'];
       $fieldMap = $componentMap['fields'];
 
-      // Check if this is an existing paragraph (has _drupalUuid).
+      // Resolve existing or create new paragraph.
       $drupalUuid = $props['_drupalUuid'] ?? NULL;
-      $paragraph = NULL;
-
       if ($drupalUuid && isset($existingParagraphs[$drupalUuid])) {
-        // Update existing paragraph.
         $paragraph = $existingParagraphs[$drupalUuid];
         $usedUuids[] = $drupalUuid;
       }
       else {
-        // Create new paragraph.
         $paragraph = $paragraphStorage->create(['type' => $paragraphType]);
       }
 
@@ -163,11 +180,25 @@ class PuckMappingService {
           continue;
         }
 
-        if ($fieldType === 'text') {
+        if ($fieldType === 'paragraphs') {
+          // Nested paragraphs — create/update child entities.
+          $childRefs = $this->saveNestedParagraphs(
+            $paragraph,
+            $drupalField,
+            $value,
+            $fieldConfig['target_type'] ?? '',
+            $mapping
+          );
+          $paragraph->set($drupalField, $childRefs);
+        }
+        elseif ($fieldType === 'text') {
           $paragraph->set($drupalField, [
             'value' => $value,
             'format' => 'basic_html',
           ]);
+        }
+        elseif ($fieldType === 'boolean') {
+          $paragraph->set($drupalField, (bool) $value);
         }
         else {
           $paragraph->set($drupalField, $value);
@@ -181,16 +212,100 @@ class PuckMappingService {
       ];
     }
 
-    // Delete paragraphs that are no longer referenced.
+    // Delete top-level paragraphs that are no longer referenced.
     foreach ($existingParagraphs as $uuid => $paragraph) {
       if (!in_array($uuid, $usedUuids)) {
         $paragraph->delete();
       }
     }
 
-    // Update node sections.
     $node->set('field_sections', $newSections);
     $node->save();
+  }
+
+  /**
+   * Save nested paragraph array items (cards, FAQ items, etc.).
+   */
+  protected function saveNestedParagraphs($parentParagraph, string $fieldName, $items, string $targetType, array $mapping): array {
+    if (!is_array($items)) {
+      return [];
+    }
+
+    $paragraphStorage = $this->entityTypeManager->getStorage('paragraph');
+
+    // Find the mapping for the target paragraph type.
+    $childMapping = NULL;
+    foreach ($mapping as $puckType => $config) {
+      if ($config['paragraph_type'] === $targetType) {
+        $childMapping = $config;
+        break;
+      }
+    }
+
+    if (!$childMapping) {
+      return [];
+    }
+
+    // Track existing child paragraphs.
+    $existingChildren = [];
+    if ($parentParagraph->hasField($fieldName) && !$parentParagraph->get($fieldName)->isEmpty()) {
+      foreach ($parentParagraph->get($fieldName)->referencedEntities() as $child) {
+        $existingChildren[$child->uuid()] = $child;
+      }
+    }
+
+    $usedUuids = [];
+    $childRefs = [];
+
+    foreach ($items as $item) {
+      if (!is_array($item)) {
+        continue;
+      }
+
+      $childUuid = $item['_drupalUuid'] ?? NULL;
+      if ($childUuid && isset($existingChildren[$childUuid])) {
+        $child = $existingChildren[$childUuid];
+        $usedUuids[] = $childUuid;
+      }
+      else {
+        $child = $paragraphStorage->create(['type' => $targetType]);
+      }
+
+      // Map item fields.
+      foreach ($childMapping['fields'] as $puckProp => $fieldConfig) {
+        $drupalField = $fieldConfig['drupal_field'];
+        $value = $item[$puckProp] ?? '';
+
+        if (!$child->hasField($drupalField)) {
+          continue;
+        }
+
+        if ($fieldConfig['type'] === 'text') {
+          $child->set($drupalField, ['value' => $value, 'format' => 'basic_html']);
+        }
+        elseif ($fieldConfig['type'] === 'boolean') {
+          $child->set($drupalField, (bool) $value);
+        }
+        else {
+          $child->set($drupalField, $value);
+        }
+      }
+
+      $child->save();
+      $childRefs[] = [
+        'target_id' => $child->id(),
+        'target_revision_id' => $child->getRevisionId(),
+      ];
+    }
+
+    // Delete removed children.
+    foreach ($existingChildren as $uuid => $child) {
+      if (!in_array($uuid, $usedUuids)) {
+        $child->delete();
+      }
+    }
+
+    return $childRefs;
   }
 
   /**
@@ -218,9 +333,6 @@ class PuckMappingService {
 
   /**
    * Auto-detect paragraph types and build a default mapping.
-   *
-   * Scans all paragraph types that are referenced by a field_sections field
-   * and maps field_* fields to camelCase Puck props.
    */
   protected function buildDefaultMapping(): array {
     $mapping = [];
@@ -230,12 +342,9 @@ class PuckMappingService {
     foreach ($paragraphTypeStorage->loadMultiple() as $type) {
       $bundle = $type->id();
       $label = $type->label();
-
-      // Convert bundle to PascalCase Puck type name.
       $puckType = str_replace(' ', '', ucwords(str_replace('_', ' ', $bundle)));
 
       $fields = [];
-      // Load all field instances for this paragraph type.
       $fieldConfigs = $fieldConfigStorage->loadByProperties([
         'entity_type' => 'paragraph',
         'bundle' => $bundle,
@@ -247,18 +356,50 @@ class PuckMappingService {
           continue;
         }
 
-        // Convert field_background_color to backgroundColor.
         $puckProp = $this->fieldNameToCamelCase($fieldName);
         $fieldType = $fieldConfig->getType();
 
-        // Determine if this is a text (formatted) or string (plain) field.
-        $type = in_array($fieldType, ['text_long', 'text_with_summary']) ? 'text' : 'string';
+        if ($fieldType === 'entity_reference_revisions') {
+          // Nested paragraph reference (cards, FAQ items, etc.).
+          $handlerSettings = $fieldConfig->getSetting('handler_settings');
+          $targetBundles = $handlerSettings['target_bundles'] ?? [];
+          $targetType = !empty($targetBundles) ? reset($targetBundles) : '';
 
-        $fields[$puckProp] = [
-          'drupal_field' => $fieldName,
-          'type' => $type,
-          'label' => $fieldConfig->getLabel(),
-        ];
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'paragraphs',
+            'target_type' => $targetType,
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
+        elseif (in_array($fieldType, ['text_long', 'text_with_summary'])) {
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'text',
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
+        elseif ($fieldType === 'boolean') {
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'boolean',
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
+        elseif ($fieldType === 'image') {
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'image',
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
+        else {
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'string',
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
       }
 
       if (!empty($fields)) {
@@ -275,13 +416,9 @@ class PuckMappingService {
 
   /**
    * Convert a Drupal field name to a camelCase Puck prop name.
-   * field_background_color => backgroundColor
-   * field_primary_cta_text => primaryCtaText
    */
   protected function fieldNameToCamelCase(string $fieldName): string {
-    // Remove field_ prefix.
     $name = preg_replace('/^field_/', '', $fieldName);
-    // Convert snake_case to camelCase.
     return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
   }
 
