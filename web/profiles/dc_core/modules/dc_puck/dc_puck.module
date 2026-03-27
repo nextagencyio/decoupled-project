@@ -61,7 +61,7 @@ function dc_puck_editor_url(int $nid): ?string {
  * that have the field_puck_data field.
  */
 function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
-  if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form', 'dc_puck.design_studio'])) {
+  if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form'])) {
     return;
   }
 
@@ -91,7 +91,7 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
         ],
       ],
     ],
-    '#active' => ($route_name === 'dc_puck.design_studio'),
+    '#active' => FALSE,
     '#weight' => 100,
     '#access' => $node->access('update'),
   ];

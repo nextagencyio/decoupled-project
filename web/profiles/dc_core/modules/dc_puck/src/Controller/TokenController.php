@@ -97,35 +97,13 @@ class TokenController extends ControllerBase {
       'user' => [
         'uid' => (int) $user->id(),
         'name' => $user->getAccountName(),
-        'mail' => $user->getEmail(),
       ],
       'node' => [
         'nid' => (int) $node->id(),
         'title' => $node->getTitle(),
         'changed' => $node->getChangedTime(),
       ],
-      'oauth' => $tokenData,
     ]);
-  }
-
-  /**
-   * Generate an OAuth access token for a specific user via the MCP Agent consumer.
-   */
-  private function generateOAuthToken($consumer, $user): array {
-    // For simplicity, we return the MCP Agent client credentials.
-    // The token generated will have admin permissions since MCP Agent is non-third-party.
-    // In production, you'd generate a user-scoped token via the authorization_code grant.
-    //
-    // For now, we return the consumer credentials so the Puck app can exchange them.
-    // The signed URL token already validates the user identity.
-    return [
-      'client_id' => $consumer->get('client_id')->value,
-      // Note: we don't expose the client_secret. Instead, the Puck app uses
-      // its server-side env vars to exchange for a token. This endpoint just
-      // confirms the user is authorized and returns their identity.
-      'user_id' => (int) $user->id(),
-      'user_name' => $user->getAccountName(),
-    ];
   }
 
 }
