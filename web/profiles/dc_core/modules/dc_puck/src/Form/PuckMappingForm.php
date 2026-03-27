@@ -41,6 +41,14 @@ class PuckMappingForm extends FormBase {
       '#required' => TRUE,
     ];
 
+    $form['sections_field'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Sections Field Name'),
+      '#default_value' => \Drupal::state()->get('dc_puck.sections_field', 'field_sections'),
+      '#description' => $this->t('The machine name of the paragraph reference field on your content type (e.g., field_sections, field_components).'),
+      '#required' => TRUE,
+    ];
+
     $form['mapping_display'] = [
       '#type' => 'details',
       '#title' => $this->t('Component Mapping'),
@@ -118,8 +126,9 @@ class PuckMappingForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    // Save editor URL.
+    // Save settings.
     \Drupal::state()->set('dc_puck.editor_url', $form_state->getValue('editor_url'));
+    \Drupal::state()->set('dc_puck.sections_field', $form_state->getValue('sections_field'));
 
     // Save mapping JSON.
     $json = $form_state->getValue('json');

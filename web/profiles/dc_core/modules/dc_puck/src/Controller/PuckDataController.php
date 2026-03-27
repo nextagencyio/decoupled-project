@@ -31,7 +31,7 @@ class PuckDataController extends ControllerBase {
    * Load a node's paragraphs and return as Puck editor JSON.
    */
   public function load(NodeInterface $node): JsonResponse {
-    if (!$node->hasField('field_sections')) {
+    if (!$node->hasField($this->mappingService->getSectionsField())) {
       return new JsonResponse([
         'error' => 'Node does not have a sections field.',
       ], 400);
@@ -46,7 +46,7 @@ class PuckDataController extends ControllerBase {
    * Save Puck editor JSON as paragraphs on a node.
    */
   public function save(NodeInterface $node, Request $request): JsonResponse {
-    if (!$node->hasField('field_sections')) {
+    if (!$node->hasField($this->mappingService->getSectionsField())) {
       return new JsonResponse([
         'error' => 'Node does not have a sections field.',
       ], 400);

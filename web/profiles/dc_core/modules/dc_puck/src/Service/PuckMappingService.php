@@ -19,6 +19,13 @@ class PuckMappingService {
     protected StateInterface $state,
   ) {}
 
+  /**
+   * Get the configured paragraph reference field name.
+   */
+  public function getSectionsField(): string {
+    return $this->state->get('dc_puck.sections_field', 'field_sections');
+  }
+
   public function getMapping(): array {
     $mapping = $this->state->get('dc_puck.component_map', []);
     if (empty($mapping)) {
@@ -40,8 +47,8 @@ class PuckMappingService {
     $reverseMap = $this->buildReverseMap($mapping);
 
     $content = [];
-    if ($node->hasField('field_sections')) {
-      foreach ($node->get('field_sections')->referencedEntities() as $paragraph) {
+    if ($node->hasField($this->getSectionsField())) {
+      foreach ($node->get($this->getSectionsField())->referencedEntities() as $paragraph) {
         $component = $this->paragraphToPuck($paragraph, $reverseMap, $mapping);
         if ($component) {
           $content[] = $component;
@@ -139,8 +146,8 @@ class PuckMappingService {
 
     // Track existing top-level paragraphs by UUID.
     $existingParagraphs = [];
-    if ($node->hasField('field_sections')) {
-      foreach ($node->get('field_sections')->referencedEntities() as $paragraph) {
+    if ($node->hasField($this->getSectionsField())) {
+      foreach ($node->get($this->getSectionsField())->referencedEntities() as $paragraph) {
         $existingParagraphs[$paragraph->uuid()] = $paragraph;
       }
     }
@@ -219,7 +226,7 @@ class PuckMappingService {
       }
     }
 
-    $node->set('field_sections', $newSections);
+    $node->set($this->getSectionsField(), $newSections);
     $node->save();
   }
 
