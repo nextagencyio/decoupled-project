@@ -134,6 +134,20 @@ class PuckMappingService {
     if (!$fieldItem) {
       return '';
     }
+
+    // Image fields: return the file URL instead of the file ID.
+    if ($type === 'image') {
+      $fileId = $fieldItem->target_id ?? NULL;
+      if ($fileId) {
+        $file = $this->entityTypeManager->getStorage('file')->load($fileId);
+        if ($file) {
+          $fileUrl = \Drupal::service('file_url_generator')->generateAbsoluteString($file->getFileUri());
+          return $fileUrl;
+        }
+      }
+      return '';
+    }
+
     return $fieldItem->value ?? '';
   }
 
@@ -208,12 +222,22 @@ class PuckMappingService {
           $paragraph->set($drupalField, (bool) $value);
         }
         elseif ($fieldType === 'image') {
-          // Only set image fields if there's a real value — empty strings crash Drupal.
-          if (!empty($value) && is_string($value) && str_starts_with($value, 'http')) {
-            // Image URLs from Puck — would need file entity creation for full support.
-            // For now, skip URL-only images (handled by Cloudinary on the frontend).
+          // Skip empty or fake image values.
+          if (empty($value) || !is_string($value) || !str_starts_with($value, 'http')) {
+            continue;
           }
-          // Skip empty image values entirely.
+          // Skip obviously fake URLs.
+          if (str_contains($value, 'example.com') || str_contains($value, 'placeholder')) {
+            continue;
+          }
+          // Download the image and create a Drupal file entity.
+          $file = $this->createFileFromUrl($value, $drupalField);
+          if ($file) {
+            $paragraph->set($drupalField, [
+              'target_id' => $file->id(),
+              'alt' => '',
+            ]);
+          }
         }
         else {
           $paragraph->set($drupalField, $value);
@@ -302,9 +326,18 @@ class PuckMappingService {
           $child->set($drupalField, (bool) $value);
         }
         elseif ($fieldConfig['type'] === 'image') {
-          // Skip empty image values — they crash Drupal's file system.
-          if (empty($value)) {
+          if (empty($value) || !is_string($value) || !str_starts_with($value, 'http')) {
             continue;
+          }
+          if (str_contains($value, 'example.com') || str_contains($value, 'placeholder')) {
+            continue;
+          }
+          $file = $this->createFileFromUrl($value, $drupalField);
+          if ($file) {
+            $child->set($drupalField, [
+              'target_id' => $file->id(),
+              'alt' => '',
+            ]);
           }
         }
         else {
@@ -460,6 +493,53 @@ class PuckMappingService {
   /**
    * Convert a Drupal field name to a camelCase Puck prop name.
    */
+  /**
+   * Download an image from a URL and create a Drupal file entity.
+   */
+  protected function createFileFromUrl(string $url, string $fieldName): ?\Drupal\file\FileInterface {
+    try {
+      // Extract filename from URL.
+      $parsed = parse_url($url);
+      $path = $parsed['path'] ?? '';
+      $filename = basename($path);
+      // Ensure a reasonable filename with extension.
+      if (!$filename || !str_contains($filename, '.')) {
+        $filename = 'puck-image-' . substr(md5($url), 0, 8) . '.jpg';
+      }
+
+      // Download the image.
+      $data = @file_get_contents($url);
+      if ($data === FALSE) {
+        \Drupal::logger('dc_puck')->warning('Failed to download image from @url', ['@url' => $url]);
+        return NULL;
+      }
+
+      // Save to public files.
+      $directory = 'public://puck-images';
+      \Drupal::service('file_system')->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY);
+
+      $file = \Drupal::service('file.repository')->writeData(
+        $data,
+        $directory . '/' . $filename,
+        \Drupal\Core\File\FileExists::Rename
+      );
+
+      if ($file) {
+        $file->setPermanent();
+        $file->save();
+        return $file;
+      }
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_puck')->error('Error creating file from URL @url: @error', [
+        '@url' => $url,
+        '@error' => $e->getMessage(),
+      ]);
+    }
+
+    return NULL;
+  }
+
   protected function fieldNameToCamelCase(string $fieldName): string {
     $name = preg_replace('/^field_/', '', $fieldName);
     return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
