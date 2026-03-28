@@ -79,7 +79,6 @@ dependencies:
   - dc_fields
   - dc_api
   - dc_admin
-  - dc_chatbot
   - dc_config
   - dc_import
   - dc_config_import

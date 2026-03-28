@@ -1,7 +1,0 @@
-name: 'Decoupled Drupal Chatbot'
-type: module
-description: 'Provides chatbot functionality for Decoupled sites with API key authentication'
-package: Decoupled
-core_version_requirement: ^10 || ^11
-dependencies:
-  - drupal:system

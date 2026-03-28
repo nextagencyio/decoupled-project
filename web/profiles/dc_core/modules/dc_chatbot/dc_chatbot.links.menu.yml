@@ -1,6 +1,0 @@
-dc_chatbot.admin:
-  title: 'Chatbot'
-  route_name: dc_chatbot.admin
-  description: 'Configure AI chatbot settings and Next.js integration'
-  parent: decoupled.admin_category
-  weight: 20

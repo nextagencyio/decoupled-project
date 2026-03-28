@@ -739,3 +739,38 @@ function dc_core_update_10014() {
 
   return implode('. ', $messages) ?: t('Multilingual modules installation complete.');
 }
+
+/**
+ * Uninstall dc_chatbot module and clean up blocks.
+ */
+function dc_core_update_10020() {
+  $module_handler = \Drupal::service('module_handler');
+  $module_installer = \Drupal::service('module_installer');
+  $messages = [];
+
+  if ($module_handler->moduleExists('dc_chatbot')) {
+    try {
+      $module_installer->uninstall(['dc_chatbot']);
+      $messages[] = t('Uninstalled dc_chatbot module.');
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('dc_core')->error('Failed to uninstall dc_chatbot: @error', [
+        '@error' => $e->getMessage(),
+      ]);
+      $messages[] = t('Failed to uninstall dc_chatbot: @error', ['@error' => $e->getMessage()]);
+    }
+  }
+  else {
+    $messages[] = t('dc_chatbot already uninstalled.');
+  }
+
+  // Clean up any remaining chatbot blocks.
+  $block_storage = \Drupal::entityTypeManager()->getStorage('block');
+  $blocks = $block_storage->loadByProperties(['plugin' => 'dc_chatbot_block']);
+  foreach ($blocks as $block) {
+    $block->delete();
+    $messages[] = t('Deleted chatbot block: @id', ['@id' => $block->id()]);
+  }
+
+  return implode(' ', $messages);
+}
