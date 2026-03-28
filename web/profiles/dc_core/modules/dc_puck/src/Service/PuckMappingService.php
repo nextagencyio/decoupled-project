@@ -207,6 +207,14 @@ class PuckMappingService {
         elseif ($fieldType === 'boolean') {
           $paragraph->set($drupalField, (bool) $value);
         }
+        elseif ($fieldType === 'image') {
+          // Only set image fields if there's a real value — empty strings crash Drupal.
+          if (!empty($value) && is_string($value) && str_starts_with($value, 'http')) {
+            // Image URLs from Puck — would need file entity creation for full support.
+            // For now, skip URL-only images (handled by Cloudinary on the frontend).
+          }
+          // Skip empty image values entirely.
+        }
         else {
           $paragraph->set($drupalField, $value);
         }
@@ -293,6 +301,12 @@ class PuckMappingService {
         elseif ($fieldConfig['type'] === 'boolean') {
           $child->set($drupalField, (bool) $value);
         }
+        elseif ($fieldConfig['type'] === 'image') {
+          // Skip empty image values — they crash Drupal's file system.
+          if (empty($value)) {
+            continue;
+          }
+        }
         else {
           $child->set($drupalField, $value);
         }
@@ -337,6 +351,15 @@ class PuckMappingService {
     }
     return $reverse;
   }
+
+  /**
+   * Known aliases where the Puck component name differs from the
+   * auto-detected PascalCase bundle name.
+   */
+  const PUCK_NAME_ALIASES = [
+    'Quote' => 'Testimonials',
+    'Sidebyside' => 'SideBySide',
+  ];
 
   /**
    * Auto-detect paragraph types and build a default mapping.
@@ -421,6 +444,13 @@ class PuckMappingService {
           'label' => $label,
           'fields' => $fields,
         ];
+      }
+    }
+
+    // Add aliases for Puck names that differ from auto-detected PascalCase.
+    foreach (self::PUCK_NAME_ALIASES as $autoName => $puckName) {
+      if (isset($mapping[$autoName]) && !isset($mapping[$puckName])) {
+        $mapping[$puckName] = $mapping[$autoName];
       }
     }
 
