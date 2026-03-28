@@ -77,13 +77,7 @@ function dc_core_install() {
     \Drupal::logger('dc_core')->notice('Granted GraphQL permissions to anonymous role.');
   }
 
-  // 4. Configure the Decoupled Drupal Chatbot.
-  _dc_core_configure_chatbot();
-
-  // 5. Place the Decoupled Drupal Chatbot block in the Gin theme.
-  _dc_core_place_chatbot_block();
-
-  // 6. Configure mail system to use Resend HTTP API.
+  // 4. Configure mail system to use Resend HTTP API.
   _dc_core_configure_mail_system();
 }
 
