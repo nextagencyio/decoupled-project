@@ -3,18 +3,28 @@
 /**
  * @file
  * Adds a "Design Studio" tab to node pages that launches the Puck visual editor
- * with signed auth tokens. Leaves the default Edit tab untouched.
+ * with signed auth tokens. Only active when enabled and configured for specific
+ * content types.
  */
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Url;
 
 /**
+ * Check if dc_puck is enabled and configured for a given content type.
+ */
+function dc_puck_is_enabled_for_bundle(string $bundle): bool {
+  $enabled = \Drupal::state()->get('dc_puck.enabled', FALSE);
+  if (!$enabled) {
+    return FALSE;
+  }
+
+  $enabledTypes = \Drupal::state()->get('dc_puck.enabled_content_types', []);
+  return in_array($bundle, $enabledTypes);
+}
+
+/**
  * Generate a signed token for a user to edit a specific node.
- *
- * Token = base64(uid:nid:timestamp:hmac)
- * HMAC = hash_hmac('sha256', uid:nid:timestamp, secret)
- * Valid for 8 hours.
  */
 function dc_puck_generate_token(int $uid, int $nid): string {
   $secret = dc_puck_get_secret();
@@ -57,8 +67,7 @@ function dc_puck_editor_url(int $nid): ?string {
 /**
  * Implements hook_menu_local_tasks_alter().
  *
- * Adds a styled "Design Studio" tab to node pages for content types
- * that have the field_puck_data field.
+ * Adds a styled "Design Studio" tab to node pages for enabled content types.
  */
 function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
   if (!in_array($route_name, ['entity.node.canonical', 'entity.node.edit_form'])) {
@@ -66,8 +75,18 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
   }
 
   $node = \Drupal::routeMatch()->getParameter('node');
+  if (!$node) {
+    return;
+  }
+
+  // Check if dc_puck is enabled for this content type.
+  if (!dc_puck_is_enabled_for_bundle($node->bundle())) {
+    return;
+  }
+
+  // Check if node has the configured sections field.
   $sectionsField = \Drupal::state()->get('dc_puck.sections_field', 'field_sections');
-  if (!$node || !$node->hasField($sectionsField)) {
+  if (!$node->hasField($sectionsField)) {
     return;
   }
 
@@ -97,16 +116,18 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
     '#access' => $node->access('update'),
   ];
 
-  // Vary cache per user (different tokens per user).
   $cacheability->addCacheContexts(['user', 'route']);
 }
 
 /**
  * Implements hook_page_attachments().
- *
- * Adds CSS to style the Design Studio tab.
  */
 function dc_puck_page_attachments(array &$attachments) {
+  // Only attach CSS if dc_puck is enabled.
+  if (!\Drupal::state()->get('dc_puck.enabled', FALSE)) {
+    return;
+  }
+
   $attachments['#attached']['html_head'][] = [
     [
       '#type' => 'html_tag',

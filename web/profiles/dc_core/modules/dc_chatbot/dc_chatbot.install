@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for the DC Chatbot module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Removes chatbot blocks from all themes when the module is uninstalled.
+ */
+function dc_chatbot_uninstall() {
+  // Delete chatbot blocks from all themes.
+  $block_storage = \Drupal::entityTypeManager()->getStorage('block');
+  $blocks = $block_storage->loadByProperties(['plugin' => 'dc_chatbot_block']);
+  foreach ($blocks as $block) {
+    $block->delete();
+  }
+  \Drupal::logger('dc_chatbot')->notice('Removed Decoupled Drupal Chatbot blocks on uninstall.');
+}

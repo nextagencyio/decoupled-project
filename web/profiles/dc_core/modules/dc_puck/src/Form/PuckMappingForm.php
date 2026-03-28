@@ -8,7 +8,7 @@ use Drupal\dc_puck\Service\PuckMappingService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Configuration form for Puck component-to-paragraph mapping.
+ * Configuration form for Puck editor settings and component mapping.
  */
 class PuckMappingForm extends FormBase {
 
@@ -29,33 +29,88 @@ class PuckMappingForm extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $mapping = $this->mappingService->getMapping();
 
-    $form['description'] = [
-      '#markup' => '<p>This page shows how Puck editor component types map to Drupal paragraph types and fields. The mapping is auto-detected from your paragraph type definitions. You can edit the JSON below to customize the mapping.</p>',
+    // ── General Settings ──
+
+    $form['general'] = [
+      '#type' => 'details',
+      '#title' => $this->t('General Settings'),
+      '#open' => TRUE,
     ];
 
-    $form['editor_url'] = [
+    $form['general']['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Puck Editor'),
+      '#default_value' => \Drupal::state()->get('dc_puck.enabled', FALSE),
+      '#description' => $this->t('When enabled, the Design Studio tab and API endpoints become active for configured content types.'),
+    ];
+
+    $form['general']['editor_url'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Puck Editor URL'),
       '#default_value' => \Drupal::state()->get('dc_puck.editor_url', ''),
       '#description' => $this->t('The URL of your Puck editor app (e.g., http://localhost:3456 or https://puck.example.com).'),
-      '#required' => TRUE,
     ];
 
-    $form['sections_field'] = [
+    $form['general']['sections_field'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Sections Field Name'),
       '#default_value' => \Drupal::state()->get('dc_puck.sections_field', 'field_sections'),
-      '#description' => $this->t('The machine name of the paragraph reference field on your content type (e.g., field_sections, field_components).'),
+      '#description' => $this->t('The machine name of the paragraph reference field (e.g., field_sections, field_components).'),
       '#required' => TRUE,
     ];
+
+    // ── Content Types ──
+
+    $form['content_types'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Enabled Content Types'),
+      '#open' => TRUE,
+    ];
+
+    $form['content_types']['description'] = [
+      '#markup' => '<p>' . $this->t('Select which content types show the Design Studio tab and support Puck editor integration.') . '</p>',
+    ];
+
+    $enabledTypes = \Drupal::state()->get('dc_puck.enabled_content_types', []);
+    $sectionsField = \Drupal::state()->get('dc_puck.sections_field', 'field_sections');
+    $nodeTypes = \Drupal::entityTypeManager()->getStorage('node_type')->loadMultiple();
+
+    $typeOptions = [];
+    $typeDescriptions = [];
+    foreach ($nodeTypes as $type) {
+      $bundle = $type->id();
+      $typeOptions[$bundle] = $type->label();
+
+      // Check if this type has the sections field.
+      $fieldConfig = \Drupal::entityTypeManager()
+        ->getStorage('field_config')
+        ->load("node.{$bundle}.{$sectionsField}");
+      if (!$fieldConfig) {
+        $typeDescriptions[$bundle] = $this->t('(missing @field field)', ['@field' => $sectionsField]);
+      }
+    }
+
+    $form['content_types']['enabled_content_types'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Content Types'),
+      '#options' => $typeOptions,
+      '#default_value' => array_combine($enabledTypes, $enabledTypes) ?: [],
+      '#description' => $this->t('Only content types with a @field paragraph reference field can use the Puck editor.', ['@field' => $sectionsField]),
+    ];
+
+    // Add warnings for types missing the field.
+    foreach ($typeDescriptions as $bundle => $desc) {
+      $form['content_types']['enabled_content_types'][$bundle]['#description'] = $desc;
+    }
+
+    // ── Component Mapping ──
 
     $form['mapping_display'] = [
       '#type' => 'details',
       '#title' => $this->t('Component Mapping'),
-      '#open' => TRUE,
+      '#open' => FALSE,
     ];
 
-    // Show a summary table of the current mapping.
     $header = [
       $this->t('Puck Component'),
       $this->t('Paragraph Type'),
@@ -95,6 +150,8 @@ class PuckMappingForm extends FormBase {
       '#description' => $this->t('Edit the mapping JSON directly. Be careful — invalid JSON will break the mapping.'),
     ];
 
+    // ── Actions ──
+
     $form['actions'] = [
       '#type' => 'actions',
     ];
@@ -126,9 +183,14 @@ class PuckMappingForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    // Save settings.
+    // Save general settings.
+    \Drupal::state()->set('dc_puck.enabled', (bool) $form_state->getValue('enabled'));
     \Drupal::state()->set('dc_puck.editor_url', $form_state->getValue('editor_url'));
     \Drupal::state()->set('dc_puck.sections_field', $form_state->getValue('sections_field'));
+
+    // Save enabled content types (filter out unchecked).
+    $enabledTypes = array_values(array_filter($form_state->getValue('enabled_content_types')));
+    \Drupal::state()->set('dc_puck.enabled_content_types', $enabledTypes);
 
     // Save mapping JSON.
     $json = $form_state->getValue('json');
@@ -146,9 +208,7 @@ class PuckMappingForm extends FormBase {
    * Regenerate mapping from current paragraph types.
    */
   public function regenerateMapping(array &$form, FormStateInterface $form_state): void {
-    // Clear the stored mapping to force regeneration.
     $this->mappingService->setMapping([]);
-    // Trigger getMapping() which auto-generates from paragraph types.
     $this->mappingService->getMapping();
     $this->messenger()->addStatus($this->t('Mapping regenerated from paragraph type definitions.'));
   }

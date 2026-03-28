@@ -141,6 +141,11 @@ class DrupalContentImporter {
       }
     }
 
+    // Auto-enable dc_puck if any paragraph model has a "puck" configuration key.
+    if (!$preview_mode) {
+      $this->autoEnablePuck($bundle_defs, $result);
+    }
+
     // Detect and enable languages before creating content.
     if (!empty($data['content']) && is_array($data['content'])) {
       $this->detectAndEnableLanguages($data['content'], $preview_mode, $result);
@@ -2153,6 +2158,59 @@ class DrupalContentImporter {
    * @return bool
    *   TRUE if caches were cleared or GraphQL modules exist, FALSE if no GraphQL modules found.
    */
+  /**
+   * Auto-enable dc_puck module if any paragraph model has a "puck" configuration key.
+   *
+   * When content models include puck editor configuration (the "puck" key on
+   * paragraph definitions), this method:
+   * 1. Enables dc_puck if installed but not yet enabled
+   * 2. Sets dc_puck.enabled = TRUE
+   * 3. Adds the node content type to dc_puck.enabled_content_types
+   */
+  private function autoEnablePuck(array $bundleDefs, array &$result): void {
+    $hasPuckConfig = FALSE;
+    $nodeBundles = [];
+
+    foreach ($bundleDefs as $def) {
+      if (isset($def['puck'])) {
+        $hasPuckConfig = TRUE;
+      }
+      // Collect node bundles (entries without 'entity' key or with entity=node).
+      if (!isset($def['entity']) && isset($def['bundle'])) {
+        $nodeBundles[] = $def['bundle'];
+      }
+    }
+
+    if (!$hasPuckConfig || empty($nodeBundles)) {
+      return;
+    }
+
+    $moduleHandler = \Drupal::moduleHandler();
+
+    // If dc_puck is not installed, nothing to do.
+    if (!$moduleHandler->moduleExists('dc_puck')) {
+      return;
+    }
+
+    // Enable dc_puck.
+    \Drupal::state()->set('dc_puck.enabled', TRUE);
+
+    // Add node bundles to enabled content types.
+    $enabledTypes = \Drupal::state()->get('dc_puck.enabled_content_types', []);
+    $added = [];
+    foreach ($nodeBundles as $bundle) {
+      if (!in_array($bundle, $enabledTypes)) {
+        $enabledTypes[] = $bundle;
+        $added[] = $bundle;
+      }
+    }
+    \Drupal::state()->set('dc_puck.enabled_content_types', $enabledTypes);
+
+    if (!empty($added)) {
+      $result['summary'][] = 'Enabled Puck editor for content types: ' . implode(', ', $added);
+    }
+  }
+
   private function clearGraphQLCaches(): bool {
     // Check if any GraphQL modules are installed before attempting cache clearing.
     $module_handler = \Drupal::moduleHandler();

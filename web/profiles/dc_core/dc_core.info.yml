@@ -88,6 +88,7 @@ dependencies:
   - dc_revalidate
   - dc_usage
   - dc_user_redirect
+  - dc_puck
 
 # Themes
 themes:

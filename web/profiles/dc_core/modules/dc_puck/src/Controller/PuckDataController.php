@@ -28,13 +28,29 @@ class PuckDataController extends ControllerBase {
   }
 
   /**
-   * Load a node's paragraphs and return as Puck editor JSON.
+   * Check if dc_puck is enabled for the given node's content type.
    */
-  public function load(NodeInterface $node): JsonResponse {
+  protected function checkEnabled(NodeInterface $node): ?JsonResponse {
+    if (!dc_puck_is_enabled_for_bundle($node->bundle())) {
+      return new JsonResponse([
+        'error' => 'Puck editor is not enabled for this content type.',
+      ], 403);
+    }
     if (!$node->hasField($this->mappingService->getSectionsField())) {
       return new JsonResponse([
         'error' => 'Node does not have a sections field.',
       ], 400);
+    }
+    return NULL;
+  }
+
+  /**
+   * Load a node's paragraphs and return as Puck editor JSON.
+   */
+  public function load(NodeInterface $node): JsonResponse {
+    $error = $this->checkEnabled($node);
+    if ($error) {
+      return $error;
     }
 
     $puckData = $this->mappingService->loadPuckData($node);
@@ -46,10 +62,9 @@ class PuckDataController extends ControllerBase {
    * Save Puck editor JSON as paragraphs on a node.
    */
   public function save(NodeInterface $node, Request $request): JsonResponse {
-    if (!$node->hasField($this->mappingService->getSectionsField())) {
-      return new JsonResponse([
-        'error' => 'Node does not have a sections field.',
-      ], 400);
+    $error = $this->checkEnabled($node);
+    if ($error) {
+      return $error;
     }
 
     // Validate the signed token from the request.
