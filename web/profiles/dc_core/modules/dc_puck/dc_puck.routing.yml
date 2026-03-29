@@ -48,10 +48,3 @@ dc_puck.config_form:
   requirements:
     _permission: 'administer site configuration'
 
-dc_puck.config_form.links:
-  path: '/admin/config/dc-puck'
-  defaults:
-    _form: '\Drupal\dc_puck\Form\PuckMappingForm'
-    _title: 'Puck Editor Settings'
-  requirements:
-    _permission: 'administer site configuration'

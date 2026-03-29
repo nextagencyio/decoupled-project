@@ -803,12 +803,46 @@ class DrupalContentImporter {
     // Generate placeholder images for empty image fields.
     $this->fillEmptyImageFields('node', $bundle, $values, $node_data);
 
+    // Check for existing node to avoid duplicates on re-import.
+    $existing_node = NULL;
+    $path = $item['path'] ?? NULL;
+    if ($path) {
+      // Look up by path alias first (most reliable).
+      $alias_path = '/' . ltrim($path, '/');
+      $path_alias_storage = $this->entityTypeManager->getStorage('path_alias');
+      $aliases = $path_alias_storage->loadByProperties(['alias' => $alias_path]);
+      if (!empty($aliases)) {
+        $alias = reset($aliases);
+        $source = $alias->getPath();
+        if (preg_match('#^/node/(\d+)$#', $source, $matches)) {
+          $existing_node = $node_storage->load($matches[1]);
+        }
+      }
+    }
+    if (!$existing_node) {
+      // Fall back to title + bundle match.
+      $query = $node_storage->getQuery()
+        ->condition('type', $bundle)
+        ->condition('title', $node_data['title'])
+        ->accessCheck(FALSE)
+        ->range(0, 1);
+      $existing_ids = $query->execute();
+      if (!empty($existing_ids)) {
+        $existing_node = $node_storage->load(reset($existing_ids));
+      }
+    }
+
+    if ($existing_node) {
+      $result['summary'][] = "Skipped node: {$node_data['title']} (already exists as ID: {$existing_node->id()})";
+      return $existing_node;
+    }
+
     $node = $node_storage->create($node_data);
     $node->save();
 
     // Handle path alias if specified.
-    if (isset($item['path']) && !empty($item['path'])) {
-      $this->createPathAlias($node, $item['path'], $result);
+    if (!empty($path)) {
+      $this->createPathAlias($node, $path, $result);
     }
 
     $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle})";
