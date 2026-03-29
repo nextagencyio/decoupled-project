@@ -1684,3 +1684,78 @@
   color: #047857;
   font-size: 0.875rem;
 }
+
+/* Settings cards */
+.dc-settings-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dc-settings-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+}
+.dc-settings-card:focus,
+.dc-settings-card:active {
+  outline: none;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.dc-settings-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dc-settings-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  line-height: 1.3;
+}
+.dc-settings-card-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.dc-settings-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+/* Collapsible details */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details > summary::marker {
+  display: none;
+  content: '';
+}
+details > summary:hover {
+  color: #1e293b;
+}
+details[open] > summary svg {
+  transform: rotate(180deg);
+}
+.dc-config-advanced-section.dc-config-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+}

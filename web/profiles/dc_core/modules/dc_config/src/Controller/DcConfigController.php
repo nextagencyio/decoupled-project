@@ -137,12 +137,12 @@ class DcConfigController extends ControllerBase {
    */
   private function getDefaultStarter() {
     return [
-      'id' => 'starter',
-      'name' => 'Basic Starter',
-      'description' => 'Articles, pages, and basic content site',
-      'icon' => 'newspaper',
-      'contentUrl' => 'https://raw.githubusercontent.com/nextagencyio/decoupled-starter/main/data/starter-content.json',
-      'vercelUrl' => 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter',
+      'id' => 'components',
+      'name' => 'Decoupled Components',
+      'description' => 'Landing pages with visual editor, 15+ paragraph components, and AI-powered Design Studio',
+      'icon' => 'layout',
+      'contentUrl' => 'https://raw.githubusercontent.com/nextagencyio/decoupled-components/main/data/components-content.json',
+      'vercelUrl' => 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components',
     ];
   }
 
@@ -488,26 +488,69 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               ) . '
             </div>
 
-            <div class="dc-config-divider">
-              <span>advanced / local development</span>
-            </div>
-
-            <div class="dc-config-section dc-config-advanced-section">
-              <h2>🔧 Manual Configuration</h2>
-              <p>For local development or manual setup, create a <code>.env.local</code> file in your Next.js project root:</p>
-
-              ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
-
-              <div class="dc-config-generate-secret">
-                <form method="post" action="/dc-config/generate-secret" style="display: inline;">
-                  <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
-                  <button type="submit" class="dc-config-generate-button">
-                    🔑&nbsp;&nbsp;Generate New Client Secret
-                  </button>
-                </form>
-                <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
+            <div class="dc-config-section" style="margin-top:32px;">
+              <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:16px;">Settings</h2>
+              <div class="dc-settings-grid">
+                <a href="/admin/config/decoupled_preview_iframe/settings" class="dc-settings-card">
+                  <div class="dc-settings-card-icon" style="background:#eff6ff;color:#3b82f6;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                  </div>
+                  <div>
+                    <div class="dc-settings-card-title">Preview Iframe</div>
+                    <div class="dc-settings-card-desc">Frontend URL for live content preview</div>
+                  </div>
+                </a>
+                <a href="/admin/config/dc-puck" class="dc-settings-card">
+                  <div class="dc-settings-card-icon" style="background:#f5f3ff;color:#8b5cf6;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>
+                  </div>
+                  <div>
+                    <div class="dc-settings-card-title">Design Studio</div>
+                    <div class="dc-settings-card-desc">Puck visual editor URL and content types</div>
+                  </div>
+                </a>
+                <a href="/admin/config/decoupled/revalidation" class="dc-settings-card">
+                  <div class="dc-settings-card-icon" style="background:#ecfdf5;color:#10b981;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                  </div>
+                  <div>
+                    <div class="dc-settings-card-title">Revalidation</div>
+                    <div class="dc-settings-card-desc">On-demand cache revalidation for Next.js</div>
+                  </div>
+                </a>
+                <a href="/admin/content/import" class="dc-settings-card">
+                  <div class="dc-settings-card-icon" style="background:#fff7ed;color:#f97316;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                  </div>
+                  <div>
+                    <div class="dc-settings-card-title">Import Content</div>
+                    <div class="dc-settings-card-desc">Import content types and data from JSON</div>
+                  </div>
+                </a>
               </div>
             </div>
+
+            <details style="margin-top:32px;" class="dc-config-section dc-config-advanced-section">
+              <summary style="cursor:pointer;font-size:16px;font-weight:600;color:#64748b;padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                Manual Configuration
+              </summary>
+              <div style="padding-top:12px;">
+                <p>For local development or manual setup, create a <code>.env.local</code> file in your Next.js project root:</p>
+
+                ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
+
+                <div class="dc-config-generate-secret">
+                  <form method="post" action="/dc-config/generate-secret" style="display: inline;">
+                    <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
+                    <button type="submit" class="dc-config-generate-button">
+                      🔑&nbsp;&nbsp;Generate New Client Secret
+                    </button>
+                  </form>
+                  <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
+                </div>
+              </div>
+            </details>
 
           </div>
         </div>
@@ -550,14 +593,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               </div>
             </div>
 
-            <div class="dc-config-help-links">
-              <h4>📚 Resources</h4>
-              <ul>
-                <li><a href="https://github.com/nextagencyio/decoupled-starter" target="_blank">Starter Project →</a></li>
-                <li><a href="https://nextjs.org/docs" target="_blank">Next.js Docs →</a></li>
-                <li><a href="/admin/config" target="_blank">Drupal Config →</a></li>
-              </ul>
-            </div>
             </div>
           </div>
         </div>
@@ -587,6 +622,8 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'strong',
       'br',
       'script',
+      'details',
+      'summary',
       // SVG elements for icons.
       'svg',
       'path',

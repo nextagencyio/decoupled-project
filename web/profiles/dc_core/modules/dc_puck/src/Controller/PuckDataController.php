@@ -113,6 +113,102 @@ class PuckDataController extends ControllerBase {
   }
 
   /**
+   * Configure dc_puck settings via API.
+   *
+   * POST /api/puck/configure
+   * Accepts: { editor_url, enabled, enabled_content_types }
+   * Auth: X-Decoupled-Token header (same as dc_import)
+   */
+  public function configure(Request $request): JsonResponse {
+    // Authenticate using the same token mechanism as dc_import.
+    if (!$this->authenticateApiRequest($request)) {
+      return new JsonResponse(['error' => 'Unauthorized'], 401);
+    }
+
+    $body = json_decode($request->getContent(), TRUE);
+    if (empty($body)) {
+      return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+    }
+
+    $state = \Drupal::state();
+    $changes = [];
+
+    if (isset($body['enabled'])) {
+      $state->set('dc_puck.enabled', (bool) $body['enabled']);
+      $changes[] = 'enabled=' . ($body['enabled'] ? 'true' : 'false');
+    }
+
+    if (isset($body['editor_url'])) {
+      $url = rtrim($body['editor_url'], '/');
+      $state->set('dc_puck.editor_url', $url);
+      $changes[] = 'editor_url=' . $url;
+    }
+
+    if (isset($body['enabled_content_types']) && is_array($body['enabled_content_types'])) {
+      $state->set('dc_puck.enabled_content_types', $body['enabled_content_types']);
+      $changes[] = 'enabled_content_types=[' . implode(',', $body['enabled_content_types']) . ']';
+    }
+
+    // Clear caches so the Design Studio tab appears immediately.
+    drupal_flush_all_caches();
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'message' => 'Puck editor configured.',
+      'changes' => $changes,
+      'state' => [
+        'enabled' => $state->get('dc_puck.enabled', FALSE),
+        'editor_url' => $state->get('dc_puck.editor_url', ''),
+        'enabled_content_types' => $state->get('dc_puck.enabled_content_types', []),
+      ],
+    ]);
+  }
+
+  /**
+   * Authenticate an API request using X-Decoupled-Token header.
+   * Reuses the same validation logic as dc_import.
+   */
+  protected function authenticateApiRequest(Request $request): bool {
+    $token = $request->headers->get('X-Decoupled-Token');
+    if (empty($token)) {
+      $authHeader = $request->headers->get('Authorization');
+      if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+        $token = substr($authHeader, 7);
+      }
+    }
+
+    if (empty($token)) {
+      return FALSE;
+    }
+
+    // Platform PAT tokens (dc_tok_...) — validate against dashboard.
+    if (str_starts_with($token, 'dc_tok_')) {
+      $platformUrl = getenv('DECOUPLED_PLATFORM_URL') ?:
+        \Drupal::state()->get('dc_import.platform_url', 'https://dashboard.decoupled.io');
+
+      try {
+        $response = \Drupal::httpClient()->post($platformUrl . '/api/auth/validate', [
+          'json' => ['token' => $token],
+          'timeout' => 10,
+        ]);
+        $data = json_decode($response->getBody()->getContents(), TRUE);
+        return !empty($data['valid']);
+      }
+      catch (\Exception $e) {
+        return FALSE;
+      }
+    }
+
+    // Space auth tokens — check against stored token.
+    $storedToken = \Drupal::state()->get('dc_import.space_auth_token', '');
+    if (!empty($storedToken) && hash_equals($storedToken, $token)) {
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Validate a signed Puck token for a specific node.
    */
   protected function validateToken(string $token, NodeInterface $node): bool {

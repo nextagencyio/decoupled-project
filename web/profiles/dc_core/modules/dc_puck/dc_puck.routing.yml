@@ -40,6 +40,14 @@ dc_puck.mapping:
     _access: 'TRUE'
   methods: [GET]
 
+dc_puck.configure_api:
+  path: '/api/puck/configure'
+  defaults:
+    _controller: '\Drupal\dc_puck\Controller\PuckDataController::configure'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+
 dc_puck.config_form:
   path: '/admin/config/dc-puck'
   defaults:
