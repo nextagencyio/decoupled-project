@@ -454,7 +454,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                         <h3>Deploy your Next.js frontend</h3>
                         <p>Create a new project from our starter template with one click.</p>
                       </div>
-                      <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-starter&project-name=my-app"
+                      <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components&project-name=my-app"
                          target="_blank"
                          class="dc-config-vercel-deploy-btn">
                         <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
