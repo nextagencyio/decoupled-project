@@ -768,3 +768,41 @@ function dc_core_update_10020() {
 
   return implode(' ', $messages);
 }
+
+/**
+ * Add default pathauto pattern for nodes and hide "Member for" on user display.
+ */
+function dc_core_update_10021() {
+  $messages = [];
+
+  // 1. Create default pathauto pattern for all nodes: [node:title]
+  $pattern_storage = \Drupal::entityTypeManager()->getStorage('pathauto_pattern');
+  if (!$pattern_storage->load('node_default')) {
+    $pattern = $pattern_storage->create([
+      'id' => 'node_default',
+      'label' => 'Default node URL alias',
+      'type' => 'canonical_entities:node',
+      'pattern' => '[node:title]',
+      'status' => TRUE,
+    ]);
+    $pattern->save();
+    $messages[] = t('Created default pathauto pattern for nodes: [node:title].');
+  }
+  else {
+    $messages[] = t('Pathauto node_default pattern already exists.');
+  }
+
+  // 2. Hide "Member for" from user default display (prevents it showing on node pages).
+  $display_storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $display = $display_storage->load('user.user.default');
+  if ($display) {
+    $display->removeComponent('member_for');
+    $display->save();
+    $messages[] = t('Hidden "Member for" from user default display.');
+  }
+  else {
+    $messages[] = t('User default display not found, skipping.');
+  }
+
+  return implode(' ', $messages);
+}
