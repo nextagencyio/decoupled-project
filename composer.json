@@ -42,6 +42,7 @@
         "cweagans/composer-patches": "^2.0",
         "drupal/admin_toolbar": "^3.4",
         "drupal/admin_toolbar_tools": "^3.4",
+        "drupal/cms_content_sync": "^3.2",
         "drupal/core-composer-scaffold": "^11.2",
         "drupal/core-recommended": "^11.2",
         "drupal/decoupled_preview_iframe": "dev-3543929-drupal-11-fixes",
