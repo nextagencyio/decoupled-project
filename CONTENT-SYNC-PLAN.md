@@ -122,29 +122,37 @@ This would:
   - Generate site credentials (UUID + secret)
   - Configure pools and flows
 
-**Research needed:**
-- Does content-sync.io expose a REST API for project management?
-- Can we register as an "integration partner" to get OAuth app credentials?
-- Is there an API to programmatically register a Drupal site to a Sync Core?
+**Research findings (April 2026):**
 
-**If Content Sync has an API:**
+Content Sync does **NOT** have:
+- A public REST API for project/site management
+- An OAuth integration marketplace (like Vercel)
+- Any documented way to programmatically register a Drupal site
+
+Site registration is **UI-only** — done through the Drupal admin at `/admin/config/services/cms-content-sync`. Each site gets a 64-character auto-generated password shared with the Sync Core, and subsequent communication uses short-lived JWTs.
+
+Sites must be internet-accessible for the Sync Core to reach them (or use the "private environment" submodule with `drush cspep` polling for localhost).
+
+**Security:** EU IPs `63.34.184.33`, `63.35.18.137`; US IPs `3.222.171.239`, `34.205.151.183` (for IP whitelisting).
+
+**What IS automatable:**
+- Flow/pool creation (config entities — exportable via `drush config:export`)
+- Push/pull operations (`drush cs-push <flow>`, `drush cms_content_sync:pull <flow>`)
+- Config deployment across environments via CI/CD
+- settings.php overrides for site name, base URL, flow status
+
+**Realistic integration path:**
 ```
-User clicks "Enable Content Sync" in Decoupled.io dashboard
-  → Dashboard creates Content Sync project via API
-  → Dashboard registers the Drupal space to the project
-  → Dashboard configures the Drupal module via our existing MCP/API
-  → Done — content sync is working
+1. Module pre-installed in Drupal image (composer require)
+2. MCP tool / drush command auto-configures flows for all node types
+3. User registers site at content-sync.io (manual — no automation API)
+4. User can push/pull content via drush or MCP
 ```
 
-**If Content Sync does NOT have an API:**
-```
-User clicks "Enable Content Sync" in Decoupled.io dashboard
-  → Dashboard enables the module on the Drupal space
-  → Dashboard creates a default flow via drush
-  → User is redirected to content-sync.io to create a project manually
-  → User copies Sync Core URL back to Drupal settings
-  → Semi-automated — still requires manual steps
-```
+**To unlock full automation, we'd need an Edge Box partnership:**
+- Programmatic site registration API
+- Platform pricing for Decoupled.io customers
+- Possibly self-hosting Sync Core on our Contabo server (Enterprise license, Docker-based)
 
 ## Implementation Steps
 
@@ -167,13 +175,21 @@ User clicks "Enable Content Sync" in Decoupled.io dashboard
 9. Dashboard UI for Content Sync management
 10. Automatic pool/flow creation on space creation
 
-## Questions for Content Sync Team
+## Questions for Edge Box (Content Sync Team)
 
-1. Is there a REST API for managing projects, sites, and pools?
-2. Can we register as an integration partner for OAuth-based setup?
-3. Is there a way to programmatically register a Drupal site to a Sync Core without the admin UI?
-4. What's the pricing model for Decoupled.io customers (per-site? per-project?)
-5. Does `configureEntityTypeSettings(['node'])` work as a replacement for calling `enableBundle()` per type?
+1. ~~Is there a REST API for managing projects, sites, and pools?~~ → **No (confirmed by research)**
+2. Can we get a programmatic site registration API as a platform partner?
+3. What's the pricing model for a platform like ours? (per-site? volume discount?)
+4. Is the on-premise Sync Core (Docker) a viable option for us to self-host?
+5. Does `configureEntityTypeSettings(['node'])` work in the 3.0.x branch? (Not found in public 2.x API docs — may be 3.x only)
+6. Can `SimpleFlowSetupHelper` / `FlowControllerSimple` be used via drush to auto-create flows?
+
+## Research Notes
+
+- **SimpleFlowSetupHelper**: Not found in public 2.x API docs. May exist in 3.0.x branch or Content Cloud product. The CEO mentioned it specifically, so it may be an internal/partner API.
+- **Pricing**: Enterprise custom pricing only — no public price list, no free tier. Factors: number of sites, volume of updates, SLA requirements.
+- **On-Premise Sync Core**: Available with Enterprise license. Docker-based with MongoDB, RabbitMQ, Elasticsearch, S3. Could potentially run on our Contabo server.
+- **Module version**: All connected sites must run the exact same `cms_content_sync` version.
 
 ## Existing Project
 
