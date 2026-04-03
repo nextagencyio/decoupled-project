@@ -388,9 +388,10 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       $fe_url = htmlspecialchars($frontend_status['url']);
       $claim_url = htmlspecialchars($frontend_status['claim_url'] ?? '');
       $is_claimed = !empty($frontend_status['claimed']);
-      $template_label = $frontend_status['template'] === 'decoupled-minimal' ? 'Next.js Minimal' : 'Next.js Components + Puck Editor';
+      $is_deploying = ($frontend_status['status'] ?? '') === 'deploying';
 
       $check_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      $spinner_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-config-spinner"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 
       $claim_html = '';
       if ($is_claimed) {
@@ -407,33 +408,58 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         </div>';
       }
 
-      $netlify_section = '
-        <div class="dc-config-netlify-card">
-          <div class="dc-config-netlify-header">
-            <div class="dc-config-netlify-title">
-              <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
-              <strong>Frontend Connected</strong>
+      if ($is_deploying) {
+        // Deploying state — auto-refresh every 10 seconds
+        $netlify_section = '
+          <div class="dc-config-netlify-card dc-config-netlify-deploying">
+            <div class="dc-config-netlify-header">
+              <div class="dc-config-netlify-title">
+                ' . $spinner_svg . '
+                <strong>Frontend Deploying</strong>
+              </div>
+              <span class="dc-config-netlify-link" style="color:#6b7280;">' . preg_replace('#^https?://#', '', $fe_url) . '</span>
             </div>
-            <a href="' . $fe_url . '" target="_blank" rel="noopener noreferrer" class="dc-config-netlify-link">' . preg_replace('#^https?://#', '', $fe_url) . ' ↗</a>
-          </div>
 
-          <div class="dc-config-netlify-checks">
-            ' . ($frontend_status['preview_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Live preview configured</div>' : '') . '
-            ' . ($frontend_status['puck_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Visual page builder ready</div>' : '') . '
-            ' . ($frontend_status['content_imported'] ? '<div class="dc-config-check">' . $check_svg . ' Sample content imported</div>' : '') . '
-          </div>
+            <div class="dc-config-netlify-checks">
+              <div class="dc-config-check" style="color:#6b7280;">' . $spinner_svg . ' Deploying Next.js to Netlify...</div>
+              <div class="dc-config-check" style="color:#6b7280;">' . $spinner_svg . ' Importing content...</div>
+              <div class="dc-config-check" style="color:#6b7280;">' . $spinner_svg . ' Configuring preview and editor...</div>
+            </div>
 
-          ' . $claim_html . '
-
-          <div class="dc-config-netlify-next-steps">
-            <strong>Get started:</strong>
-            <ul>
-              <li><a href="/admin/content">Browse your content</a> — sample pages with 10+ professional components</li>
-              <li>Edit any landing page and click the <strong>Preview</strong> tab to see it live on your frontend</li>
-              <li>Open the <strong>Design Studio</strong> to build pages visually — drag, drop, publish</li>
-            </ul>
+            <p style="font-size:13px;color:#9ca3af;margin-top:12px;">This page will update automatically when everything is connected.</p>
           </div>
-        </div>';
+          <script>setTimeout(function(){ location.reload(); }, 10000);</script>';
+      }
+      else {
+        // Connected state
+        $netlify_section = '
+          <div class="dc-config-netlify-card">
+            <div class="dc-config-netlify-header">
+              <div class="dc-config-netlify-title">
+                <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
+                <strong>Frontend Connected</strong>
+              </div>
+              <a href="' . $fe_url . '" target="_blank" rel="noopener noreferrer" class="dc-config-netlify-link">' . preg_replace('#^https?://#', '', $fe_url) . ' ↗</a>
+            </div>
+
+            <div class="dc-config-netlify-checks">
+              ' . ($frontend_status['preview_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Live preview configured</div>' : '') . '
+              ' . ($frontend_status['puck_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Visual page builder ready</div>' : '') . '
+              ' . ($frontend_status['content_imported'] ? '<div class="dc-config-check">' . $check_svg . ' Sample content imported</div>' : '') . '
+            </div>
+
+            ' . $claim_html . '
+
+            <div class="dc-config-netlify-next-steps">
+              <strong>Get started:</strong>
+              <ul>
+                <li><a href="/admin/content">Browse your content</a> — sample pages with 10+ professional components</li>
+                <li>Edit any landing page and click the <strong>Preview</strong> tab to see it live on your frontend</li>
+                <li>Open the <strong>Design Studio</strong> to build pages visually — drag, drop, publish</li>
+              </ul>
+            </div>
+          </div>';
+      }
     }
 
     // Build the Vercel section (used in both states, but collapsed in State A)
@@ -584,8 +610,8 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         '#markup' => '<div class="dc-config-main-layout">
           <div class="dc-config-content-area">
             <div class="dc-config-header">
-              <h1>Your site is live!</h1>
-              <p>Frontend and backend are connected. Start creating content or customize your site.</p>
+              <h1>' . ($is_deploying ? 'Setting up your site...' : 'Your site is live!') . '</h1>
+              <p>' . ($is_deploying ? 'Your backend is ready. Frontend is deploying and will connect automatically.' : 'Frontend and backend are connected. Start creating content or customize your site.') . '</p>
             </div>
 
             <div class="dc-config-main-content">
@@ -621,30 +647,30 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                 </h3>
                 <div class="dc-config-checklist">
                   <div class="dc-config-checklist-item">
-                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-number ' . ($is_deploying ? '' : 'dc-config-step-done') . '">' . ($is_deploying ? '1' : '✓') . '</div>
                     <div class="dc-config-step-content">
                       <div class="dc-config-step-title">Content Imported</div>
-                      <div class="dc-config-step-description">10+ professional components ready</div>
+                      <div class="dc-config-step-description">' . ($is_deploying ? 'Importing components...' : '10+ professional components ready') . '</div>
                     </div>
                   </div>
                   <div class="dc-config-checklist-item">
-                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-number ' . ($is_deploying ? '' : 'dc-config-step-done') . '">' . ($is_deploying ? '2' : '✓') . '</div>
                     <div class="dc-config-step-content">
                       <div class="dc-config-step-title">Frontend Deployed</div>
-                      <div class="dc-config-step-description">Next.js on Netlify, zero DevOps</div>
+                      <div class="dc-config-step-description">' . ($is_deploying ? 'Deploying to Netlify...' : 'Next.js on Netlify, zero DevOps') . '</div>
                     </div>
                   </div>
                   <div class="dc-config-checklist-item">
-                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-number ' . ($is_deploying ? '' : 'dc-config-step-done') . '">' . ($is_deploying ? '3' : '✓') . '</div>
                     <div class="dc-config-step-content">
                       <div class="dc-config-step-title">Preview + Design Studio</div>
-                      <div class="dc-config-step-description">Live preview and visual builder</div>
+                      <div class="dc-config-step-description">' . ($is_deploying ? 'Configuring...' : 'Live preview and visual builder') . '</div>
                     </div>
                   </div>
                   <div class="dc-config-checklist-item">
                     <div class="dc-config-step-number">4</div>
                     <div class="dc-config-step-content">
-                      <div class="dc-config-step-title"><a href="/admin/content" style="color:inherit;text-decoration:none;">Start Creating</a></div>
+                      <div class="dc-config-step-title">' . ($is_deploying ? 'Start Creating' : '<a href="/admin/content" style="color:inherit;text-decoration:none;">Start Creating</a>') . '</div>
                       <div class="dc-config-step-description">Build pages with drag and drop</div>
                     </div>
                   </div>

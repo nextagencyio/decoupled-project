@@ -1844,6 +1844,16 @@ details[open] > summary svg {
   font-size: 12px;
   font-weight: 700;
 }
+@keyframes dc-spin {
+  to { transform: rotate(360deg); }
+}
+.dc-config-spinner {
+  animation: dc-spin 1s linear infinite;
+}
+.dc-config-netlify-deploying {
+  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+  border-color: #d1d5db;
+}
 .dc-config-netlify-next-steps {
   margin-top: 16px;
   padding-top: 16px;
