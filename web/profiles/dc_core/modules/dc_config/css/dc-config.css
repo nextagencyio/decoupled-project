@@ -1759,6 +1759,12 @@ details[open] > summary svg {
   border-radius: 10px;
   padding: 16px 20px;
 }
+.dc-config-advanced-section.dc-config-section > summary + div {
+  padding-top: 20px;
+}
+.dc-config-advanced-section.dc-config-section h3:first-child {
+  margin-top: 0;
+}
 
 /* Netlify Frontend Card */
 .dc-config-netlify-card {
