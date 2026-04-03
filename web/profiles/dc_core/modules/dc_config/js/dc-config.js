@@ -757,9 +757,9 @@
 
   /**
    * Frontend status checker.
-   * Polls the frontend status API and reloads the page when status changes.
+   * Polls the frontend status API and updates the page content in-place.
    * This ensures the dc-config page always shows the current state even if
-   * the page was served from cache.
+   * the page was served from Drupal's cache.
    */
   Drupal.behaviors.decoupledFrontendStatus = {
     attach: function (context) {
@@ -783,9 +783,9 @@
         .then(function(data) {
           var currentStatus = data.status || 'none';
 
-          // If status changed from what was rendered, reload the page
+          // If status changed from what was rendered, reload with cache buster
           if (currentStatus !== renderedStatus) {
-            location.reload();
+            location.href = location.pathname + '?_=' + Date.now();
             return;
           }
 
