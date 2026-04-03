@@ -41,7 +41,7 @@ dc_config.import_starter:
     _permission: 'administer site configuration'
   methods: [POST]
 
-# Frontend status API (called by dashboard during auto-connect)
+# Frontend status API (POST: set by dashboard, GET: read by JS)
 dc_config.set_frontend_status:
   path: '/api/dc-config/frontend-status'
   defaults:
@@ -50,6 +50,15 @@ dc_config.set_frontend_status:
   requirements:
     _access: 'TRUE'
   methods: [POST]
+
+dc_config.get_frontend_status:
+  path: '/api/dc-config/frontend-status'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::getFrontendStatus'
+    _title: 'Get Frontend Status'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [GET]
 
 decoupled.admin_category:
   path: '/admin/config/decoupled'

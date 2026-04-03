@@ -237,9 +237,6 @@ class DcConfigController extends ControllerBase {
    *   A render array.
    */
   public function configPage() {
-    // Kill page cache entirely — this page reads from state that changes dynamically.
-    \Drupal::service('page_cache_kill_switch')->trigger();
-
     $build = [];
 
     // Attach the custom library for styling and JavaScript.
@@ -430,8 +427,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             </div>
 
             <p style="font-size:13px;color:#9ca3af;margin-top:12px;">This page will update automatically when everything is connected.</p>
-          </div>
-          <script>setTimeout(function(){ location.reload(); }, 10000);</script>';
+          </div>';
       }
       else {
         // Connected state
@@ -757,9 +753,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         </div>',
       ];
     }
-
-    // Disable caching so frontend status is always fresh.
-    $build['#cache'] = ['max-age' => 0];
 
     // Allow HTML attributes to preserve styling.
     $build['instructions']['#allowed_tags'] = [
@@ -1516,6 +1509,14 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   A JSON response.
    */
+  /**
+   * Get frontend status (called by dc-config JavaScript to update UI).
+   */
+  public function getFrontendStatus() {
+    $frontend = \Drupal::state()->get('dc_config.frontend');
+    return new JsonResponse($frontend ?: ['status' => 'none']);
+  }
+
   public function setFrontendStatus(Request $request) {
     // Validate token.
     $token = $request->headers->get('X-Decoupled-Token');
