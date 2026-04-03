@@ -755,6 +755,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       ];
     }
 
+    // Disable caching so frontend status is always fresh.
+    $build['#cache'] = ['max-age' => 0];
+
     // Allow HTML attributes to preserve styling.
     $build['instructions']['#allowed_tags'] = [
       'div',
