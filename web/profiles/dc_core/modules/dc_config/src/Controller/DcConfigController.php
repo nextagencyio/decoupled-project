@@ -383,6 +383,11 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     // Check if a frontend was auto-provisioned via turnkey flow.
     // Uses config (not state) so Drupal's cache tags auto-invalidate the render.
     $frontend_config = $this->configFactory->get('dc_config.frontend');
+    // Ensure config exists (for sites installed before this feature).
+    if ($frontend_config->isNew()) {
+      $this->configFactory->getEditable('dc_config.frontend')->set('data', NULL)->save();
+      $frontend_config = $this->configFactory->get('dc_config.frontend');
+    }
     $frontend_status = $frontend_config->get('data');
     $netlify_section = '';
 
