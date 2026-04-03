@@ -237,8 +237,8 @@ class DcConfigController extends ControllerBase {
    *   A render array.
    */
   public function configPage() {
-    // This page reads from Drupal state that changes dynamically (frontend status).
-    // Disable page cache so it always renders fresh.
+    // Disable page cache — this admin page reads dynamic state (frontend status)
+    // and is only visited by site admins. No performance impact.
     \Drupal::service('page_cache_kill_switch')->trigger();
 
     $build = [];
