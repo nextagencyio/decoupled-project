@@ -237,6 +237,9 @@ class DcConfigController extends ControllerBase {
    *   A render array.
    */
   public function configPage() {
+    // Kill page cache entirely — this page reads from state that changes dynamically.
+    \Drupal::service('page_cache_kill_switch')->trigger();
+
     $build = [];
 
     // Attach the custom library for styling and JavaScript.
