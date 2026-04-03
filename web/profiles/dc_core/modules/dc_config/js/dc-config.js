@@ -756,23 +756,16 @@
   }
 
   /**
-   * Frontend status checker.
-   * Polls the frontend status API and updates the page content in-place.
-   * This ensures the dc-config page always shows the current state even if
-   * the page was served from Drupal's cache.
+   * Frontend status poller.
+   * When the page shows "deploying" state, polls until the frontend is
+   * connected then reloads to show the final state.
    */
   Drupal.behaviors.decoupledFrontendStatus = {
     attach: function (context) {
-      // Only run once on the main document
       if (context !== document) return;
 
-      var mainContent = document.querySelector('.dc-config-main-layout');
-      if (!mainContent) return;
-
-      // Determine what the server rendered
-      var hasNetlifyCard = !!document.querySelector('.dc-config-netlify-card');
-      var isDeploying = !!document.querySelector('.dc-config-netlify-deploying');
-      var renderedStatus = hasNetlifyCard ? (isDeploying ? 'deploying' : 'active') : 'none';
+      // Only poll if we're showing the deploying state
+      if (!document.querySelector('.dc-config-netlify-deploying')) return;
 
       function checkStatus() {
         fetch('/api/dc-config/frontend-status', {
@@ -781,29 +774,18 @@
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          var currentStatus = data.status || 'none';
-
-          // If status changed from what was rendered, reload with cache buster
-          if (currentStatus !== renderedStatus) {
-            location.href = location.pathname + '?_=' + Date.now();
-            return;
-          }
-
-          // If still deploying, keep polling
-          if (currentStatus === 'deploying') {
+          if (data.status === 'active') {
+            location.reload();
+          } else {
             setTimeout(checkStatus, 8000);
           }
         })
         .catch(function() {
-          // Retry on error if deploying
-          if (renderedStatus === 'deploying') {
-            setTimeout(checkStatus, 8000);
-          }
+          setTimeout(checkStatus, 8000);
         });
       }
 
-      // Check on page load after a short delay
-      setTimeout(checkStatus, 2000);
+      setTimeout(checkStatus, 5000);
     }
   };
 
