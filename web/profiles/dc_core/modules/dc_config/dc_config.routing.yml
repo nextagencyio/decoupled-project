@@ -57,7 +57,7 @@ dc_config.get_frontend_status:
     _controller: '\Drupal\dc_config\Controller\DcConfigController::getFrontendStatus'
     _title: 'Get Frontend Status'
   requirements:
-    _permission: 'administer site configuration'
+    _access: 'TRUE'
   methods: [GET]
 
 decoupled.admin_category:
