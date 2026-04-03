@@ -237,10 +237,6 @@ class DcConfigController extends ControllerBase {
    *   A render array.
    */
   public function configPage() {
-    // Disable page cache — this admin page reads dynamic state (frontend status)
-    // and is only visited by site admins. No performance impact.
-    \Drupal::service('page_cache_kill_switch')->trigger();
-
     $build = [];
 
     // Attach the custom library for styling and JavaScript.
@@ -385,7 +381,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     $starter_grid = $this->buildStarterGrid();
 
     // Check if a frontend was auto-provisioned via turnkey flow.
-    $frontend_status = \Drupal::state()->get('dc_config.frontend');
+    // Uses config (not state) so Drupal's cache tags auto-invalidate the render.
+    $frontend_config = $this->configFactory->get('dc_config.frontend');
+    $frontend_status = $frontend_config->get('data');
     $netlify_section = '';
 
     if ($frontend_status && !empty($frontend_status['url'])) {
@@ -757,6 +755,11 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         </div>',
       ];
     }
+
+    // Cache invalidates automatically when dc_config.frontend config changes.
+    $build['#cache'] = [
+      'tags' => $frontend_config->getCacheTags(),
+    ];
 
     // Allow HTML attributes to preserve styling.
     $build['instructions']['#allowed_tags'] = [
@@ -1517,7 +1520,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    * Get frontend status (called by dc-config JavaScript to update UI).
    */
   public function getFrontendStatus() {
-    $frontend = \Drupal::state()->get('dc_config.frontend');
+    $frontend = \Drupal::config('dc_config.frontend')->get('data');
     return new JsonResponse($frontend ?: ['status' => 'none']);
   }
 
@@ -1539,8 +1542,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       return new JsonResponse(['error' => 'Invalid JSON'], 400);
     }
 
-    // Store frontend status in Drupal state.
-    \Drupal::state()->set('dc_config.frontend', [
+    // Store frontend status in config (not state) so cache tags auto-invalidate.
+    $config = \Drupal::configFactory()->getEditable('dc_config.frontend');
+    $config->set('data', [
       'provider' => $data['provider'] ?? 'netlify',
       'url' => $data['url'] ?? '',
       'claim_url' => $data['claim_url'] ?? '',
@@ -1552,6 +1556,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'content_imported' => $data['content_imported'] ?? FALSE,
       'updated_at' => date('c'),
     ]);
+    $config->save();
 
     return new JsonResponse(['success' => TRUE]);
   }
