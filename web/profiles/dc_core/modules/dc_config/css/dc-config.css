@@ -1759,3 +1759,125 @@ details[open] > summary svg {
   border-radius: 10px;
   padding: 16px 20px;
 }
+
+/* Netlify Frontend Card */
+.dc-config-netlify-card {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 2px solid #86efac;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.dc-config-netlify-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dc-config-netlify-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #166534;
+}
+.dc-config-netlify-link {
+  color: #15803d;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.dc-config-netlify-link:hover {
+  text-decoration: underline;
+}
+.dc-config-netlify-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.dc-config-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #166534;
+}
+.dc-config-netlify-claim {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 20px;
+}
+.dc-config-netlify-claim p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+}
+.dc-config-claim-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #00ad9f, #0e1e25);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity 0.2s;
+  margin: 14px 0;
+}
+.dc-config-claim-button:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+.dc-config-claim-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+.dc-config-step-done {
+  background: #16a34a !important;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+.dc-config-netlify-next-steps {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #bbf7d0;
+}
+.dc-config-netlify-next-steps strong {
+  color: #166534;
+  font-size: 14px;
+}
+.dc-config-netlify-next-steps ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+.dc-config-netlify-next-steps li {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+.dc-config-netlify-next-steps a {
+  color: #15803d;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dc-config-netlify-next-steps a:hover {
+  text-decoration: underline;
+}
+.dc-config-netlify-claimed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #166534;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+}

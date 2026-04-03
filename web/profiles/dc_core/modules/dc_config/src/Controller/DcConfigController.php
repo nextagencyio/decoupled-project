@@ -139,7 +139,7 @@ class DcConfigController extends ControllerBase {
     return [
       'id' => 'components',
       'name' => 'Decoupled Components',
-      'description' => 'Landing pages with visual editor, 15+ paragraph components, and AI-powered Design Studio',
+      'description' => '10+ professional components, visual page builder, and type-safe GraphQL client',
       'icon' => 'layout',
       'contentUrl' => 'https://raw.githubusercontent.com/nextagencyio/decoupled-components/main/data/components-content.json',
       'vercelUrl' => 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components',
@@ -191,13 +191,13 @@ class DcConfigController extends ControllerBase {
           <div class="dc-config-starter-installed-icon">&#10003;</div>
           <div class="dc-config-starter-installed-text">
             <strong>' . htmlspecialchars($starterName) . '</strong> has been imported.
-            <p>Your site is configured with this starter\'s content types and sample data.</p>
+            <p>Content types, sample data, and components are ready to use.</p>
           </div>
         </div>
       </div>
 
       <div class="dc-config-divider">
-        <span>then deploy to Vercel</span>
+        <span>next, deploy your frontend</span>
       </div>
       ';
     }
@@ -225,7 +225,7 @@ class DcConfigController extends ControllerBase {
     </div>
 
     <div class="dc-config-divider">
-      <span>then deploy to Vercel</span>
+      <span>next, deploy your frontend</span>
     </div>
     ';
   }
@@ -380,224 +380,354 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     // Build starter grid.
     $starter_grid = $this->buildStarterGrid();
 
-    $build['instructions'] = [
-      '#type' => 'markup',
-      '#markup' => '<div class="dc-config-main-layout">
-        <div class="dc-config-content-area">
-          <div class="dc-config-header">
-            <h1>Your headless CMS is ready!</h1>
-            <p>Follow the steps below to connect your Next.js frontend and start building.</p>
+    // Check if a frontend was auto-provisioned via turnkey flow.
+    $frontend_status = \Drupal::state()->get('dc_config.frontend');
+    $netlify_section = '';
+
+    if ($frontend_status && !empty($frontend_status['url'])) {
+      $fe_url = htmlspecialchars($frontend_status['url']);
+      $claim_url = htmlspecialchars($frontend_status['claim_url'] ?? '');
+      $is_claimed = !empty($frontend_status['claimed']);
+      $template_label = $frontend_status['template'] === 'decoupled-minimal' ? 'Next.js Minimal' : 'Next.js Components + Puck Editor';
+
+      $check_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+      $claim_html = '';
+      if ($is_claimed) {
+        $claim_html = '<div class="dc-config-netlify-claimed">
+          <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
+          <strong>Claimed</strong> — this site is in your Netlify account.
+        </div>';
+      }
+      elseif ($claim_url) {
+        $claim_html = '<div class="dc-config-netlify-claim">
+          <p>Take full ownership of your frontend. Custom domains, deploy settings, and CI/CD — all under your Netlify account.</p>
+          <a href="' . $claim_url . '" target="_blank" rel="noopener noreferrer" class="dc-config-claim-button">Claim Your Site on Netlify</a>
+          <p class="dc-config-claim-note">Environment variables transfer automatically. We retain deploy access so content updates keep flowing.</p>
+        </div>';
+      }
+
+      $netlify_section = '
+        <div class="dc-config-netlify-card">
+          <div class="dc-config-netlify-header">
+            <div class="dc-config-netlify-title">
+              <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
+              <strong>Frontend Connected</strong>
+            </div>
+            <a href="' . $fe_url . '" target="_blank" rel="noopener noreferrer" class="dc-config-netlify-link">' . preg_replace('#^https?://#', '', $fe_url) . ' ↗</a>
           </div>
 
-          <div class="dc-config-main-content">
-            <!-- Starter Selection Section -->
-            ' . $starter_grid . '
+          <div class="dc-config-netlify-checks">
+            ' . ($frontend_status['preview_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Live preview configured</div>' : '') . '
+            ' . ($frontend_status['puck_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Visual page builder ready</div>' : '') . '
+            ' . ($frontend_status['content_imported'] ? '<div class="dc-config-check">' . $check_svg . ' Sample content imported</div>' : '') . '
+          </div>
 
-            <!-- Vercel Integration Section -->
-            <div class="dc-config-vercel-hero">
-              ' . ($vercel_connected ?
-                // Connected State - Full width card
-                '<div class="dc-config-vercel-connected-card">
-                  <div class="dc-config-vercel-connected-header">
-                    <div class="dc-config-vercel-connected-status">
-                      <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
-                      <span>Connected to Vercel</span>
-                    </div>
-                  </div>
+          ' . $claim_html . '
 
-                  <div class="dc-config-vercel-connected-body">
-                    <div class="dc-config-vercel-project-selector">
-                      <label for="vercel-project">Select a project to sync environment variables:</label>
-                      <select id="vercel-project" class="dc-config-select">
-                        <option value="">Loading projects...</option>
-                      </select>
-                    </div>
+          <div class="dc-config-netlify-next-steps">
+            <strong>Get started:</strong>
+            <ul>
+              <li><a href="/admin/content">Browse your content</a> — sample pages with 10+ professional components</li>
+              <li>Edit any landing page and click the <strong>Preview</strong> tab to see it live on your frontend</li>
+              <li>Open the <strong>Design Studio</strong> to build pages visually — drag, drop, publish</li>
+            </ul>
+          </div>
+        </div>';
+    }
 
-                    <div class="dc-config-vercel-actions">
-                      <div class="dc-config-vercel-buttons">
-                        <button type="button" id="vercel-sync-btn" class="dc-config-sync-button" disabled>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                          Sync Environment Variables
-                        </button>
-                        <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                          Trigger Rebuild
-                        </button>
-                      </div>
-                      <div class="dc-config-vercel-status-row">
-                        <div id="vercel-sync-status" class="dc-config-sync-status"></div>
-                        <div id="vercel-deploy-status" class="dc-config-deploy-status"></div>
-                      </div>
-                    </div>
-
-                    ' . ($vercel_last_synced ? '<p class="dc-config-vercel-last-sync">Last synced: ' . date('M j, Y g:i A', $vercel_last_synced) . '</p>' : '') . '
-                  </div>
-
-                  <div class="dc-config-vercel-connected-footer">
-                    <form method="post" action="/dc-config/vercel/disconnect" style="display: inline;">
-                      <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_vercel_disconnect') . '">
-                      <button type="submit" class="dc-config-disconnect-link">Disconnect from Vercel</button>
-                    </form>
-                  </div>
-                </div>'
-                :
-                // Not Connected State - Sequential steps layout
-                '<div class="dc-config-vercel-steps">
-                  <!-- Step 1: Deploy -->
-                  <div class="dc-config-vercel-step">
-                    <div class="dc-config-step-marker">
-                      <span class="dc-config-step-number-badge">1</span>
-                      <div class="dc-config-step-line"></div>
-                    </div>
-                    <div class="dc-config-vercel-step-card dc-config-vercel-step-card--deploy">
-                      <div class="dc-config-vercel-step-content">
-                        <h3>Deploy your Next.js frontend</h3>
-                        <p>Create a new project from our starter template with one click.</p>
-                      </div>
-                      <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components&project-name=my-app"
-                         target="_blank"
-                         class="dc-config-vercel-deploy-btn">
-                        <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
-                        </svg>
-                        Deploy with Vercel
-                        <span class="dc-config-arrow">→</span>
-                      </a>
-                    </div>
-                  </div>
-
-                  <!-- Step 2: Connect -->
-                  <div class="dc-config-vercel-step">
-                    <div class="dc-config-step-marker">
-                      <span class="dc-config-step-number-badge">2</span>
-                    </div>
-                    <div class="dc-config-vercel-step-card dc-config-vercel-step-card--connect">
-                      <div class="dc-config-vercel-step-content">
-                        <h3>Connect to sync environment variables</h3>
-                        <p>Automatically configure your Vercel project with the credentials it needs.</p>
-                      </div>
-                      <a href="/dc-config/vercel/connect" class="dc-config-vercel-connect-btn">
-                        <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
-                        </svg>
-                        Connect to Vercel
-                      </a>
-                    </div>
-                  </div>
-                </div>'
-              ) . '
-            </div>
-
-            <div class="dc-config-section" style="margin-top:32px;">
-              <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:16px;">Settings</h2>
-              <div class="dc-settings-grid">
-                <a href="/admin/config/decoupled_preview_iframe/settings" class="dc-settings-card">
-                  <div class="dc-settings-card-icon" style="background:#eff6ff;color:#3b82f6;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                  </div>
-                  <div>
-                    <div class="dc-settings-card-title">Preview Iframe</div>
-                    <div class="dc-settings-card-desc">Frontend URL for live content preview</div>
-                  </div>
-                </a>
-                <a href="/admin/config/dc-puck" class="dc-settings-card">
-                  <div class="dc-settings-card-icon" style="background:#f5f3ff;color:#8b5cf6;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>
-                  </div>
-                  <div>
-                    <div class="dc-settings-card-title">Design Studio</div>
-                    <div class="dc-settings-card-desc">Puck visual editor URL and content types</div>
-                  </div>
-                </a>
-                <a href="/admin/config/decoupled/revalidation" class="dc-settings-card">
-                  <div class="dc-settings-card-icon" style="background:#ecfdf5;color:#10b981;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                  </div>
-                  <div>
-                    <div class="dc-settings-card-title">Revalidation</div>
-                    <div class="dc-settings-card-desc">On-demand cache revalidation for Next.js</div>
-                  </div>
-                </a>
-                <a href="/admin/content/import" class="dc-settings-card">
-                  <div class="dc-settings-card-icon" style="background:#fff7ed;color:#f97316;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </div>
-                  <div>
-                    <div class="dc-settings-card-title">Import Content</div>
-                    <div class="dc-settings-card-desc">Import content types and data from JSON</div>
-                  </div>
-                </a>
-              </div>
-            </div>
-
-            <details style="margin-top:32px;" class="dc-config-section dc-config-advanced-section">
-              <summary style="cursor:pointer;font-size:16px;font-weight:600;color:#64748b;padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
-                Manual Configuration
-              </summary>
-              <div style="padding-top:12px;">
-                <p>For local development or manual setup, create a <code>.env.local</code> file in your Next.js project root:</p>
-
-                ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
-
-                <div class="dc-config-generate-secret">
-                  <form method="post" action="/dc-config/generate-secret" style="display: inline;">
-                    <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
-                    <button type="submit" class="dc-config-generate-button">
-                      🔑&nbsp;&nbsp;Generate New Client Secret
-                    </button>
-                  </form>
-                  <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
-                </div>
-              </div>
-            </details>
-
+    // Build the Vercel section (used in both states, but collapsed in State A)
+    $vercel_section = $vercel_connected ?
+      '<div class="dc-config-vercel-connected-card">
+        <div class="dc-config-vercel-connected-header">
+          <div class="dc-config-vercel-connected-status">
+            <span class="dc-config-status-dot dc-config-status-dot--connected"></span>
+            <span>Connected to Vercel</span>
           </div>
         </div>
-
-        <div class="dc-config-sidebar">
-          <div class="dc-config-sidebar-card">
-            <div class="dc-config-sidebar-content">
-            <h3>
-              <span class="dc-config-sidebar-icon">📋</span>
-              Quick Start
-            </h3>
-            <div class="dc-config-checklist">
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">1</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Import Starter Content</div>
-                  <div class="dc-config-step-description">Add content types and sample data to your site</div>
-                </div>
-              </div>
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">2</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Deploy to Vercel</div>
-                  <div class="dc-config-step-description">One-click deploy creates your Next.js frontend</div>
-                </div>
-              </div>
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">3</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">Connect to Vercel</div>
-                  <div class="dc-config-step-description">Auto-sync environment variables to your project</div>
-                </div>
-              </div>
-              <div class="dc-config-checklist-item">
-                <div class="dc-config-step-number">4</div>
-                <div class="dc-config-step-content">
-                  <div class="dc-config-step-title">You\'re Live!</div>
-                  <div class="dc-config-step-description">Your headless Drupal site is ready to go</div>
-                </div>
-              </div>
+        <div class="dc-config-vercel-connected-body">
+          <div class="dc-config-vercel-project-selector">
+            <label for="vercel-project">Select a project to sync environment variables:</label>
+            <select id="vercel-project" class="dc-config-select">
+              <option value="">Loading projects...</option>
+            </select>
+          </div>
+          <div class="dc-config-vercel-actions">
+            <div class="dc-config-vercel-buttons">
+              <button type="button" id="vercel-sync-btn" class="dc-config-sync-button" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                Sync Environment Variables
+              </button>
+              <button type="button" id="vercel-rebuild-btn" class="dc-config-rebuild-button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Trigger Rebuild
+              </button>
             </div>
-
+            <div class="dc-config-vercel-status-row">
+              <div id="vercel-sync-status" class="dc-config-sync-status"></div>
+              <div id="vercel-deploy-status" class="dc-config-deploy-status"></div>
             </div>
           </div>
+          ' . ($vercel_last_synced ? '<p class="dc-config-vercel-last-sync">Last synced: ' . date('M j, Y g:i A', $vercel_last_synced) . '</p>' : '') . '
         </div>
-      </div>',
-    ];
+        <div class="dc-config-vercel-connected-footer">
+          <form method="post" action="/dc-config/vercel/disconnect" style="display: inline;">
+            <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_vercel_disconnect') . '">
+            <button type="submit" class="dc-config-disconnect-link">Disconnect from Vercel</button>
+          </form>
+        </div>
+      </div>'
+      :
+      '<div class="dc-config-vercel-steps">
+        <div class="dc-config-vercel-step">
+          <div class="dc-config-step-marker">
+            <span class="dc-config-step-number-badge">1</span>
+            <div class="dc-config-step-line"></div>
+          </div>
+          <div class="dc-config-vercel-step-card dc-config-vercel-step-card--deploy">
+            <div class="dc-config-vercel-step-content">
+              <h3>Deploy to Vercel</h3>
+              <p>One-click deploy from our Next.js starter with type-safe Drupal client.</p>
+            </div>
+            <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components&project-name=my-app"
+               target="_blank"
+               class="dc-config-vercel-deploy-btn">
+              <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
+              </svg>
+              Deploy with Vercel
+              <span class="dc-config-arrow">→</span>
+            </a>
+          </div>
+        </div>
+        <div class="dc-config-vercel-step">
+          <div class="dc-config-step-marker">
+            <span class="dc-config-step-number-badge">2</span>
+          </div>
+          <div class="dc-config-vercel-step-card dc-config-vercel-step-card--connect">
+            <div class="dc-config-vercel-step-content">
+              <h3>Connect to sync credentials</h3>
+              <p>Auto-configure your Vercel project with OAuth and revalidation secrets.</p>
+            </div>
+            <a href="/dc-config/vercel/connect" class="dc-config-vercel-connect-btn">
+              <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="m37.5274 0 36.9815 64H.5459Z" fill="currentColor"/>
+              </svg>
+              Connect to Vercel
+            </a>
+          </div>
+        </div>
+      </div>';
+
+    // Build the manual config section
+    $manual_section = '<div style="padding-top:12px;">
+      <p>For local development or manual setup, create a <code>.env.local</code> file in your Next.js project root:</p>
+      ' . $this->createCodeBlock($env_content, 'env', '.env.local', TRUE) . '
+      <div class="dc-config-generate-secret">
+        <form method="post" action="/dc-config/generate-secret" style="display: inline;">
+          <input type="hidden" name="form_token" value="' . \Drupal::csrfToken()->get('dc_config_generate_secret') . '">
+          <button type="submit" class="dc-config-generate-button">
+            🔑&nbsp;&nbsp;Generate New Client Secret
+          </button>
+        </form>
+        <p class="dc-config-generate-help">Generate a new OAuth client secret for enhanced security.</p>
+      </div>
+    </div>';
+
+    // Build the settings grid (shared between both states)
+    $settings_grid = '<div class="dc-config-section" style="margin-top:32px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:16px;">Settings</h2>
+      <div class="dc-settings-grid">
+        <a href="/admin/config/decoupled_preview_iframe/settings" class="dc-settings-card">
+          <div class="dc-settings-card-icon" style="background:#eff6ff;color:#3b82f6;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+          <div>
+            <div class="dc-settings-card-title">Preview Iframe</div>
+            <div class="dc-settings-card-desc">Frontend URL for live content preview</div>
+          </div>
+        </a>
+        <a href="/admin/config/dc-puck" class="dc-settings-card">
+          <div class="dc-settings-card-icon" style="background:#f5f3ff;color:#8b5cf6;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>
+          </div>
+          <div>
+            <div class="dc-settings-card-title">Design Studio</div>
+            <div class="dc-settings-card-desc">Puck visual editor URL and content types</div>
+          </div>
+        </a>
+        <a href="/admin/config/decoupled/revalidation" class="dc-settings-card">
+          <div class="dc-settings-card-icon" style="background:#ecfdf5;color:#10b981;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          </div>
+          <div>
+            <div class="dc-settings-card-title">Revalidation</div>
+            <div class="dc-settings-card-desc">On-demand cache revalidation for Next.js</div>
+          </div>
+        </a>
+        <a href="/admin/content/import" class="dc-settings-card">
+          <div class="dc-settings-card-icon" style="background:#fff7ed;color:#f97316;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          </div>
+          <div>
+            <div class="dc-settings-card-title">Import Content</div>
+            <div class="dc-settings-card-desc">Import content types and data from JSON</div>
+          </div>
+        </a>
+      </div>
+    </div>';
+
+    if ($frontend_status && !empty($frontend_status['url'])) {
+      // ===== STATE A: Turnkey (Netlify frontend exists) =====
+      $build['instructions'] = [
+        '#type' => 'markup',
+        '#markup' => '<div class="dc-config-main-layout">
+          <div class="dc-config-content-area">
+            <div class="dc-config-header">
+              <h1>Your site is live!</h1>
+              <p>Frontend and backend are connected. Start creating content or customize your site.</p>
+            </div>
+
+            <div class="dc-config-main-content">
+              ' . $netlify_section . '
+
+              ' . $settings_grid . '
+
+              <details style="margin-top:32px;" class="dc-config-section dc-config-advanced-section">
+                <summary style="cursor:pointer;font-size:16px;font-weight:600;color:#64748b;padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                  Other Options
+                </summary>
+                <div style="padding-top:16px;">
+                  <h3 style="font-size:16px;font-weight:600;color:#1e293b;margin-bottom:12px;">Deploy to Vercel</h3>
+                  <p style="font-size:14px;color:#64748b;margin-bottom:16px;">Prefer Vercel? Deploy our Next.js starter with type-safe Drupal client.</p>
+                  <div class="dc-config-vercel-hero">
+                    ' . $vercel_section . '
+                  </div>
+
+                  <h3 style="font-size:16px;font-weight:600;color:#1e293b;margin-top:24px;margin-bottom:12px;">Manual Configuration</h3>
+                  ' . $manual_section . '
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="dc-config-sidebar">
+            <div class="dc-config-sidebar-card">
+              <div class="dc-config-sidebar-content">
+                <h3>
+                  <span class="dc-config-sidebar-icon">📋</span>
+                  Quick Start
+                </h3>
+                <div class="dc-config-checklist">
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Content Imported</div>
+                      <div class="dc-config-step-description">10+ professional components ready</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Frontend Deployed</div>
+                      <div class="dc-config-step-description">Next.js on Netlify, zero DevOps</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number dc-config-step-done">✓</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Preview + Design Studio</div>
+                      <div class="dc-config-step-description">Live preview and visual builder</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number">4</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title"><a href="/admin/content" style="color:inherit;text-decoration:none;">Start Creating</a></div>
+                      <div class="dc-config-step-description">Build pages with drag and drop</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>',
+      ];
+    }
+    else {
+      // ===== STATE B: Backend Only (no Netlify frontend) =====
+      $build['instructions'] = [
+        '#type' => 'markup',
+        '#markup' => '<div class="dc-config-main-layout">
+          <div class="dc-config-content-area">
+            <div class="dc-config-header">
+              <h1>Your CMS is ready!</h1>
+              <p>Import content, deploy your frontend, and start building.</p>
+            </div>
+
+            <div class="dc-config-main-content">
+              ' . $starter_grid . '
+
+              <div class="dc-config-vercel-hero">
+                ' . $vercel_section . '
+              </div>
+
+              ' . $settings_grid . '
+
+              <details style="margin-top:32px;" class="dc-config-section dc-config-advanced-section">
+                <summary style="cursor:pointer;font-size:16px;font-weight:600;color:#64748b;padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                  Manual Configuration
+                </summary>
+                ' . $manual_section . '
+              </details>
+            </div>
+          </div>
+
+          <div class="dc-config-sidebar">
+            <div class="dc-config-sidebar-card">
+              <div class="dc-config-sidebar-content">
+                <h3>
+                  <span class="dc-config-sidebar-icon">📋</span>
+                  Quick Start
+                </h3>
+                <div class="dc-config-checklist">
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number">1</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Import Content</div>
+                      <div class="dc-config-step-description">10+ components and sample pages</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number">2</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Deploy Frontend</div>
+                      <div class="dc-config-step-description">One-click deploy to Vercel</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number">3</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Connect</div>
+                      <div class="dc-config-step-description">Sync OAuth credentials automatically</div>
+                    </div>
+                  </div>
+                  <div class="dc-config-checklist-item">
+                    <div class="dc-config-step-number">4</div>
+                    <div class="dc-config-step-content">
+                      <div class="dc-config-step-title">Start Creating</div>
+                      <div class="dc-config-step-description">Build pages with the visual editor</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>',
+      ];
+    }
 
     // Allow HTML attributes to preserve styling.
     $build['instructions']['#allowed_tags'] = [
@@ -1340,6 +1470,53 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
         'error' => 'Import failed: ' . $e->getMessage(),
       ], 500);
     }
+  }
+
+  /**
+   * Set frontend status (called by dashboard during turnkey provisioning).
+   *
+   * Stores the Netlify frontend info in Drupal state so the dc-config page
+   * can display it.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   A JSON response.
+   */
+  public function setFrontendStatus(Request $request) {
+    // Validate token.
+    $token = $request->headers->get('X-Decoupled-Token');
+    if (!$token) {
+      return new JsonResponse(['error' => 'Missing token'], 401);
+    }
+
+    // Verify space auth token.
+    $state_token = \Drupal::state()->get('dc_import.space_auth_token');
+    if ($token !== $state_token) {
+      return new JsonResponse(['error' => 'Invalid token'], 403);
+    }
+
+    $data = json_decode($request->getContent(), TRUE);
+    if (empty($data)) {
+      return new JsonResponse(['error' => 'Invalid JSON'], 400);
+    }
+
+    // Store frontend status in Drupal state.
+    \Drupal::state()->set('dc_config.frontend', [
+      'provider' => $data['provider'] ?? 'netlify',
+      'url' => $data['url'] ?? '',
+      'claim_url' => $data['claim_url'] ?? '',
+      'template' => $data['template'] ?? 'decoupled-components',
+      'status' => $data['status'] ?? 'active',
+      'claimed' => $data['claimed'] ?? FALSE,
+      'preview_configured' => $data['preview_configured'] ?? FALSE,
+      'puck_configured' => $data['puck_configured'] ?? FALSE,
+      'content_imported' => $data['content_imported'] ?? FALSE,
+      'updated_at' => date('c'),
+    ]);
+
+    return new JsonResponse(['success' => TRUE]);
   }
 
 }
