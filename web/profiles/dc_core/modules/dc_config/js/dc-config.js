@@ -778,31 +778,47 @@
         // push token, fetch OAuth creds, import content, configure preview/puck,
         // update Netlify env vars, trigger redeploy.
         var spaceToken = drupalSettings.dcConfig ? drupalSettings.dcConfig.spaceToken : '';
+        // Phase 2a: Import content + update Netlify env vars + trigger redeploy
         fetch('https://dashboard.decoupled.io/api/spaces/frontend-trigger-connect', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ spaceToken: spaceToken })
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          if (data.success) {
-            // Update local Drupal config
-            fetch('/api/dc-config/frontend-status')
-            .then(function(r) { return r.json(); })
-            .then(function() { location.reload(); });
-          } else {
-            if (statusEl) {
-              statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect failed: ' + (data.error || 'Unknown error') + '</div>';
-            }
+          if (!data.success) {
+            if (statusEl) statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect failed: ' + (data.error || 'Unknown error') + '</div>';
+            return;
           }
+
+          // Phase 2b: Wait for Netlify to finish building, then configure preview/puck
+          if (statusEl) statusEl.innerHTML = '<div class="dc-config-check" style="color:#6b7280;"><span class="dc-config-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #d1d5db;border-top-color:#6b7280;border-radius:50%;animation:dc-spin 1s linear infinite;vertical-align:middle;margin-right:6px;"></span> Content imported. Waiting for frontend to build...</div>';
+
+          var netlifyUrl = data.netlifyUrl || '';
+          function waitForNetlify() {
+            if (!netlifyUrl) { location.reload(); return; }
+            fetch(netlifyUrl, { mode: 'no-cors' })
+            .then(function() {
+              // no-cors always succeeds — check with a real fetch after a delay
+              setTimeout(function() {
+                // Configure preview + puck now that Netlify is ready
+                fetch('https://dashboard.decoupled.io/api/spaces/frontend-configure-preview', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                  body: JSON.stringify({ spaceToken: spaceToken })
+                })
+                .then(function() { location.reload(); })
+                .catch(function() { location.reload(); });
+              }, 90000); // Wait 90 seconds for Netlify build
+            })
+            .catch(function() {
+              setTimeout(waitForNetlify, 10000);
+            });
+          }
+          waitForNetlify();
         })
         .catch(function(err) {
-          if (statusEl) {
-            statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect error: ' + err.message + '</div>';
-          }
+          if (statusEl) statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect error: ' + err.message + '</div>';
         });
       }, 3000);
     }
