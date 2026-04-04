@@ -1566,6 +1566,11 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
    * This runs on the Drupal side so no timing issues with OAuth consumers.
    */
   public function triggerConnect(Request $request) {
+    // Check permission
+    if (!$this->currentUser()->hasPermission('administer site configuration')) {
+      return new JsonResponse(['error' => 'Unauthorized'], 403);
+    }
+
     $frontend_config = $this->configFactory->getEditable('dc_config.frontend');
     $frontend = $frontend_config->get('data');
 

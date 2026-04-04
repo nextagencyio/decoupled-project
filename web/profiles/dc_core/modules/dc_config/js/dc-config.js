@@ -774,13 +774,19 @@
           statusEl.innerHTML = '<div class="dc-config-check" style="color:#6b7280;"><span class="dc-config-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #d1d5db;border-top-color:#6b7280;border-radius:50%;animation:dc-spin 1s linear infinite;vertical-align:middle;margin-right:6px;"></span> Importing content and configuring preview...</div>';
         }
 
-        fetch('/dc-config/trigger-connect', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
+        // Get CSRF token first (required for Drupal POST routes)
+        fetch('/session/token', { credentials: 'same-origin' })
+        .then(function(tokenRes) { return tokenRes.text(); })
+        .then(function(csrfToken) {
+          return fetch('/dc-config/trigger-connect', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-Token': csrfToken
+            }
+          });
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
