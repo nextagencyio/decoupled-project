@@ -774,18 +774,25 @@
           statusEl.innerHTML = '<div class="dc-config-check" style="color:#6b7280;"><span class="dc-config-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #d1d5db;border-top-color:#6b7280;border-radius:50%;animation:dc-spin 1s linear infinite;vertical-align:middle;margin-right:6px;"></span> Importing content and configuring preview...</div>';
         }
 
-        fetch('/dc-config/trigger-connect', {
+        // Call the dashboard connect endpoint — it handles everything:
+        // push token, fetch OAuth creds, import content, configure preview/puck,
+        // update Netlify env vars, trigger redeploy.
+        var spaceToken = drupalSettings.dcConfig ? drupalSettings.dcConfig.spaceToken : '';
+        fetch('https://dashboard.decoupled.io/api/spaces/frontend-trigger-connect', {
           method: 'POST',
-          credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
-          }
+          },
+          body: JSON.stringify({ spaceToken: spaceToken })
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
           if (data.success) {
-            location.reload();
+            // Update local Drupal config
+            fetch('/api/dc-config/frontend-status')
+            .then(function(r) { return r.json(); })
+            .then(function() { location.reload(); });
           } else {
             if (statusEl) {
               statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect failed: ' + (data.error || 'Unknown error') + '</div>';

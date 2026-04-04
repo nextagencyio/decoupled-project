@@ -248,8 +248,9 @@ class DcConfigController extends ControllerBase {
     $vercel_project_name = $vercel_status['project_name'];
     $vercel_last_synced = $vercel_status['last_synced'];
 
-    // Pass Vercel status to JavaScript.
+    // Pass status to JavaScript.
     $build['#attached']['drupalSettings']['dcConfig'] = [
+      'spaceToken' => \Drupal::state()->get('dc_import.space_auth_token', ''),
       'vercelConnected' => $vercel_connected,
       'vercelProjectName' => $vercel_project_name,
       'vercelProjectId' => $vercel_status['project_id'],
