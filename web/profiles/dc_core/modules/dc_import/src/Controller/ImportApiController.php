@@ -489,4 +489,28 @@ class ImportApiController extends ControllerBase {
     }
   }
 
+  /**
+   * Set the space auth token (called by dashboard during turnkey provisioning).
+   *
+   * Only works if no token is set yet (one-time bootstrap).
+   */
+  public function setToken(Request $request) {
+    $data = json_decode($request->getContent(), TRUE);
+    $token = $data['token'] ?? '';
+
+    if (empty($token) || !str_starts_with($token, 'dc_tok_')) {
+      return new JsonResponse(['error' => 'Invalid token format'], 400);
+    }
+
+    // Only allow setting if not already set (prevents overwriting)
+    $existing = \Drupal::state()->get('dc_import.space_auth_token');
+    if (!empty($existing)) {
+      return new JsonResponse(['success' => TRUE, 'message' => 'Token already set']);
+    }
+
+    \Drupal::state()->set('dc_import.space_auth_token', $token);
+
+    return new JsonResponse(['success' => TRUE, 'message' => 'Token set']);
+  }
+
 }

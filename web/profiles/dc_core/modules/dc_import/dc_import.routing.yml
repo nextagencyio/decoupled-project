@@ -43,3 +43,11 @@ dc_import.api_mcp_credentials:
   requirements:
     _access: 'TRUE'
   methods: [GET]
+
+dc_import.api_set_token:
+  path: '/api/dc-import/set-token'
+  defaults:
+    _controller: '\Drupal\dc_import\Controller\ImportApiController::setToken'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
