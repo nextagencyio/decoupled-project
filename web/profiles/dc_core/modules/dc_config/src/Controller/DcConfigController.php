@@ -436,6 +436,27 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       $check_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
       $spinner_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-config-spinner"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 
+      // Local verification — check Drupal's own state, not dashboard flags
+      $preview_config_check = $this->configFactory->get('decoupled_preview_iframe.settings');
+      $has_preview = !empty($preview_config_check->get('preview_url'));
+
+      $puck_config_check = $this->configFactory->get('dc_puck.settings');
+      $has_puck = !empty($puck_config_check->get('enabled')) && !empty($puck_config_check->get('editor_url'));
+
+      $has_content = FALSE;
+      try {
+        $node_storage = $this->entityTypeManager->getStorage('node');
+        $landing_pages = $node_storage->getQuery()
+          ->condition('type', 'landing_page')
+          ->accessCheck(FALSE)
+          ->count()
+          ->execute();
+        $has_content = $landing_pages > 0;
+      }
+      catch (\Exception $e) {
+        // Content type may not exist yet
+      }
+
       $claim_html = '';
       if ($is_claimed) {
         $claim_html = '<div class="dc-config-netlify-claimed">
@@ -485,9 +506,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             </div>
 
             <div class="dc-config-netlify-checks">
-              ' . ($frontend_status['preview_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Live preview configured</div>' : '') . '
-              ' . ($frontend_status['puck_configured'] ? '<div class="dc-config-check">' . $check_svg . ' Visual page builder ready</div>' : '') . '
-              ' . ($frontend_status['content_imported'] ? '<div class="dc-config-check">' . $check_svg . ' Sample content imported</div>' : '') . '
+              ' . ($has_preview ? '<div class="dc-config-check">' . $check_svg . ' Live preview configured</div>' : '') . '
+              ' . ($has_puck ? '<div class="dc-config-check">' . $check_svg . ' Visual page builder ready</div>' : '') . '
+              ' . ($has_content ? '<div class="dc-config-check">' . $check_svg . ' Sample content imported</div>' : '') . '
             </div>
 
             ' . $claim_html . '
