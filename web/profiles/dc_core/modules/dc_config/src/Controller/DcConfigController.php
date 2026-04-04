@@ -381,14 +381,49 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     $starter_grid = $this->buildStarterGrid();
 
     // Check if a frontend was auto-provisioned via turnkey flow.
-    // Uses config (not state) so Drupal's cache tags auto-invalidate the render.
+    // First check local config, then fall back to checking the dashboard API.
     $frontend_config = $this->configFactory->get('dc_config.frontend');
-    // Ensure config exists (for sites installed before this feature).
     if ($frontend_config->isNew()) {
       $this->configFactory->getEditable('dc_config.frontend')->set('data', NULL)->save();
       $frontend_config = $this->configFactory->get('dc_config.frontend');
     }
     $frontend_status = $frontend_config->get('data');
+
+    // If no local frontend config, check the dashboard API to see if one was provisioned.
+    // This handles the case where Netlify was created but dc-config hasn't been told yet.
+    if (empty($frontend_status)) {
+      $spaceToken = \Drupal::state()->get('dc_import.space_auth_token', '');
+      if ($spaceToken) {
+        try {
+          $client = \Drupal::httpClient();
+          $response = $client->get('https://dashboard.decoupled.io/api/spaces/frontend-status-by-token', [
+            'headers' => ['X-Space-Token' => $spaceToken],
+            'timeout' => 5,
+          ]);
+          $data = json_decode($response->getBody()->getContents(), TRUE);
+          if (!empty($data['hasFrontend']) && !empty($data['url'])) {
+            // A frontend exists on the dashboard — set local config to deploying
+            $frontend_status = [
+              'provider' => 'netlify',
+              'url' => $data['url'],
+              'claim_url' => $data['claimUrl'] ?? '',
+              'template' => $data['template'] ?? 'decoupled-components',
+              'status' => $data['status'] === 'active' ? 'active' : 'deploying',
+              'claimed' => $data['claimed'] ?? FALSE,
+              'preview_configured' => FALSE,
+              'puck_configured' => FALSE,
+              'content_imported' => FALSE,
+              'updated_at' => date('c'),
+            ];
+            $this->configFactory->getEditable('dc_config.frontend')
+              ->set('data', $frontend_status)->save();
+          }
+        }
+        catch (\Exception $e) {
+          // Dashboard not reachable — that's fine, show backend-only state
+        }
+      }
+    }
     $netlify_section = '';
 
     if ($frontend_status && !empty($frontend_status['url'])) {
