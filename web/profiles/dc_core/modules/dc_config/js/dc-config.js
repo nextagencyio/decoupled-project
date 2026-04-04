@@ -756,36 +756,48 @@
   }
 
   /**
-   * Frontend status poller.
-   * When the page shows "deploying" state, polls until the frontend is
-   * connected then reloads to show the final state.
+   * Frontend connector.
+   * When the page shows "deploying" state, triggers the connect process
+   * (imports content, configures preview + puck) then reloads.
    */
   Drupal.behaviors.decoupledFrontendStatus = {
     attach: function (context) {
       if (context !== document) return;
 
-      // Only poll if we're showing the deploying state
+      // Only run if we're showing the deploying state
       if (!document.querySelector('.dc-config-netlify-deploying')) return;
 
-      function checkStatus() {
-        fetch('/api/dc-config/frontend-status', {
+      // Trigger connect after a short delay (let the page render first)
+      setTimeout(function() {
+        var statusEl = document.querySelector('.dc-config-netlify-deploying .dc-config-netlify-checks');
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="dc-config-check" style="color:#6b7280;"><span class="dc-config-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #d1d5db;border-top-color:#6b7280;border-radius:50%;animation:dc-spin 1s linear infinite;vertical-align:middle;margin-right:6px;"></span> Importing content and configuring preview...</div>';
+        }
+
+        fetch('/dc-config/trigger-connect', {
+          method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Accept': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          if (data.status === 'active') {
+          if (data.success) {
             location.reload();
           } else {
-            setTimeout(checkStatus, 8000);
+            if (statusEl) {
+              statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect failed: ' + (data.error || 'Unknown error') + '</div>';
+            }
           }
         })
-        .catch(function() {
-          setTimeout(checkStatus, 8000);
+        .catch(function(err) {
+          if (statusEl) {
+            statusEl.innerHTML = '<div class="dc-config-check" style="color:#dc2626;">Connect error: ' + err.message + '</div>';
+          }
         });
-      }
-
-      setTimeout(checkStatus, 5000);
+      }, 3000);
     }
   };
 

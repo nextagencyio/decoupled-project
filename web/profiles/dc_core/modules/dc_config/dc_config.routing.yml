@@ -60,6 +60,15 @@ dc_config.get_frontend_status:
     _access: 'TRUE'
   methods: [GET]
 
+dc_config.trigger_connect:
+  path: '/dc-config/trigger-connect'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::triggerConnect'
+    _title: 'Trigger Frontend Connect'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [POST]
+
 decoupled.admin_category:
   path: '/admin/config/decoupled'
   defaults:

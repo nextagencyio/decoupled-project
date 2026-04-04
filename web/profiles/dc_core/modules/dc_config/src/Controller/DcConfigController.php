@@ -1524,6 +1524,144 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
   /**
    * Get frontend status (called by dc-config JavaScript to update UI).
    */
+  /**
+   * Trigger frontend connect (Phase 2) — called by dc-config JS when user visits.
+   *
+   * Imports content, configures preview + puck, updates frontend config to active.
+   * This runs on the Drupal side so no timing issues with OAuth consumers.
+   */
+  public function triggerConnect(Request $request) {
+    $frontend_config = $this->configFactory->getEditable('dc_config.frontend');
+    $frontend = $frontend_config->get('data');
+
+    if (!$frontend || empty($frontend['url'])) {
+      return new JsonResponse(['error' => 'No frontend configured'], 400);
+    }
+
+    if (($frontend['status'] ?? '') === 'active') {
+      return new JsonResponse(['success' => TRUE, 'message' => 'Already connected']);
+    }
+
+    $results = [];
+
+    // Step 1: Import starter content (if not already imported)
+    if (empty($frontend['content_imported'])) {
+      try {
+        $importer = \Drupal::service('dc_import.importer');
+        $contentUrl = 'https://raw.githubusercontent.com/nextagencyio/decoupled-components/main/data/components-content.json';
+        $json = file_get_contents($contentUrl);
+        if ($json) {
+          $contentData = json_decode($json, TRUE);
+          if ($contentData) {
+            $result = $importer->import($contentData);
+            $results['content_imported'] = TRUE;
+            $results['import_summary'] = $result['summary'] ?? [];
+          }
+        }
+      }
+      catch (\Exception $e) {
+        $results['content_imported'] = FALSE;
+        $results['import_error'] = $e->getMessage();
+      }
+    }
+    else {
+      $results['content_imported'] = TRUE;
+    }
+
+    // Step 2: Configure preview iframe
+    $fe_url = $frontend['url'];
+    try {
+      $preview_config = $this->configFactory->getEditable('decoupled_preview_iframe.settings');
+      $preview_config->set('preview_url', $fe_url);
+      $preview_config->set('status', TRUE);
+      // Set preview types for common content types
+      $types = ['landing_page' => 'landing_page', 'article' => 'article', 'page' => 'page'];
+      $preview_config->set('preview_types', ['node' => $types]);
+      $preview_config->save();
+      $results['preview_configured'] = TRUE;
+    }
+    catch (\Exception $e) {
+      $results['preview_configured'] = FALSE;
+    }
+
+    // Step 3: Configure Puck editor
+    try {
+      $puck_config = $this->configFactory->getEditable('dc_puck.settings');
+      $puck_config->set('enabled', TRUE);
+      $puck_config->set('editor_url', $fe_url);
+      $puck_config->set('enabled_content_types', ['landing_page']);
+      $puck_config->save();
+      $results['puck_configured'] = TRUE;
+    }
+    catch (\Exception $e) {
+      $results['puck_configured'] = FALSE;
+    }
+
+    // Step 4: Update frontend config to active
+    $frontend['status'] = 'active';
+    $frontend['content_imported'] = $results['content_imported'] ?? FALSE;
+    $frontend['preview_configured'] = $results['preview_configured'] ?? FALSE;
+    $frontend['puck_configured'] = $results['puck_configured'] ?? FALSE;
+    $frontend['updated_at'] = date('c');
+    $frontend_config->set('data', $frontend);
+    $frontend_config->save();
+
+    // Step 5: Update Netlify env vars via dashboard API
+    try {
+      $consumer_storage = $this->entityTypeManager->getStorage('consumer');
+      $consumers = $consumer_storage->loadByProperties(['label' => 'Next.js Frontend']);
+      if (!empty($consumers)) {
+        $consumer = reset($consumers);
+        $clientId = $consumer->getClientId();
+        $clientSecret = $consumer->get('secret')->value;
+        $results['credentials'] = ['client_id' => $clientId];
+
+        // Get revalidate secret
+        $revalidate_config = $this->configFactory->get('dc_revalidate.settings');
+        $revalidateSecret = $revalidate_config->get('revalidate_secret') ?: '';
+
+        // Get space auth token and site URL for the dashboard callback
+        $spaceToken = \Drupal::state()->get('dc_import.space_auth_token', '');
+        global $base_url;
+        $siteUrl = $base_url ?: \Drupal::request()->getSchemeAndHttpHost();
+
+        // Call dashboard to update Netlify env vars
+        if ($spaceToken && $clientId && $clientSecret) {
+          try {
+            $dashboardUrl = 'https://dashboard.decoupled.io';
+            $client = \Drupal::httpClient();
+            $client->post("$dashboardUrl/api/spaces/frontend-env-update", [
+              'json' => [
+                'spaceToken' => $spaceToken,
+                'drupalBaseUrl' => $siteUrl,
+                'clientId' => $clientId,
+                'clientSecret' => $clientSecret,
+                'revalidateSecret' => $revalidateSecret,
+              ],
+              'timeout' => 15,
+            ]);
+            $results['netlify_updated'] = TRUE;
+          }
+          catch (\Exception $e) {
+            $results['netlify_updated'] = FALSE;
+            $results['netlify_error'] = $e->getMessage();
+          }
+        }
+      }
+    }
+    catch (\Exception $e) {
+      // Non-fatal
+    }
+
+    // Clear caches
+    drupal_flush_all_caches();
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'results' => $results,
+    ]);
+  }
+
   public function getFrontendStatus() {
     $frontend = \Drupal::config('dc_config.frontend')->get('data');
     return new JsonResponse($frontend ?: ['status' => 'none']);
