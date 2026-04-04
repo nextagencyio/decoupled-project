@@ -259,6 +259,8 @@ class PuckMappingService {
     }
 
     $node->set($this->getSectionsField(), $newSections);
+    $node->setNewRevision(TRUE);
+    $node->setRevisionLogMessage('Saved from Design Studio');
     $node->save();
   }
 
