@@ -502,12 +502,8 @@ class ImportApiController extends ControllerBase {
       return new JsonResponse(['error' => 'Invalid token format'], 400);
     }
 
-    // Only allow setting if not already set (prevents overwriting)
-    $existing = \Drupal::state()->get('dc_import.space_auth_token');
-    if (!empty($existing)) {
-      return new JsonResponse(['success' => TRUE, 'message' => 'Token already set']);
-    }
-
+    // Always update the token — K8s cloned sites inherit the template's token
+    // which needs to be replaced with this space's actual token.
     \Drupal::state()->set('dc_import.space_auth_token', $token);
 
     return new JsonResponse(['success' => TRUE, 'message' => 'Token set']);
