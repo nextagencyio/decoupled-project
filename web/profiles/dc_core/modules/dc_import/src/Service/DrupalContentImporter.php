@@ -632,13 +632,20 @@ class DrupalContentImporter {
     //   }
     // }
 
-    // For simple types without dots, default to paragraph
+    // For simple types without dots, default to paragraph and warn.
+    // Common mistake: using "article" instead of "node.article".
     if (!str_contains($type, '.')) {
       $entity_type = 'paragraph';
       $bundle = $type;
+      $result['warnings'][] = "Content item '{$item['id']}' has type '{$type}' without a prefix — treating as paragraph. Did you mean 'node.{$type}'? Use 'node.bundle' for content or 'paragraph.bundle' for paragraphs.";
     }
 
     $values = $item['values'] ?? [];
+
+    // Warn if fields appear to be at the top level instead of inside 'values'.
+    if (empty($values) && !empty($item['title'])) {
+      $result['warnings'][] = "Content item '{$item['id']}' has 'title' at the top level but no 'values' object. Fields should be inside a 'values' key: {\"type\": \"{$type}\", \"values\": {\"title\": \"...\"}}";
+    }
 
     if ($entity_type === 'paragraph') {
       if ($preview_mode) {
