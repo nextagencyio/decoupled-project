@@ -845,14 +845,20 @@ class DrupalContentImporter {
     }
 
     $node = $node_storage->create($node_data);
-    $node->save();
 
-    // Handle path alias if specified.
-    if (!empty($path)) {
-      $this->createPathAlias($node, $path, $result);
+    // If a path is specified, disable pathauto so it doesn't override
+    // our explicit alias with an auto-generated one.
+    if (!empty($path) && $node->hasField('path')) {
+      $node->set('path', ['alias' => '/' . ltrim($path, '/'), 'pathauto' => FALSE]);
     }
 
-    $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle})";
+    $node->save();
+
+    if (!empty($path)) {
+      $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle}, path: {$path})";
+    } else {
+      $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle})";
+    }
     return $node;
   }
 
