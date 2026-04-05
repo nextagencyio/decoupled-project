@@ -3,6 +3,7 @@
 namespace Drupal\dc_puck\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\node\NodeInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -15,6 +16,29 @@ class TokenController extends ControllerBase {
    * Token validity window: 8 hours.
    */
   const TOKEN_LIFETIME = 28800;
+
+  /**
+   * Generates a fresh signed token for the current user + node.
+   * Called via AJAX so the page itself stays fully cacheable.
+   */
+  public function generate(NodeInterface $node): JsonResponse {
+    $uid = \Drupal::currentUser()->id();
+    if (!$uid) {
+      return new JsonResponse(['error' => 'Not logged in'], 401);
+    }
+
+    if (!$node->access('update')) {
+      return new JsonResponse(['error' => 'No edit access'], 403);
+    }
+
+    $token = dc_puck_generate_token((int) $uid, (int) $node->id());
+    $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
+
+    return new JsonResponse([
+      'token' => $token,
+      'url' => $puck_url . '/editor/' . $node->id() . '?token=' . urlencode($token),
+    ]);
+  }
 
   /**
    * Validates a signed token and returns an OAuth access token for the user.

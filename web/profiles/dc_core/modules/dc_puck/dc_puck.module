@@ -47,7 +47,8 @@ function dc_puck_get_secret(): string {
 }
 
 /**
- * Build the Puck editor URL with a signed auth token.
+ * Build a static Puck editor placeholder URL (no token).
+ * The token is fetched client-side via JS so the page stays cacheable.
  */
 function dc_puck_editor_url(int $nid): ?string {
   $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
@@ -55,13 +56,12 @@ function dc_puck_editor_url(int $nid): ?string {
     return NULL;
   }
 
-  $uid = \Drupal::currentUser()->id();
-  if (!$uid) {
+  if (!\Drupal::currentUser()->id()) {
     return NULL;
   }
 
-  $token = dc_puck_generate_token($uid, $nid);
-  return $puck_url . '/editor/' . $nid . '?token=' . urlencode($token);
+  // Return a placeholder — JS will replace with a tokenized URL on click.
+  return 'internal:/api/puck/token/' . $nid;
 }
 
 /**
@@ -90,12 +90,15 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
     return;
   }
 
-  $url = dc_puck_editor_url($node->id());
-  if (!$url) {
+  $puck_url = \Drupal::state()->get('dc_puck.editor_url', '');
+  if (empty($puck_url) || !\Drupal::currentUser()->id()) {
     return;
   }
 
-  // Add the Design Studio tab with custom styling.
+  $nid = $node->id();
+
+  // Add the Design Studio tab. The href is a placeholder (#) — JS fetches
+  // a fresh token on click so the page stays fully cacheable.
   $data['tabs'][0]['dc_puck.design_studio'] = [
     '#theme' => 'menu_local_task',
     '#link' => [
@@ -104,10 +107,11 @@ function dc_puck_menu_local_tasks_alter(&$data, $route_name, &$cacheability) {
           . '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>'
           . 'Design Studio</span>',
       ],
-      'url' => Url::fromUri($url),
+      'url' => Url::fromRoute('<none>'),
       'localized_options' => [
         'attributes' => [
           'class' => ['dc-puck-design-tab'],
+          'data-puck-nid' => $nid,
         ],
       ],
     ],
@@ -154,5 +158,35 @@ function dc_puck_page_attachments(array &$attachments) {
       ',
     ],
     'dc_puck_styles',
+  ];
+
+  // JS to fetch a fresh token on Design Studio tab click.
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#type' => 'html_tag',
+      '#tag' => 'script',
+      '#value' => '
+        document.addEventListener("click", function(e) {
+          var link = e.target.closest("[data-puck-nid]");
+          if (!link) return;
+          e.preventDefault();
+          var nid = link.getAttribute("data-puck-nid");
+          link.style.opacity = "0.6";
+          link.style.pointerEvents = "none";
+          fetch("/api/puck/token/" + nid, { credentials: "same-origin" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.url) window.location.href = data.url;
+              else alert("Could not generate editor token.");
+            })
+            .catch(function() { alert("Could not reach token endpoint."); })
+            .finally(function() {
+              link.style.opacity = "";
+              link.style.pointerEvents = "";
+            });
+        });
+      ',
+    ],
+    'dc_puck_token_js',
   ];
 }

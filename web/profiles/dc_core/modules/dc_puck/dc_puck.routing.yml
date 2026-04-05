@@ -48,6 +48,19 @@ dc_puck.configure_api:
     _access: 'TRUE'
   methods: [POST]
 
+dc_puck.generate_token:
+  path: '/api/puck/token/{node}'
+  defaults:
+    _controller: '\Drupal\dc_puck\Controller\TokenController::generate'
+  requirements:
+    _permission: 'access content'
+    node: \d+
+  options:
+    parameters:
+      node:
+        type: entity:node
+  methods: [GET]
+
 dc_puck.config_form:
   path: '/admin/config/dc-puck'
   defaults:
