@@ -30,8 +30,16 @@ web/sites/*/settings.platformsh.php
 web/sites/*/files
 web/sites/simpletest
 
-# Drupal core and contrib tests — not needed at runtime.
-web/core/**/tests
-web/core/**/Tests
-web/modules/contrib/**/tests
-web/modules/contrib/**/Tests
+# Drupal core is composer-managed — let composer install put it in place
+# fresh inside the image. Copying it from the host means composer finds
+# web/core/ pre-populated and falls back to installing drupal/core in
+# vendor/drupal/core/, which makes the autoloader compute the wrong
+# app_root at runtime and breaks settings.php loading. Hit this on the
+# first Fly.io build (Railway's build happened to avoid it due to cache
+# layer differences, but the fix applies to both).
+web/core
+
+# Contrib modules + themes + libraries are also composer-managed, same reason.
+web/modules/contrib
+web/themes/contrib
+web/libraries
