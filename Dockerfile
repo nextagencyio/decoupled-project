@@ -32,6 +32,18 @@ COPY config/ ./config/
 
 # Production install — no dev deps, no interactive prompts.
 # --no-progress keeps the build log readable.
+#
+# COMPOSER_ALLOW_SUPERUSER=1 is critical: composer runs as root inside the
+# container (default docker user), and without this flag composer silently
+# disables ALL plugins "for safety", including composer/installers which is
+# responsible for moving drupal/core to web/core per the installer-paths
+# config in composer.json. Without the plugin, drupal/core stays at
+# vendor/drupal/core, the autoloader points at the wrong path, and
+# DrupalKernel::guessApplicationRoot() returns /app/vendor/drupal, which
+# makes Drupal look for settings.php at the wrong path and break every
+# request with a redirect to /core/install.php.
+# Also disables Composer's own deprecated-plugin warning.
+ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
