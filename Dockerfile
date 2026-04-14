@@ -53,9 +53,9 @@ RUN composer install \
 
 # web/sites/default/settings.php is gitignored in the upstream project, so it
 # doesn't get uploaded by `railway up`. Install a committed minimal shim that
-# defers to settings.railway.php for environment-specific config.
+# defers to settings.platform.php for environment-specific config.
 COPY docker/drupal-settings.php /app/web/sites/default/settings.php
-COPY web/sites/default/settings.railway.php /app/web/sites/default/settings.railway.php
+COPY web/sites/default/settings.platform.php /app/web/sites/default/settings.platform.php
 
 # Writable paths Drupal actually needs at runtime:
 #   sites/default/files  — public files, aggregated CSS/JS, twig cache

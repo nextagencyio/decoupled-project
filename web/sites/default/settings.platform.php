@@ -1,10 +1,22 @@
 <?php
 
-// Settings applied when running under FrankenPHP on Railway (or a local
-// docker-run with RAILWAY_DEV=1). Gated on env vars so this file no-ops in
-// DDEV / platform.sh / any other context.
+// Platform-agnostic settings applied when the container runs under any
+// PaaS that supports env-var injection (Fly.io, Railway, Render, Cloud Run,
+// plain docker-run, etc.). Gated on env vars so this file no-ops in DDEV /
+// local dev contexts.
+//
+// Trigger vars (any one enables the block):
+//   PLATFORM_DEV=1          — preferred, explicit
+//   RAILWAY_ENVIRONMENT=*   — auto-set by Railway
+//   FLY_APP_NAME=*          — auto-set by Fly.io
+//   RAILWAY_DEV=1           — legacy alias
 
-if (getenv('RAILWAY_ENVIRONMENT') === false && getenv('RAILWAY_DEV') === false) {
+if (
+  getenv('PLATFORM_DEV') === false &&
+  getenv('RAILWAY_ENVIRONMENT') === false &&
+  getenv('FLY_APP_NAME') === false &&
+  getenv('RAILWAY_DEV') === false
+) {
   return;
 }
 
