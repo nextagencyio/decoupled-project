@@ -17,7 +17,6 @@ RUN install-php-extensions \
     gd \
     intl \
     opcache \
-    pdo_mysql \
     pdo_pgsql \
     redis \
     zip \
@@ -71,11 +70,13 @@ COPY Caddyfile /etc/caddy/Caddyfile
 # in the Caddyfile's frankenphp block.
 COPY frankenphp-worker.php /app/frankenphp-worker.php
 
-# PHP runtime tuning for small (512 MB) machines. Override in the platform
-# env if you want more headroom on larger VMs.
-ENV PHP_MEMORY_LIMIT=256M
-ENV PHP_OPCACHE_MEMORY_CONSUMPTION=48
-ENV PHP_OPCACHE_INTERNED_STRINGS_BUFFER=8
+# PHP runtime tuning for 1 GB Fly VMs:
+#   - 512 MB PHP memory_limit leaves ~500 MB for the OS + Caddy + FrankenPHP
+#     + kernel buffers, which is comfortable for a single-worker Drupal.
+#   - Opcache is bumped proportionally so all of core + contrib stays hot.
+ENV PHP_MEMORY_LIMIT=512M
+ENV PHP_OPCACHE_MEMORY_CONSUMPTION=128
+ENV PHP_OPCACHE_INTERNED_STRINGS_BUFFER=16
 
 # Railway injects PORT at runtime. Local docker-run defaults to 8080.
 ENV PORT=8080

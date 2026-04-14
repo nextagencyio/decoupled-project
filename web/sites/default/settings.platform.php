@@ -71,8 +71,12 @@ else {
 }
 
 // ============================================================================
-// Redis (optional — only wired if REDIS_URL is set by a Railway Redis plugin)
+// Redis (optional — wired if REDIS_URL is set)
 // ============================================================================
+//
+// On Fly.io we use a shared Upstash Redis (one cluster, many tenants). To
+// keep tenants from stepping on each other's keys, we prefix every cache
+// entry with the Fly app name. Set FLY_APP_NAME is auto-injected by Fly.
 
 if ($redis_url = getenv('REDIS_URL')) {
   $parts = parse_url($redis_url);
@@ -82,6 +86,10 @@ if ($redis_url = getenv('REDIS_URL')) {
   if (!empty($parts['pass'])) {
     $settings['redis.connection']['password'] = $parts['pass'];
   }
+  // Tenant key isolation on a shared Redis. Falls back to the DB name so
+  // local-docker / ddev runs don't collide either.
+  $settings['cache_prefix'] = getenv('FLY_APP_NAME') ?: ($databases['default']['default']['database'] ?? 'drupal');
+
   $settings['cache']['default']              = 'cache.backend.redis';
   $settings['cache']['bins']['bootstrap']    = 'cache.backend.chainedfast';
   $settings['cache']['bins']['discovery']    = 'cache.backend.chainedfast';

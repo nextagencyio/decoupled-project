@@ -101,15 +101,23 @@ fly postgres attach "$POSTGRES_APP" \
   }
 
 # ============================================================================
-# 5. Set HASH_SALT and RAILWAY_DEV flags on the app
+# 5. Set HASH_SALT and (optional) REDIS_URL on the app
 # ============================================================================
+#
+# REDIS_URL is read from the environment when this script runs. If set, the
+# tenant is wired up to Redis via drupal/redis (see settings.platform.php).
+# Shared Upstash Redis is supported because settings.platform.php also sets
+# cache_prefix to FLY_APP_NAME so tenants don't step on each other's keys.
 
-section "Setting app secrets (HASH_SALT, RAILWAY_DEV)"
+section "Setting app secrets (HASH_SALT${REDIS_URL:+, REDIS_URL})"
+SECRET_ARGS=(HASH_SALT="$HASH_SALT")
+if [ -n "${REDIS_URL:-}" ]; then
+  SECRET_ARGS+=("REDIS_URL=$REDIS_URL")
+fi
 fly secrets set \
   --app "$APP_NAME" \
   --stage \
-  HASH_SALT="$HASH_SALT" \
-  RAILWAY_DEV="1" 2>&1 | sed 's/^/  /'
+  "${SECRET_ARGS[@]}" 2>&1 | sed 's/^/  /'
 
 # ============================================================================
 # 6. Import the dc_core seed into the new database as superuser
