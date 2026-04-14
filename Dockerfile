@@ -13,14 +13,18 @@ RUN apt-get update && \
 
 # Drupal 11 required / recommended PHP extensions.
 # install-php-extensions is bundled in the dunglas/frankenphp image.
+# APCu provides the in-process "fast" cache tier used by Drupal's
+# chainedfast backend (see web/sites/default/settings.platform.php).
 RUN install-php-extensions \
     gd \
     intl \
     opcache \
     pdo_pgsql \
-    redis \
     zip \
     apcu
+
+# APCu's extension is disabled by default — enable it explicitly.
+COPY docker/apcu.ini /usr/local/etc/php/conf.d/apcu.ini
 
 WORKDIR /app
 

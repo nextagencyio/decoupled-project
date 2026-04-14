@@ -71,29 +71,22 @@ else {
 }
 
 // ============================================================================
-// Redis (optional — wired if REDIS_URL is set)
+// APCu (chainedfast for hot bins)
 // ============================================================================
 //
-// On Fly.io we use a shared Upstash Redis (one cluster, many tenants). To
-// keep tenants from stepping on each other's keys, we prefix every cache
-// entry with the Fly app name. Set FLY_APP_NAME is auto-injected by Fly.
+// Drupal core's chainedfast backend uses APCu as an in-process fast tier
+// on top of the persistent (database) backend. It's free, needs no
+// external service, and survives for the lifetime of the FrankenPHP
+// worker — which is long-lived, so the hot bins stay hot.
+//
+// APCu is per-process, so with multiple workers each has its own cache.
+// Fine for a single-worker FrankenPHP tenant; if we later scale workers,
+// revisit (keys just refresh more often).
 
-if ($redis_url = getenv('REDIS_URL')) {
-  $parts = parse_url($redis_url);
-  $settings['redis.connection']['interface'] = 'PhpRedis';
-  $settings['redis.connection']['host']      = $parts['host'];
-  $settings['redis.connection']['port']      = $parts['port'] ?? 6379;
-  if (!empty($parts['pass'])) {
-    $settings['redis.connection']['password'] = $parts['pass'];
-  }
-  // Tenant key isolation on a shared Redis. Falls back to the DB name so
-  // local-docker / ddev runs don't collide either.
-  $settings['cache_prefix'] = getenv('FLY_APP_NAME') ?: ($databases['default']['default']['database'] ?? 'drupal');
-
-  $settings['cache']['default']              = 'cache.backend.redis';
-  $settings['cache']['bins']['bootstrap']    = 'cache.backend.chainedfast';
-  $settings['cache']['bins']['discovery']    = 'cache.backend.chainedfast';
-  $settings['cache']['bins']['config']       = 'cache.backend.chainedfast';
+if (function_exists('apcu_enabled') && apcu_enabled()) {
+  $settings['cache']['bins']['bootstrap'] = 'cache.backend.chainedfast';
+  $settings['cache']['bins']['discovery'] = 'cache.backend.chainedfast';
+  $settings['cache']['bins']['config']    = 'cache.backend.chainedfast';
 }
 
 // ============================================================================
