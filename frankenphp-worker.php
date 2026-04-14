@@ -29,13 +29,22 @@ $autoloader = require_once __DIR__ . '/web/autoload.php';
 
 // Boot Drupal's kernel once, using the first incoming request to establish
 // the site path. Subsequent requests reuse this kernel.
+//
+// IMPORTANT: we pass $app_root explicitly (5th parameter of createFromRequest)
+// because DrupalKernel::guessApplicationRoot() uses __DIR__ of DrupalKernel.php
+// which resolves to wherever composer placed drupal/core. On some build
+// environments (hit this on Fly.io), composer's installer-paths plugin
+// doesn't move drupal/core to web/core/, leaving it at vendor/drupal/core/.
+// The guess then returns /app/vendor/drupal and Drupal tries to load
+// settings.php from the wrong path. Explicit $app_root avoids the guess.
+$app_root = __DIR__ . '/web';
 $kernel = NULL;
 
-$handler = static function () use (&$kernel, $autoloader) {
+$handler = static function () use (&$kernel, $autoloader, $app_root) {
     $request = Request::createFromGlobals();
 
     if ($kernel === NULL) {
-        $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');
+        $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod', TRUE, $app_root);
         $kernel->boot();
     }
 
