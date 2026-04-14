@@ -32,7 +32,7 @@ ORG="personal"
 REGION="iad"
 VM_MEMORY=512
 VM_CPU_KIND="shared"
-SEED_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker/dc_core-seed.sql"
+SEED_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker/dc_core-seed.pg.sql"
 
 # Must be provided in env. Superuser password for the Fly Postgres cluster.
 # The provisioner uses this to import the seed as superuser (bypasses the
@@ -118,14 +118,14 @@ fly secrets set \
 section "Uploading seed to postgres cluster machine"
 # Upload the seed file via SFTP to the Postgres VM
 fly ssh sftp shell -a "$POSTGRES_APP" <<EOF 2>&1 | sed 's/^/  /'
-put $SEED_FILE /tmp/dc_core-seed.sql
+put $SEED_FILE /tmp/dc_core-seed.pg.sql
 EOF
 
 section "Importing seed into $DB_NAME"
 # Run psql on the cluster machine directly (no proxy needed). Fly Postgres
 # listens on TCP localhost:5432 inside the cluster VM (the unix socket path
 # is elsewhere), so we pass -h/-p explicitly.
-fly ssh console -a "$POSTGRES_APP" --command "sh -c 'PGPASSWORD=$FLY_POSTGRES_SUPERUSER_PASSWORD psql -h localhost -p 5432 -U postgres -d $DB_NAME -f /tmp/dc_core-seed.sql > /tmp/import.log 2>&1 && tail -3 /tmp/import.log || (echo IMPORT FAILED && tail -30 /tmp/import.log && exit 1)'" 2>&1 | sed 's/^/  /'
+fly ssh console -a "$POSTGRES_APP" --command "sh -c 'PGPASSWORD=$FLY_POSTGRES_SUPERUSER_PASSWORD psql -h localhost -p 5432 -U postgres -d $DB_NAME -f /tmp/dc_core-seed.pg.sql > /tmp/import.log 2>&1 && tail -3 /tmp/import.log || (echo IMPORT FAILED && tail -30 /tmp/import.log && exit 1)'" 2>&1 | sed 's/^/  /'
 
 # ============================================================================
 # 7. Launch the machine (this deploys the staged secrets)
