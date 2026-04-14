@@ -12,22 +12,51 @@ if (getenv('RAILWAY_ENVIRONMENT') === false && getenv('RAILWAY_DEV') === false) 
 // Database
 // ============================================================================
 //
-// Railway's MySQL service plugin auto-injects MYSQLHOST / MYSQLPORT / etc.
-// For local docker-run we pass the same names explicitly so the same code
-// path works in both environments.
-//
-// Fall through to DB_* env vars for easier overrides during development.
+// Auto-detect between Postgres and MySQL based on which env vars are set.
+// Railway's MySQL plugin injects MYSQLHOST etc.; Fly Postgres (or our
+// manual setup) injects DATABASE_URL or POSTGRES_HOST. We support both so
+// the same image runs on either cloud without code changes.
 
-$databases['default']['default'] = [
-  'database'  => getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'drupal',
-  'username'  => getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'drupal',
-  'password'  => getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '',
-  'host'      => getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '127.0.0.1',
-  'port'      => getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306',
-  'driver'    => 'mysql',
-  'prefix'    => '',
-  'collation' => 'utf8mb4_general_ci',
-];
+if ($database_url = getenv('DATABASE_URL')) {
+  // Parse a postgres:// or mysql:// URL (the format Fly Postgres and most
+  // managed providers inject).
+  $parts = parse_url($database_url);
+  $scheme = $parts['scheme'] ?? 'mysql';
+  $databases['default']['default'] = [
+    'database'  => ltrim($parts['path'] ?? '', '/'),
+    'username'  => $parts['user'] ?? '',
+    'password'  => $parts['pass'] ?? '',
+    'host'      => $parts['host'] ?? '127.0.0.1',
+    'port'      => $parts['port'] ?? ($scheme === 'postgres' ? 5432 : 3306),
+    'driver'    => $scheme === 'postgres' || $scheme === 'postgresql' ? 'pgsql' : 'mysql',
+    'prefix'    => '',
+  ];
+}
+elseif (getenv('POSTGRES_HOST') !== false || getenv('PGHOST') !== false) {
+  // Explicit Postgres env vars.
+  $databases['default']['default'] = [
+    'database'  => getenv('POSTGRES_DB') ?: getenv('PGDATABASE') ?: 'drupal',
+    'username'  => getenv('POSTGRES_USER') ?: getenv('PGUSER') ?: 'drupal',
+    'password'  => getenv('POSTGRES_PASSWORD') ?: getenv('PGPASSWORD') ?: '',
+    'host'      => getenv('POSTGRES_HOST') ?: getenv('PGHOST') ?: '127.0.0.1',
+    'port'      => getenv('POSTGRES_PORT') ?: getenv('PGPORT') ?: '5432',
+    'driver'    => 'pgsql',
+    'prefix'    => '',
+  ];
+}
+else {
+  // Default: MySQL/MariaDB (Railway's plugin vars, or our docker-run vars).
+  $databases['default']['default'] = [
+    'database'  => getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'drupal',
+    'username'  => getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'drupal',
+    'password'  => getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '',
+    'host'      => getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '127.0.0.1',
+    'port'      => getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306',
+    'driver'    => 'mysql',
+    'prefix'    => '',
+    'collation' => 'utf8mb4_general_ci',
+  ];
+}
 
 // ============================================================================
 // Redis (optional — only wired if REDIS_URL is set by a Railway Redis plugin)

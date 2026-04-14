@@ -18,6 +18,7 @@ RUN install-php-extensions \
     intl \
     opcache \
     pdo_mysql \
+    pdo_pgsql \
     redis \
     zip \
     apcu
