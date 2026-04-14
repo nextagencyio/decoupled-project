@@ -71,6 +71,12 @@ COPY Caddyfile /etc/caddy/Caddyfile
 # in the Caddyfile's frankenphp block.
 COPY frankenphp-worker.php /app/frankenphp-worker.php
 
+# PHP runtime tuning for small (512 MB) machines. Override in the platform
+# env if you want more headroom on larger VMs.
+ENV PHP_MEMORY_LIMIT=256M
+ENV PHP_OPCACHE_MEMORY_CONSUMPTION=48
+ENV PHP_OPCACHE_INTERNED_STRINGS_BUFFER=8
+
 # Railway injects PORT at runtime. Local docker-run defaults to 8080.
 ENV PORT=8080
 EXPOSE 8080
