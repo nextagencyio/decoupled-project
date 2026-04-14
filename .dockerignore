@@ -1,0 +1,37 @@
+# Don't bake local dev state into the image.
+.git
+.ddev
+.vscode
+.idea
+.vercel
+node_modules
+
+# Empty placeholder dir (backs the web/api symlink in the original project).
+api
+
+# Local env files with secrets.
+.env
+.env.local
+.env.example
+
+# Plan/doc markdown we don't need at runtime.
+*.md
+VERCEL-PHP-PLAN.md
+WASM-DRUPAL-PLAN.md
+CONTENT-SYNC-PLAN.md
+CONTENT-SYNC-INTEGRATION.md
+
+# Composer vendor — rebuilt inside the image.
+vendor
+
+# DDEV/platformsh-specific settings that would confuse the container.
+web/sites/*/settings.ddev.php
+web/sites/*/settings.platformsh.php
+web/sites/*/files
+web/sites/simpletest
+
+# Drupal core and contrib tests — not needed at runtime.
+web/core/**/tests
+web/core/**/Tests
+web/modules/contrib/**/tests
+web/modules/contrib/**/Tests
