@@ -71,6 +71,9 @@ $settings['trusted_host_patterns'] = [
 $settings['file_temp_path']   = '/tmp';
 $settings['file_public_path'] = 'sites/default/files';
 
-// Read-only config (deploy-time config import should run before this settings
-// file is active).
-$settings['config_sync_directory'] = dirname(DRUPAL_ROOT) . '/config/sync';
+// config_sync_directory is set in docker/drupal-settings.php (relative path,
+// interpreted by Drupal from the site directory). Don't use DRUPAL_ROOT here
+// — Drupal 11's minimal index.php no longer defines that constant before
+// settings.php is loaded, so referencing it causes a fatal during settings
+// initialization, which silently kills the DB config and sends every request
+// to /core/install.php.
