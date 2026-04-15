@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:latest-php8.3
+FROM dunglas/frankenphp:1-php8.5
 
 # Bring in composer from the official image (FrankenPHP doesn't ship it).
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -25,6 +25,13 @@ RUN install-php-extensions \
 
 # APCu's extension is disabled by default — enable it explicitly.
 COPY docker/apcu.ini /usr/local/etc/php/conf.d/apcu.ini
+
+# Drupal-tuned php.ini overrides. The base image ships php.ini-production
+# which caps memory_limit at 128M and upload_max_filesize at 2M; this file
+# bumps memory, upload limits, opcache, and JIT to Drupal-friendly values.
+# `zz-` prefix ensures it loads after any other conf.d files so its
+# settings win.
+COPY docker/drupal.ini /usr/local/etc/php/conf.d/zz-drupal.ini
 
 WORKDIR /app
 
@@ -67,21 +74,22 @@ RUN mkdir -p /app/web/sites/default/files && \
     chown -R www-data:www-data /app/web/sites/default/files
 
 # Custom Caddyfile that serves from /app/web instead of the image default.
-COPY Caddyfile /etc/caddy/Caddyfile
+# FrankenPHP 1.x reads its config from /etc/frankenphp/Caddyfile (earlier
+# 0.x versions used /etc/caddy/Caddyfile — do NOT regress that path or
+# the custom auto_https-off / $PORT binding silently gets ignored and
+# Caddy falls back to its default 443/80 listeners).
+COPY Caddyfile /etc/frankenphp/Caddyfile
 
 # FrankenPHP worker script — bootstraps Drupal once and handles many
 # requests from the same process. Referenced by the `worker` directive
 # in the Caddyfile's frankenphp block.
 COPY frankenphp-worker.php /app/frankenphp-worker.php
 
-# PHP runtime tuning for 1 GB Fly VMs:
-#   - 512 MB PHP memory_limit leaves ~500 MB for the OS + Caddy + FrankenPHP
-#     + kernel buffers, which is comfortable for a single-worker Drupal.
-#   - Opcache is bumped proportionally so all of core + contrib stays hot.
-ENV PHP_MEMORY_LIMIT=512M
-ENV PHP_OPCACHE_MEMORY_CONSUMPTION=128
-ENV PHP_OPCACHE_INTERNED_STRINGS_BUFFER=16
+# PHP runtime tuning lives in docker/drupal.ini (COPY'd above). The base
+# image does NOT honor PHP_MEMORY_LIMIT / PHP_OPCACHE_* env vars — those
+# are Heroku/Railway conventions, not dunglas/frankenphp's — so setting
+# them here was a no-op. See docker/drupal.ini for the real values.
 
-# Railway injects PORT at runtime. Local docker-run defaults to 8080.
+# Fly injects PORT at runtime. Local docker-run defaults to 8080.
 ENV PORT=8080
 EXPOSE 8080
