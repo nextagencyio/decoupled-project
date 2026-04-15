@@ -13,7 +13,7 @@ it moved there.
 
 ## Stack
 
-- **Drupal 11** on PHP 8.3
+- **Drupal 11** on PHP 8.5
 - **FrankenPHP** (Caddy + PHP worker mode) — Dockerfile + Caddyfile in repo root
 - **PostgreSQL** (Drupal runs on Postgres via `settings.platform.php`)
 - **APCu** for hot cache bins via Drupal's chainedfast backend
@@ -73,7 +73,7 @@ web/
 
 ## Requirements
 
-- PHP 8.3+ (or DDEV, which brings its own)
+- PHP 8.3+ (or DDEV, which brings its own). Production images run PHP 8.5 via `dunglas/frankenphp:1-php8.5`.
 - Composer 2
 - `flyctl` for deploying the source image to Fly
 - Drupal 11
