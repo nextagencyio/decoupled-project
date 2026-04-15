@@ -41,9 +41,6 @@ dependencies:
   - drupal:page_cache
   - drupal:dynamic_page_cache
 
-  # Redis caching for performance
-  - redis:redis
-
   # Decoupled preview iframe for content preview
   - decoupled_preview_iframe:decoupled_preview_iframe
 

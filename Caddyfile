@@ -1,0 +1,37 @@
+{
+	# Disable auto-HTTPS — Railway terminates TLS at its proxy.
+	auto_https off
+	# Disable the Caddy admin API — we don't need it in production.
+	admin off
+	# Required so Caddy knows where in the handler chain php_server goes
+	# when it's used inside a route block.
+	order php_server before file_server
+
+	# Enable FrankenPHP worker mode for Drupal. The worker script bootstraps
+	# Drupal ONCE and handles many requests from the same process, cutting
+	# TTFB from ~50-200ms (classic mode) down to a few ms for cached pages.
+	#
+	# Worker count = 1 for the 512 MB memory footprint. Each worker with a
+	# full Drupal service container resident is ~120 MB, so 1 worker leaves
+	# comfortable headroom. For larger machines, bump to 2+ for concurrency.
+	frankenphp {
+		worker /app/frankenphp-worker.php 1
+	}
+}
+
+# Railway injects PORT. Local docker-run defaults to 8080.
+:{$PORT:8080} {
+	root * /app/web
+	encode zstd br gzip
+
+	# php_server handles Drupal's index.php + static file routing.
+	# With the worker block above configured in the global section,
+	# php_server will automatically route PHP requests to the worker pool
+	# instead of spawning a fresh process per request.
+	php_server
+
+	log {
+		output stdout
+		format json
+	}
+}

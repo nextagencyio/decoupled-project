@@ -1,0 +1,45 @@
+# Don't bake local dev state into the image.
+.git
+.ddev
+.vscode
+.idea
+.vercel
+node_modules
+
+# Empty placeholder dir (backs the web/api symlink in the original project).
+api
+
+# Local env files with secrets.
+.env
+.env.local
+.env.example
+
+# Plan/doc markdown we don't need at runtime.
+*.md
+VERCEL-PHP-PLAN.md
+WASM-DRUPAL-PLAN.md
+CONTENT-SYNC-PLAN.md
+CONTENT-SYNC-INTEGRATION.md
+
+# Composer vendor — rebuilt inside the image.
+vendor
+
+# DDEV/platformsh-specific settings that would confuse the container.
+web/sites/*/settings.ddev.php
+web/sites/*/settings.platformsh.php
+web/sites/*/files
+web/sites/simpletest
+
+# Drupal core is composer-managed — let composer install put it in place
+# fresh inside the image. Copying it from the host means composer finds
+# web/core/ pre-populated and falls back to installing drupal/core in
+# vendor/drupal/core/, which makes the autoloader compute the wrong
+# app_root at runtime and breaks settings.php loading. Hit this on the
+# first Fly.io build (Railway's build happened to avoid it due to cache
+# layer differences, but the fix applies to both).
+web/core
+
+# Contrib modules + themes + libraries are also composer-managed, same reason.
+web/modules/contrib
+web/themes/contrib
+web/libraries

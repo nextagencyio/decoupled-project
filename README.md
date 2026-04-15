@@ -1,79 +1,83 @@
 # Decoupled Drupal Project
 
-A Drupal 11 installation featuring the `dc_core` installation profile, designed for headless/decoupled applications. This project can be used standalone or as part of the [decoupled.io](https://decoupled.io) platform.
+Drupal 11 installation powering the headless backend for
+[decoupled.io](https://decoupled.io). Custom `dc_core` install profile,
+FrankenPHP-based Docker image, and a `fly.toml` for building + pushing
+the image to Fly.io.
 
-## Features
+This repo is **application code only**. Provisioning of Fly tenant apps —
+the orchestration that spins up a new Drupal site per customer — lives in
+the [decoupled-dashboard](https://github.com/nextagencyio/decoupled-dashboard)
+repo under `scripts/fly/`. If you're looking for `bin/provision-tenant.sh`,
+it moved there.
 
-- **Drupal 11** with modern PHP 8.3
-- **dc_core installation profile** - pre-configured for headless/decoupled architecture
-- **Custom modules** for multisite management and API functionality
-- **Docker support** for local development and production
-- **GraphQL API** ready for frontend consumption
+## Stack
 
-## Getting Started
+- **Drupal 11** on PHP 8.5
+- **FrankenPHP** (Caddy + PHP worker mode) — Dockerfile + Caddyfile in repo root
+- **PostgreSQL** (Drupal runs on Postgres via `settings.platform.php`)
+- **APCu** for hot cache bins via Drupal's chainedfast backend
+- **dc_core** install profile (see `web/profiles/dc_core/`)
+  - Custom modules: `dc_chatbot`, `dc_config`, `dc_import`, `dc_mail`, `dc_puck`, `dc_revalidate`
+  - GraphQL Compose for headless API
+  - OAuth consumers auto-generated per install via `hook_install()`
 
-### 1. Make Changes
+## Local development
 
-Edit Drupal code, modules, themes, or configuration:
+DDEV-based local dev (see `.ddev/config.yaml`):
 
 ```bash
-# Make your changes to Drupal code, modules, themes, etc.
+ddev start
+ddev composer install
+ddev drush site:install dc_core -y
 ```
 
-### 2. Commit and Push
+## Building the Fly image
+
+Every tenant on Fly pulls its image from the `decoupled-drupal-frankenphp`
+Fly app's registry. To ship a new image:
 
 ```bash
-git add .
-git commit -m "Your commit message"
-git push
+fly deploy
 ```
 
-## Using with decoupled.io
+This builds the FrankenPHP image on Fly's builder, pushes it to
+`registry.fly.io/decoupled-drupal-frankenphp`, and redeploys the source app.
+New tenants provisioned after this automatically pick up the new image
+(the dashboard's provisioner resolves the current tag at create time).
 
-If you're using this project with the decoupled.io platform, changes are automatically deployed via GitHub Actions and Ansible. See the [decoupled.io documentation](https://github.com/nextagencyio/decoupled-dashboard) for deployment workflows.
+**Rolling the image out to existing tenants** is the dashboard's
+`fly-fleet-deploy.yml` GitHub Action — it loops over every `tenant-*` app
+and `fly deploy`s them against the new tag. Run from the dashboard repo.
 
-## Repository Structure
+## Repository structure
 
 ```
+Dockerfile                          FrankenPHP build
+Caddyfile                           Caddy config (serves /app/web)
+frankenphp-worker.php               FrankenPHP worker bootstrap
+fly.toml                            Fly config for the source app
+composer.json                       Drupal + contrib dependencies
+docker/
+├── apcu.ini                        Enables APCu (shipped disabled in the image)
+└── drupal-settings.php             Committed settings.php shim
 web/
 ├── profiles/
-│   └── dc_core/          # Installation profile
-│       ├── modules/      # Custom modules
-│       ├── themes/       # Custom themes
-│       └── dc_core.info.yml
+│   └── dc_core/                    Install profile + custom modules
 ├── sites/
 │   └── default/
-│       └── settings.php
+│       ├── settings.platform.php   Reads DATABASE_URL / HASH_SALT from env
+│       └── settings.platformsh.php (legacy, unused on Fly)
 └── ...
-
-docker-compose.prod.yml    # Docker configuration
 ```
-
-## Installation Profile: dc_core
-
-The `dc_core` installation profile provides:
-
-- Pre-configured content types and fields
-- GraphQL API endpoints
-- Multisite management capabilities
-- Optimized for headless/decoupled architecture
-- Custom modules for common decoupled use cases
 
 ## Requirements
 
-- PHP 8.3+
+- PHP 8.3+ (or DDEV, which brings its own). Production images run PHP 8.5 via `dunglas/frankenphp:1-php8.5`.
+- Composer 2
+- `flyctl` for deploying the source image to Fly
 - Drupal 11
-- Composer
-- Docker (optional, for containerized deployment)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
 
 ## License
 
-This project is licensed under GPL-2.0-or-later, consistent with Drupal core.
+GPL-2.0-or-later (same as Drupal core).
