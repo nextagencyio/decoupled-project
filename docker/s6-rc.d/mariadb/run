@@ -1,0 +1,12 @@
+#!/bin/sh
+# s6-overlay longrun service: mariadbd.
+#
+# Runs mariadbd as the mysql user. Config comes from
+# /etc/mysql/mariadb.conf.d/ (Debian default path) with our
+# overrides in 99-decoupled.cnf. Data dir is /var/lib/mysql
+# which Fly mounts a persistent volume onto.
+#
+# The `exec 2>&1` redirects stderr to stdout so s6 captures
+# both streams under the same logger.
+exec 2>&1
+exec s6-setuidgid mysql mariadbd --user=mysql

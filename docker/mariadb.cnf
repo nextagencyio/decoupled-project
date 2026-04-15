@@ -1,0 +1,36 @@
+# MariaDB config overrides for the Drupal sidecar on Fly.
+#
+# Debian's mariadb-server ships a reasonable default config. This
+# file only overrides the bits that matter for our tenant setup:
+#
+#   bind-address         — localhost-only, since Drupal runs in the
+#                          same machine and talks over 127.0.0.1
+#   innodb_buffer_pool   — 256M for the 2GB VM we target. Raises from
+#                          the 128M default for a bit more query
+#                          headroom without crowding out FrankenPHP.
+#   character-set        — utf8mb4 everywhere for Drupal 11's
+#                          multi-byte support (emoji, etc.)
+#   max_connections      — capped low; Drupal opens a handful of
+#                          connections per worker, we only have
+#                          1 worker.
+#
+# Loaded automatically by MariaDB because it's in
+# /etc/mysql/mariadb.conf.d/ with the 99- prefix (loads last,
+# overrides earlier files).
+
+[mysqld]
+bind-address = 127.0.0.1
+innodb_buffer_pool_size = 256M
+max_connections = 50
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+
+# Drupal's optimistic locking works better with READ-COMMITTED.
+# settings.platform.php also sets this via init_commands at the
+# session level; server-side here is belt-and-braces for any
+# connection that misses the init_commands hook (e.g. drush sqlq,
+# mariadb CLI).
+transaction-isolation = READ-COMMITTED
+
+[client]
+default-character-set = utf8mb4

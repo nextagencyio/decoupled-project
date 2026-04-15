@@ -1,0 +1,22 @@
+#!/bin/sh
+# s6-overlay oneshot: block until mariadbd accepts pings.
+#
+# FrankenPHP depends on this service being "up", which means this
+# script has exited with status 0. We poll mariadb-admin ping via
+# the default socket (the longrun mariadb service will have
+# started mariadbd via s6-setuidgid mysql, so the socket is in
+# /run/mysqld/mysqld.sock — the standard Debian path).
+#
+# This prevents a race where FrankenPHP boots faster than
+# mariadbd and Drupal's first HTTP request fails with "MySQL
+# server has gone away" because the server hadn't finished its
+# InnoDB startup. The poll usually takes 1-2s.
+for i in $(seq 1 60); do
+  if mariadb-admin --socket=/run/mysqld/mysqld.sock ping >/dev/null 2>&1; then
+    echo "[mariadb-ready] mariadbd is accepting pings"
+    exit 0
+  fi
+  sleep 1
+done
+echo "[mariadb-ready] ERROR: mariadbd never accepted pings in 60s"
+exit 1
