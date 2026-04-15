@@ -29,20 +29,36 @@ if (
 // manual setup) injects DATABASE_URL or POSTGRES_HOST. We support both so
 // the same image runs on either cloud without code changes.
 
+// MySQL/MariaDB connections need an init_command that bumps the
+// transaction isolation level from the MariaDB default (REPEATABLE-READ)
+// down to READ-COMMITTED. Drupal's status report flags REPEATABLE-READ
+// as a warning because it interacts badly with Drupal's optimistic
+// locking and entity revision logic. The init_command runs on every
+// new Drupal connection, so the SESSION value is correct even though
+// the server default stays at REPEATABLE-READ.
+// See https://www.drupal.org/docs/system-requirements/setting-mysql-transaction-isolation-level
+$mysql_init_commands = [
+  'isolation_level' => "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED",
+];
+
 if ($database_url = getenv('DATABASE_URL')) {
   // Parse a postgres:// or mysql:// URL (the format Fly Postgres and most
   // managed providers inject).
   $parts = parse_url($database_url);
   $scheme = $parts['scheme'] ?? 'mysql';
+  $is_pg = $scheme === 'postgres' || $scheme === 'postgresql';
   $databases['default']['default'] = [
     'database'  => ltrim($parts['path'] ?? '', '/'),
     'username'  => $parts['user'] ?? '',
     'password'  => $parts['pass'] ?? '',
     'host'      => $parts['host'] ?? '127.0.0.1',
-    'port'      => $parts['port'] ?? ($scheme === 'postgres' ? 5432 : 3306),
-    'driver'    => $scheme === 'postgres' || $scheme === 'postgresql' ? 'pgsql' : 'mysql',
+    'port'      => $parts['port'] ?? ($is_pg ? 5432 : 3306),
+    'driver'    => $is_pg ? 'pgsql' : 'mysql',
     'prefix'    => '',
   ];
+  if (!$is_pg) {
+    $databases['default']['default']['init_commands'] = $mysql_init_commands;
+  }
 }
 elseif (getenv('POSTGRES_HOST') !== false || getenv('PGHOST') !== false) {
   // Explicit Postgres env vars.
@@ -67,6 +83,7 @@ else {
     'driver'    => 'mysql',
     'prefix'    => '',
     'collation' => 'utf8mb4_general_ci',
+    'init_commands' => $mysql_init_commands,
   ];
 }
 
