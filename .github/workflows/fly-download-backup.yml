@@ -1,0 +1,42 @@
+name: fly-download-backup
+on:
+  workflow_dispatch:
+    inputs:
+      machine_name:
+        description: 'Tenant machine name (e.g. tenant-abc)'
+        required: true
+      backup_id:
+        description: 'Backup ID'
+        required: true
+      backup_type:
+        description: 'Type: database or files'
+        required: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Dump Database
+        if: ${{ github.event.inputs.backup_type == 'database' }}
+        run: |
+          echo "Dumping live database from ${{ github.event.inputs.machine_name }}..."
+          flyctl ssh console -a ${{ github.event.inputs.machine_name }} -C "mariadb-dump -u root -p\$$MYSQL_ROOT_PASSWORD drupal | gzip" > database.sql.gz
+          
+      - name: Compress Files
+        if: ${{ github.event.inputs.backup_type == 'files' }}
+        run: |
+          echo "Compressing files from ${{ github.event.inputs.machine_name }}..."
+          flyctl ssh console -a ${{ github.event.inputs.machine_name }} -C "tar -czf - -C /data/files ." > files.tar.gz
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.event.inputs.backup_type }}-${{ github.run_id }}
+          path: |
+            *.sql.gz
+            *.tar.gz
+          retention-days: 1
