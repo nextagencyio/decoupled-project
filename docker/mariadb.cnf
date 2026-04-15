@@ -19,6 +19,11 @@
 # overrides earlier files).
 
 [mysqld]
+# Data dir lives on the shared /data Fly volume (mounted by
+# tenant-fly.toml). Fly machines only support one volume per
+# machine, so files/ and mysql/ share /data — see
+# init-mariadb.sh + init-files.sh for the directory setup.
+datadir = /data/mysql
 bind-address = 127.0.0.1
 innodb_buffer_pool_size = 256M
 max_connections = 50

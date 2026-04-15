@@ -85,11 +85,15 @@ RUN composer install \
 COPY docker/drupal-settings.php /app/web/sites/default/settings.php
 COPY web/sites/default/settings.platform.php /app/web/sites/default/settings.platform.php
 
-# Writable paths Drupal actually needs at runtime:
-#   sites/default/files  — public files, aggregated CSS/JS, twig cache
-# In Railway you'd mount a persistent volume here.
-RUN mkdir -p /app/web/sites/default/files && \
-    chown -R www-data:www-data /app/web/sites/default/files
+# Drupal's public files path is a symlink to /data/files on the
+# persistent Fly volume (mounted at /data). Fly machines only
+# support one volume per machine, so files/ and mysql/ share
+# /data. The real directory is created by init-files.sh as an
+# s6 cont-init hook on first boot (and owned by www-data there).
+# We remove the default sites/default/files dir that Drupal's
+# composer scaffold plugin sometimes writes, then symlink.
+RUN rm -rf /app/web/sites/default/files && \
+    ln -s /data/files /app/web/sites/default/files
 
 # Custom Caddyfile that serves from /app/web instead of the image default.
 # FrankenPHP 1.x reads its config from /etc/frankenphp/Caddyfile (earlier
@@ -111,12 +115,13 @@ COPY frankenphp-worker.php /app/frankenphp-worker.php
 # ---------------------------------------------------------------------
 # MariaDB sidecar + s6-overlay service wiring
 # ---------------------------------------------------------------------
-# The MariaDB data dir needs to exist and be owned by mysql:mysql
-# BEFORE the Fly volume gets mounted on top of it at runtime. The
-# init-mariadb.sh script runs as an s6 cont-init hook on every boot
-# and (re-)initializes the data dir if it's empty — which is the
-# case the first time a fresh tenant_db volume gets mounted.
-RUN mkdir -p /var/lib/mysql && chown -R mysql:mysql /var/lib/mysql
+# The /data mount point (where the Fly volume lands) needs to exist
+# at image build time, even though the real bytes come from the
+# volume at runtime. Also pre-create /data/mysql's parent (init
+# script handles the rest) — this just ensures the path resolves
+# during the image build's sanity checks.
+RUN mkdir -p /data /var/run/mysqld && \
+    chown mysql:mysql /var/run/mysqld
 
 # Bind MariaDB to 127.0.0.1 only — the sidecar is reached over
 # localhost from FrankenPHP in the same machine, never externally.
@@ -135,7 +140,8 @@ COPY docker/mariadb.cnf /etc/mysql/mariadb.conf.d/99-decoupled.cnf
 # then starts FrankenPHP. Means cold start is correctly sequenced.
 COPY docker/s6-rc.d /etc/s6-overlay/s6-rc.d
 COPY docker/init-mariadb.sh /etc/cont-init.d/01-init-mariadb.sh
-RUN chmod +x /etc/cont-init.d/01-init-mariadb.sh \
+COPY docker/init-files.sh /etc/cont-init.d/02-init-files.sh
+RUN chmod +x /etc/cont-init.d/01-init-mariadb.sh /etc/cont-init.d/02-init-files.sh \
     && find /etc/s6-overlay/s6-rc.d -name run -exec chmod +x {} \; \
     && find /etc/s6-overlay/s6-rc.d -name up -exec chmod +x {} \;
 

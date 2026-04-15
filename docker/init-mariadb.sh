@@ -21,7 +21,12 @@
 
 set -euo pipefail
 
-DATA_DIR="/var/lib/mysql"
+# Data lives on the shared /data Fly volume. /data/mysql holds
+# MariaDB's data dir (mariadb.cnf's datadir points here);
+# /data/files is handled by init-files.sh as a sibling cont-init
+# hook. Fly machines only support one volume per machine so both
+# directories share /data.
+DATA_DIR="/data/mysql"
 LOG_PREFIX="[init-mariadb]"
 
 log() { echo "${LOG_PREFIX} $*"; }
@@ -35,8 +40,10 @@ fi
 
 log "empty data dir detected at ${DATA_DIR}, initializing..."
 
-# Fly volumes mount as root-owned by default. MariaDB needs the
-# mysql user to own its data dir.
+# The parent /data is the Fly volume mount point (owned root on
+# first boot). Create the mysql subdir and give it to the mysql
+# user before mariadb-install-db tries to write there.
+mkdir -p "${DATA_DIR}"
 chown -R mysql:mysql "${DATA_DIR}"
 
 # mariadb-install-db creates the system tables and root accounts.
