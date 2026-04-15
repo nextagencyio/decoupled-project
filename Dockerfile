@@ -19,7 +19,7 @@ RUN install-php-extensions \
     gd \
     intl \
     opcache \
-    pdo_pgsql \
+    pdo_mysql \
     zip \
     apcu
 
