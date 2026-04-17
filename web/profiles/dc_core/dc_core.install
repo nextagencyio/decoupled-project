@@ -806,35 +806,3 @@ function dc_core_update_10021() {
 
   return implode(' ', $messages);
 }
-
-/**
- * Implements hook_update_N().
- *
- * Uninstall dc_usage — we no longer enforce per-tier quotas (unlimited
- * users / content types / content items is now the product pitch, see
- * marketing). The module itself is being removed in the same release,
- * so this hook detaches it from deployed tenants before the code goes
- * away.
- *
- * Safe on tenants where dc_usage is already disabled or already
- * removed — module_installer->uninstall() is a no-op in that case.
- */
-function dc_core_update_10020() {
-  $installer = \Drupal::service('module_installer');
-  $messages = [];
-
-  if (\Drupal::moduleHandler()->moduleExists('dc_usage')) {
-    try {
-      $installer->uninstall(['dc_usage']);
-      $messages[] = t('Uninstalled dc_usage — usage quotas are no longer enforced.');
-    }
-    catch (\Exception $e) {
-      $messages[] = t('Could not uninstall dc_usage: @msg (safe to ignore; remove the module files manually).', ['@msg' => $e->getMessage()]);
-    }
-  }
-  else {
-    $messages[] = t('dc_usage already uninstalled, nothing to do.');
-  }
-
-  return implode(' ', $messages);
-}
