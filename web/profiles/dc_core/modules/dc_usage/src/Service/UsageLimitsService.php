@@ -28,12 +28,14 @@ class UsageLimitsService {
   /**
    * Plan limits configuration.
    *
-   * Free and Starter share the same capacity limits — the only
-   * distinction between the two is billing / expiry (Free spaces
-   * auto-archive after 24h; paid Starter never expires). Pro and
-   * Business are both uncapped at the Drupal layer; the Dashboard
-   * enforces whatever tier-specific infra and billing constraints
-   * apply.
+   * All tiers are uncapped on users, content types, and entities.
+   * The dashboard previously enforced per-tier caps via this service
+   * but the product direction is now 'unlimited content and users,
+   * limited only by volume storage' — storage is handled at the Fly
+   * layer (4 GB on Free/Starter, 20 GB on Pro), not here. This
+   * service is kept in place for API compatibility (admin usage
+   * dashboards, third-party scripts that query it) but no longer
+   * blocks creations. Safe to delete in a future release.
    *
    * -1 means unlimited.
    *
@@ -41,14 +43,14 @@ class UsageLimitsService {
    */
   protected $planLimits = [
     'free' => [
-      'users' => 10,
-      'content_types' => 25,
-      'entities' => 10000,
+      'users' => -1,
+      'content_types' => -1,
+      'entities' => -1,
     ],
     'starter' => [
-      'users' => 10,
-      'content_types' => 25,
-      'entities' => 10000,
+      'users' => -1,
+      'content_types' => -1,
+      'entities' => -1,
     ],
     'pro' => [
       'users' => -1,
