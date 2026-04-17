@@ -28,22 +28,35 @@ class UsageLimitsService {
   /**
    * Plan limits configuration.
    *
+   * Free and Starter share the same capacity limits — the only
+   * distinction between the two is billing / expiry (Free spaces
+   * auto-archive after 24h; paid Starter never expires). Pro and
+   * Business are both uncapped at the Drupal layer; the Dashboard
+   * enforces whatever tier-specific infra and billing constraints
+   * apply.
+   *
+   * -1 means unlimited.
+   *
    * @var array
    */
   protected $planLimits = [
+    'free' => [
+      'users' => 10,
+      'content_types' => 25,
+      'entities' => 10000,
+    ],
     'starter' => [
       'users' => 10,
       'content_types' => 25,
       'entities' => 10000,
     ],
-    // Future plans can be added here
-    'growth' => [
-      'users' => 100,
-      'content_types' => 100,
-      'entities' => 100000,
+    'pro' => [
+      'users' => -1,
+      'content_types' => -1,
+      'entities' => -1,
     ],
     'business' => [
-      'users' => -1,  // -1 means unlimited
+      'users' => -1,
       'content_types' => -1,
       'entities' => -1,
     ],
@@ -63,16 +76,29 @@ class UsageLimitsService {
   }
 
   /**
-   * Gets the current plan from environment or defaults to starter.
+   * Gets the current plan from environment or defaults to free.
+   *
+   * DECOUPLED_PLAN is set by the provisioner when the tenant is
+   * created (see scripts/fly/provision-tenant.sh) and updated when
+   * the tenant is upgraded. Legacy `growth` env values are treated
+   * as `pro` for back-compat with any tenant that was provisioned
+   * before the rename.
    *
    * @return string
-   *   The plan name (starter, growth, business).
+   *   The plan name (free, starter, pro, business).
    */
   protected function getCurrentPlan() {
-    // Get plan from environment variable or default to starter
     $plan = getenv('DECOUPLED_PLAN');
+
+    // Map the legacy tier name onto the new one so a tenant whose
+    // env var was set before the rename still lands on the right
+    // limits. Remove this once all tenants are re-deployed.
+    if ($plan === 'growth') {
+      $plan = 'pro';
+    }
+
     if (!$plan || !isset($this->planLimits[$plan])) {
-      return 'starter';
+      return 'free';
     }
     return $plan;
   }
