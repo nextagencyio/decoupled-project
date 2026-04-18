@@ -195,6 +195,11 @@ class DrupalContentImporter {
 
         // Enable decoupled preview iframe for this content type.
         $this->configureDecoupledPreview($id, $result);
+
+        // Give this bundle its own pathauto pattern so every node created
+        // via dc_import gets a URL alias and the pattern is editable
+        // per-type through the admin UI.
+        $this->ensurePathautoPatternForBundle($id, $name, $result);
       }
     }
 
@@ -1611,6 +1616,48 @@ class DrupalContentImporter {
       $config->save();
       $result['summary'][] = "Enabled decoupled preview iframe for node type: {$bundle}";
     }
+  }
+
+  /**
+   * Ensure a pathauto pattern exists for a given node bundle.
+   *
+   * Creates a per-bundle pattern targeted via selection_criteria so each
+   * imported content type gets its own editable URL pattern. Falls back
+   * silently if pathauto isn't enabled (dc_core depends on it, but
+   * stand-alone installs of dc_import shouldn't hard-fail).
+   */
+  private function ensurePathautoPatternForBundle(string $bundle, string $name, array &$result): void {
+    if (!\Drupal::moduleHandler()->moduleExists('pathauto')) {
+      return;
+    }
+
+    $pattern_id = 'node_' . $bundle;
+    $storage = $this->entityTypeManager->getStorage('pathauto_pattern');
+    if ($storage->load($pattern_id)) {
+      return;
+    }
+
+    // Target this specific bundle via the standard node_type selection
+    // criterion so the pattern only fires for this content type.
+    $pattern = $storage->create([
+      'id' => $pattern_id,
+      'label' => $name . ' URL alias',
+      'type' => 'canonical_entities:node',
+      'pattern' => '[node:title]',
+      'selection_criteria' => [
+        [
+          'id' => 'node_type',
+          'bundles' => [$bundle => $bundle],
+          'negate' => FALSE,
+          'context_mapping' => ['node' => 'node'],
+        ],
+      ],
+      'selection_logic' => 'and',
+      'weight' => 0,
+      'status' => TRUE,
+    ]);
+    $pattern->save();
+    $result['summary'][] = "Created pathauto pattern for node type: {$bundle}";
   }
 
   /**

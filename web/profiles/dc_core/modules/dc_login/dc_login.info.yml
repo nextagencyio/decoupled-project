@@ -1,4 +1,4 @@
-name: 'DC Login'
+name: 'Decoupled Drupal Login'
 type: module
 description: 'Provides one-time login URL generation API for Decoupled Drupal'
 core_version_requirement: ^10 || ^11

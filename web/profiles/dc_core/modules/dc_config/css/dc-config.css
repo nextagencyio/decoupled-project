@@ -1897,3 +1897,108 @@ details[open] > summary svg {
   border: 1px solid #86efac;
   border-radius: 8px;
 }
+
+/* =============================================================================
+   MOBILE RESPONSIVE FIXES
+   Consolidated fixes for the dc-config page on phones. The existing
+   1200/1024/768/480 breakpoints handle layout stacking; these patch
+   specific elements that were missed (overrides above use !important,
+   so these do too where needed).
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  /* Sidebar was eating 2rem on each side on narrow screens. */
+  .dc-config-sidebar {
+    padding: 0 1rem 1rem 1rem;
+  }
+
+  /* Settings cards — force single column (the base rule uses !important). */
+  .dc-settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Sync / rebuild button row — stack vertically, full width. */
+  .dc-config-vercel-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .dc-config-vercel-connected-body .dc-config-sync-button,
+  .dc-config-vercel-connected-body .dc-config-rebuild-button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Slim the padding on the dark connected card so content doesn't
+     get pinched against the edge. */
+  .dc-config-vercel-connected-header,
+  .dc-config-vercel-connected-body,
+  .dc-config-vercel-connected-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .dc-config-vercel-step-card {
+    padding: 1rem 1.25rem;
+  }
+
+  /* Installed-starter banner — stack icon above text. */
+  .dc-config-starter-installed {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+  }
+
+  /* Netlify card — trim padding. */
+  .dc-config-netlify-card {
+    padding: 16px;
+  }
+  .dc-config-netlify-claim {
+    padding: 14px;
+  }
+
+  /* Header logo+title stack tighter on phones. */
+  .dc-config-logo {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .dc-config-logo-icon img {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Shrink the purple step-number badges to save horizontal room. */
+  .dc-config-step-marker {
+    width: 32px;
+  }
+  .dc-config-step-number-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+  }
+
+  /* Main content area — tight page margins. */
+  .dc-config-content-area {
+    padding: 0.75rem;
+  }
+  .dc-config-main-content {
+    padding: 1rem;
+  }
+  .dc-config-header {
+    padding: 1rem;
+  }
+  .dc-config-header h1 {
+    font-size: 1.375rem;
+  }
+  .dc-config-header p {
+    font-size: 0.9375rem;
+  }
+
+  /* Vercel CTAs — stretch buttons to full-width so thumb targets aren't tiny. */
+  .dc-config-vercel-connect-btn,
+  .dc-config-vercel-deploy-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
