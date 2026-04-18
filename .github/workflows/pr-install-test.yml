@@ -111,9 +111,12 @@ jobs:
       # merge step.
       # -----------------------------------------------------------------
       - name: Auto-merge automated security PR
+        # Identify the automated PR by branch name + label. We can't
+        # rely on the author being github-actions[bot] because we
+        # deliberately open the PR with a PAT to get downstream
+        # workflows to fire (see comment in drupal-security-updates.yml).
         if: >-
           success() &&
-          github.event.pull_request.user.login == 'github-actions[bot]' &&
           github.event.pull_request.head.ref == 'security-updates/automated' &&
           contains(github.event.pull_request.labels.*.name, 'automated')
         env:

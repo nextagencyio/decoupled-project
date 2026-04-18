@@ -117,6 +117,11 @@ jobs:
         if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
         uses: peter-evans/create-pull-request@v7
         with:
+          # Use a PAT instead of the default GITHUB_TOKEN so the PR
+          # counts as user-authored — otherwise GitHub suppresses
+          # downstream pull_request events (like pr-install-test) to
+          # prevent workflow recursion, which would block auto-merge.
+          token: ${{ secrets.GH_PAT }}
           branch: security-updates/automated
           base: main
           commit-message: |
