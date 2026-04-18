@@ -131,8 +131,16 @@ jobs:
         # rely on the author being github-actions[bot] because we
         # deliberately open the PR with a PAT to get downstream
         # workflows to fire (see comment in drupal-security-updates.yml).
+        #
+        # github.repository guard: the install-test portion above
+        # (spin up MariaDB, run drush site:install) is genuinely
+        # useful to anyone who clones this repo — it proves their
+        # PR's composer.lock actually installs. Only the auto-merge
+        # step is Decoupled.io-specific (requires GH_PAT + our
+        # security-updates workflow to have opened the PR).
         if: >-
           success() &&
+          github.repository == 'nextagencyio/decoupled-project' &&
           github.event.pull_request.head.ref == 'security-updates/automated' &&
           contains(github.event.pull_request.labels.*.name, 'automated')
         env:

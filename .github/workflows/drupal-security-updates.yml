@@ -34,6 +34,13 @@ permissions:
 
 jobs:
   audit:
+    # Decoupled.io's own CI: opens PRs with the nightly composer
+    # audit output. Requires a GH_PAT secret; self-hosters who clone
+    # this repo don't have one, and without this guard their Actions
+    # tab would fill with red every night. If you're self-hosting and
+    # want the nightly security PRs, set your own GH_PAT secret and
+    # remove this if: line (or fork the workflow with your repo name).
+    if: github.repository == 'nextagencyio/decoupled-project'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

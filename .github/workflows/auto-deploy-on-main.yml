@@ -29,6 +29,12 @@ concurrency:
 
 jobs:
   deploy:
+    # Decoupled.io's own CI. Self-hosters who clone this repo don't
+    # have FLY_API_TOKEN set — without this guard they'd see a red X
+    # in their Actions tab on every push to main. Remove the guard
+    # (or fork this workflow and hard-code your own repo) if you're
+    # running your own Fly.io deploy pipeline off this codebase.
+    if: github.repository == 'nextagencyio/decoupled-project'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
