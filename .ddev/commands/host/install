@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+## Description: Install Drupal with the dc_core profile (drops DB + reinstalls)
+## Usage: install
+## Example: "ddev install"
+
+set -euo pipefail
+
+echo "▶ composer install..."
+ddev exec "cd /var/www/html && composer install --no-interaction --no-progress"
+
+echo "▶ drush site:install dc_core (this drops the database)..."
+ddev drush site:install dc_core \
+  --db-url=mysql://db:db@db/db \
+  --site-name="Decoupled Local" \
+  --account-name=admin \
+  --account-pass=admin \
+  -y
+
+echo ""
+echo "✓ Install complete."
+echo "  Admin:    admin / admin"
+echo "  One-time login link:"
+ddev drush user:login
