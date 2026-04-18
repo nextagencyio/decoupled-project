@@ -100,6 +100,14 @@ jobs:
           rm -f web/sites/default/settings.php
           # vendor/bin/drush is a bash wrapper that exec's the real
           # PHP drush binary — call it directly, not via `php`.
+          #
+          # Pipe through sed to strip DRUPAL_CLIENT_ID / DRUPAL_CLIENT_SECRET
+          # lines from dc_core's install notices. They're ephemeral
+          # (MariaDB service container gets destroyed when the job ends)
+          # so they grant nothing, but this is a PUBLIC repo and even
+          # throwaway-looking creds don't belong in public logs.
+          # set -o pipefail (from 'set -euo pipefail' above) propagates
+          # drush's non-zero exit through sed's always-zero exit.
           ./vendor/bin/drush \
             --root="$(pwd)/web" \
             site:install dc_core \
@@ -107,7 +115,8 @@ jobs:
             --site-name="CI Install Test" \
             --account-name=admin \
             --account-pass=admin \
-            --no-interaction --yes
+            --no-interaction --yes 2>&1 \
+            | sed -E '/DRUPAL_CLIENT_(ID|SECRET)=/d'
 
       - name: Drush status sanity
         run: |
