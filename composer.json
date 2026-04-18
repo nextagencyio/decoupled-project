@@ -73,7 +73,9 @@
             "php-tuf/composer-integration": true,
             "phpstan/extension-installer": true
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+        }
     },
     "extra": {
         "drupal-scaffold": {
