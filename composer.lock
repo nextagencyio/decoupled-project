@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6ff1e7ec8e50e1e6658c9eb093bda301",
+    "content-hash": "64f786df3ca0701ccabd198f2efda6ca",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -2918,14 +2918,14 @@
         },
         {
             "name": "drupal/simple_oauth",
-            "version": "5.2.x-dev",
+            "version": "6.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/issue/simple_oauth-3532181.git",
-                "reference": "aa4a3566c2ff156b1dde5eea4b4896bb7a880127"
+                "reference": "2efb6f4d9961556a98bff7a1c3ffe1a505b3ef99"
             },
             "require": {
-                "drupal/consumers": "^1.14",
+                "drupal/consumers": "^1.2",
                 "lcobucci/jwt": "^4",
                 "league/oauth2-server": "^8.3",
                 "php": ">=7.4",
@@ -2934,20 +2934,25 @@
             "require-dev": {
                 "phpspec/prophecy-phpunit": "^2"
             },
-            "default-branch": true,
             "type": "drupal-module",
             "extra": {
                 "drush": {
                     "services": {
-                        "drush.services.yml": "^9 || ^10 || ^11"
+                        "drush.services.yml": "^9"
                     }
                 }
             },
             "license": [
-                "GPL-2.0-or-later"
+                "GPL-2.0+"
+            ],
+            "authors": [
+                {
+                    "name": "Mateu Aguiló Bosch",
+                    "email": "mateu.aguilo.bosch@gmail.com"
+                }
             ],
             "description": "The Simple OAuth module for Drupal",
-            "time": "2025-08-30T23:24:06+00:00"
+            "time": "2022-01-05T08:44:36+00:00"
         },
         {
             "name": "drupal/token",
@@ -8714,8 +8719,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "drupal/decoupled_preview_iframe": 20,
-        "drupal/simple_oauth": 20
+        "drupal/decoupled_preview_iframe": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
