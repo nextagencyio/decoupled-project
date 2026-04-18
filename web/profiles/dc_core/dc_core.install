@@ -212,8 +212,21 @@ function _dc_core_configure_mail_system() {
   $config = \Drupal::configFactory()->getEditable('system.mail');
   $config->set('interface.default', 'resend_mail');
   $config->save();
-  
-  \Drupal::logger('dc_core')->notice('Configured mail system to use Resend HTTP API (dc_mail module).');
+
+  // system.site.mail drives the default From on every transactional
+  // Drupal email (password resets, user register, etc). Resend
+  // refuses to send from unverified sender domains — the admin's
+  // personal email (usually gmail.com) would fail with HTTP 403.
+  // Override to DECOUPLED_MAIL_FROM if set, else a safe default on
+  // decoupled.io which is verified in our Resend account. Self-
+  // hosters should set their own env var or edit this field at
+  // /admin/config/system/site-information.
+  $from = getenv('DECOUPLED_MAIL_FROM') ?: 'noreply@decoupled.io';
+  $site_config = \Drupal::configFactory()->getEditable('system.site');
+  $site_config->set('mail', $from);
+  $site_config->save();
+
+  \Drupal::logger('dc_core')->notice('Configured mail system to use Resend HTTP API (dc_mail module), From: ' . $from);
 }
 
 /**
@@ -860,4 +873,32 @@ function dc_core_update_10022() {
   $messages[] = t('Re-checked default image styles for WebP/AVIF effects.');
 
   return implode(' ', $messages);
+}
+
+/**
+ * Fix system.site.mail to a Resend-verified From address.
+ */
+function dc_core_update_10023() {
+  // Only touch tenants whose current site mail is on an unverified
+  // consumer domain (gmail, outlook, icloud, etc). Self-hosters who
+  // already set their own verified From are left alone.
+  $site = \Drupal::configFactory()->getEditable('system.site');
+  $current = (string) $site->get('mail');
+  $unverified_suffixes = ['@gmail.com', '@googlemail.com', '@outlook.com', '@hotmail.com', '@icloud.com', '@yahoo.com'];
+  $needs_fix = FALSE;
+  foreach ($unverified_suffixes as $suffix) {
+    if (str_ends_with(strtolower($current), $suffix)) {
+      $needs_fix = TRUE;
+      break;
+    }
+  }
+  if (!$needs_fix) {
+    return t('system.site.mail (@mail) looks ok, skipping.', ['@mail' => $current]);
+  }
+  $from = getenv('DECOUPLED_MAIL_FROM') ?: 'noreply@decoupled.io';
+  $site->set('mail', $from)->save();
+  return t('Updated system.site.mail from @old to @new (Resend requires a verified sender domain).', [
+    '@old' => $current,
+    '@new' => $from,
+  ]);
 }
