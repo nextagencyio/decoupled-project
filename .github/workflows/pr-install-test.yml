@@ -1,0 +1,129 @@
+name: PR install test
+
+# Runs a real Drupal install against the PR's composer.lock. If the
+# install succeeds AND the PR is our automated security-update PR,
+# merges it without human review. Human-authored PRs fall through to
+# normal review — this workflow still runs as a CI check, it just
+# doesn't self-merge them.
+#
+# The install is meaningful: composer install (proving the new lock
+# resolves), then drush site:install dc_core against a real MariaDB
+# service. Catches any regression where a security bump breaks a
+# module's install hook or a required extension's version.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'composer.json'
+      - 'composer.lock'
+      - 'Dockerfile'
+      - 'web/**'
+      - '.github/workflows/pr-install-test.yml'
+
+concurrency:
+  group: pr-install-test-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  install-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: drupal
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, xml, gd, pdo_mysql, opcache, intl, zip, curl
+          tools: composer:v2
+          coverage: none
+
+      - name: Composer install
+        run: |
+          set -euo pipefail
+          # block-insecure off for the same reason it's off in the
+          # security-update workflow — we're installing a lock that
+          # passed audit verification there.
+          composer config audit.block-insecure false
+          composer install --no-scripts --no-plugins --no-interaction --prefer-dist
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              echo "mariadb ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::mariadb never came up"
+          exit 1
+
+      - name: Drupal site install (dc_core)
+        run: |
+          set -euo pipefail
+          php -d memory_limit=512M vendor/bin/drush \
+            --root="$(pwd)/web" \
+            site:install dc_core \
+            --db-url=mysql://root:root@127.0.0.1:3306/drupal \
+            --site-name="CI Install Test" \
+            --account-name=admin \
+            --account-pass=admin \
+            --no-interaction --yes
+
+      - name: Drush status sanity
+        run: |
+          php -d memory_limit=512M vendor/bin/drush --root="$(pwd)/web" status --format=json \
+            | tee /tmp/status.json
+          bootstrap=$(jq -r '.["drupal-settings-file"] // ""' /tmp/status.json)
+          db_status=$(jq -r '.["db-status"] // ""' /tmp/status.json)
+          echo "db-status=$db_status"
+          if [ "$db_status" != "Connected" ]; then
+            echo "::error::drush reports db-status='$db_status' — install did not complete cleanly"
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------
+      # Auto-merge only for the automated security-update PR. Human-
+      # authored PRs reach this point too (as a CI check) but skip the
+      # merge step.
+      # -----------------------------------------------------------------
+      - name: Auto-merge automated security PR
+        if: >-
+          success() &&
+          github.event.pull_request.user.login == 'github-actions[bot]' &&
+          github.event.pull_request.head.ref == 'security-updates/automated' &&
+          contains(github.event.pull_request.labels.*.name, 'automated')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "PR passed install test + matches the automated security-update
+          signature — squashing into main."
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --delete-branch \
+            --subject "chore(deps): apply Drupal security updates" \
+            --body "Automated by .github/workflows/drupal-security-updates.yml — merged by pr-install-test.yml after install test passed."

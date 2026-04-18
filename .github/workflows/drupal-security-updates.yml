@@ -133,9 +133,16 @@ jobs:
             $(cat /tmp/advisory-summary.txt 2>/dev/null || echo '(see workflow log)')
             ```
 
+            ### Auto-merge
+            This PR will auto-merge into `main` once
+            [`pr-install-test`](../actions/workflows/pr-install-test.yml)
+            passes — a real `drush site:install dc_core` against the
+            new lock. If the install test fails, the PR stays open for
+            human review.
+
             ### Rollback
             If this update breaks production after it's deployed:
-            1. Revert this merge commit on `main`, OR
+            1. Revert the merge commit on `main`, OR
             2. Manually dispatch [`rollback-source-image`](../actions/workflows/rollback-source-image.yml) with the `version` of the last known-good Fly release.
 
             Full rollback procedure: [docs/ROLLBACK.md](./docs/ROLLBACK.md).
