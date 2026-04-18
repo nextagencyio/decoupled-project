@@ -1,0 +1,89 @@
+Backport of CVE-2026-40476 / GHSA-68jq-c3rv-pcrr DoS fix from
+webonyx/graphql-php v15.31.5 (upstream commit b5e7c995b6) to
+the v14.x line. The fix is purely additive: it deduplicates
+structurally identical repeated fields before the quadratic
+pairwise conflict comparison, reducing O(n²) to O(u²) where u
+is the number of unique field signatures. On v15.x the helper
+methods had return type declarations; we omit those here to
+match v14.x's private-method conventions.
+
+diff --git a/src/Validator/Rules/OverlappingFieldsCanBeMerged.php b/src/Validator/Rules/OverlappingFieldsCanBeMerged.php
+--- a/src/Validator/Rules/OverlappingFieldsCanBeMerged.php
++++ b/src/Validator/Rules/OverlappingFieldsCanBeMerged.php
+@@ -308,6 +308,15 @@
+                 continue;
+             }
+ 
++            // Deduplicate structurally identical fields to avoid O(n²) blowup
++            // when a query repeats the same field many times (GHSA-68jq-c3rv-pcrr,
++            // CVE-2026-40476). Backported from v15.31.5.
++            $fields = $this->deduplicateFields($fields);
++            $fieldsLength = count($fields);
++            if ($fieldsLength <= 1) {
++                continue;
++            }
++
+             for ($i = 0; $i < $fieldsLength; $i++) {
+                 for ($j = $i + 1; $j < $fieldsLength; $j++) {
+                     $conflict = $this->findConflict(
+@@ -328,6 +337,60 @@
+     }
+ 
+     /**
++     * Deduplicate structurally identical fields before the O(n²) pairwise
++     * conflict comparison in collectConflictsWithin. Two fields with the same
++     * parent type, name, arguments, and selection set can never conflict with
++     * each other — keeping only the first avoids quadratic blowup when a
++     * query repeats the same field many times.
++     *
++     * @param  mixed[][] $fields
++     * @return mixed[][]
++     */
++    private function deduplicateFields(array $fields)
++    {
++        $unique = [];
++        $seen = [];
++        foreach ($fields as $field) {
++            $key = $this->fieldFingerprint($field);
++            if (! isset($seen[$key])) {
++                $seen[$key] = true;
++                $unique[] = $field;
++            }
++        }
++
++        return $unique;
++    }
++
++    /**
++     * Build a string fingerprint representing the structural identity of a
++     * field (parent type, name, selection set, arguments). Two fields with
++     * identical fingerprints cannot produce a conflict with each other.
++     *
++     * @param  mixed[] $field
++     * @return string
++     */
++    private function fieldFingerprint(array $field)
++    {
++        [$parentType, $ast] = $field;
++
++        $parentTypeId = $parentType !== null
++            ? spl_object_id($parentType)
++            : '';
++        $name = $ast->name->value;
++        $selectionSetId = $ast->selectionSet !== null
++            ? spl_object_id($ast->selectionSet)
++            : '';
++
++        $fingerprint = "{$parentTypeId}:{$name}:{$selectionSetId}";
++
++        foreach ($ast->arguments as $argument) {
++            $fingerprint .= ":{$argument->name->value}=" . Printer::doPrint($argument->value);
++        }
++
++        return $fingerprint;
++    }
++
++    /**
+      * Determines if there is a conflict between two particular fields, including
+      * comparing their sub-fields.
+      *

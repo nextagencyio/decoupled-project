@@ -1,4 +1,17 @@
 {
-    "_hash": "6142bfcb78f54dfbf5247ae5e463f25bdb8fff1890806e2e45aa81a59c211653",
-    "patches": []
+    "_hash": "f3efed8270f0677b18209de145f87339ae0a323c5fd3da7da977c28c66a06d59",
+    "patches": {
+        "webonyx/graphql-php": [
+            {
+                "package": "webonyx/graphql-php",
+                "description": "CVE-2026-40476 (GHSA-68jq-c3rv-pcrr) — backport of DoS fix from v15.31.5 to v14.x; upstream commit b5e7c995b6",
+                "url": "patches/webonyx-graphql-php-dos-fix-GHSA-68jq-c3rv-pcrr.patch",
+                "sha256": "e251ec1716ce527969625cb6de4950daed4c0b328ba68d1d044f1a1dd842823e",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ]
+    }
 }
