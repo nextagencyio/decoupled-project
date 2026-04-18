@@ -6,6 +6,7 @@
  */
 
 use Drupal\consumers\Entity\Consumer;
+use Drupal\image\Entity\ImageStyle;
 use Drupal\user\Entity\Role;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Random;
@@ -79,6 +80,36 @@ function dc_core_install() {
 
   // 4. Configure mail system to use Resend HTTP API.
   _dc_core_configure_mail_system();
+
+  // 5. Strip WebP/AVIF conversion from default image styles — PHP GD in our
+  //    Docker image doesn't ship WebP support, so these effects throw
+  //    "Error generating image" on every render.
+  _dc_core_remove_webp_conversion_effects();
+}
+
+/**
+ * Strip WebP/AVIF conversion effects from default image styles.
+ *
+ * Drupal 11 core adds image_convert / image_convert_avif effects to the
+ * built-in thumbnail / medium / large / wide styles. PHP GD in the
+ * FrankenPHP image doesn't have WebP compiled in, so those effects
+ * fail. Call this from hook_install and again from the dc_fields
+ * retirement update hook so existing sites get cleaned up too.
+ */
+function _dc_core_remove_webp_conversion_effects() {
+  $styles = ['thumbnail', 'medium', 'large', 'wide'];
+  foreach ($styles as $style_name) {
+    $style = ImageStyle::load($style_name);
+    if (!$style) {
+      continue;
+    }
+    foreach ($style->getEffects() as $effect) {
+      if (in_array($effect->getPluginId(), ['image_convert', 'image_convert_avif'], TRUE)) {
+        $style->deleteImageEffect($effect);
+      }
+    }
+    $style->save();
+  }
 }
 
 /**
@@ -803,6 +834,30 @@ function dc_core_update_10021() {
   else {
     $messages[] = t('User default display not found, skipping.');
   }
+
+  return implode(' ', $messages);
+}
+
+/**
+ * Retire the dc_fields module — its config/install now lives in dc_core.
+ */
+function dc_core_update_10022() {
+  $messages = [];
+
+  $module_handler = \Drupal::service('module_handler');
+  if ($module_handler->moduleExists('dc_fields')) {
+    \Drupal::service('module_installer')->uninstall(['dc_fields']);
+    $messages[] = t('Uninstalled retired dc_fields module.');
+  }
+  else {
+    $messages[] = t('dc_fields already uninstalled, skipping.');
+  }
+
+  // Re-run the WebP/AVIF cleanup on existing sites in case the module
+  // was uninstalled before this hook ran (or a site was ever installed
+  // without dc_fields).
+  _dc_core_remove_webp_conversion_effects();
+  $messages[] = t('Re-checked default image styles for WebP/AVIF effects.');
 
   return implode(' ', $messages);
 }

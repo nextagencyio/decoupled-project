@@ -73,7 +73,6 @@ dependencies:
   - field_group:field_group
 
   # Profile modules (from profile/modules directory)
-  - dc_fields
   - dc_api
   - dc_admin
   - dc_config
