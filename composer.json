@@ -42,7 +42,6 @@
         "cweagans/composer-patches": "^2.0",
         "drupal/admin_toolbar": "^3.4",
         "drupal/admin_toolbar_tools": "^3.4",
-        "drupal/cms_content_sync": "^3.2",
         "drupal/core-composer-scaffold": "^11.2",
         "drupal/core-recommended": "^11.2",
         "drupal/decoupled_preview_iframe": "dev-3543929-drupal-11-fixes",
@@ -75,6 +74,9 @@
         },
         "sort-packages": true,
         "audit": {
+            "ignore": {
+                "CVE-2026-40476": "Backported upstream fix via patches/webonyx-graphql-php-dos-fix-GHSA-68jq-c3rv-pcrr.patch. Composer audit can't detect patches; drop this ignore once we upgrade webonyx/graphql-php to >=15.31.5 (blocked on drupal/graphql_compose 3.x stable)."
+            }
         }
     },
     "extra": {
@@ -114,6 +116,11 @@
             "recipes/{$name}": [
                 "type:drupal-recipe"
             ]
+        },
+        "patches": {
+            "webonyx/graphql-php": {
+                "CVE-2026-40476 (GHSA-68jq-c3rv-pcrr) — backport of DoS fix from v15.31.5 to v14.x; upstream commit b5e7c995b6": "patches/webonyx-graphql-php-dos-fix-GHSA-68jq-c3rv-pcrr.patch"
+            }
         }
     }
 }
