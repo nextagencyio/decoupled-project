@@ -162,9 +162,49 @@ class DrupalContentImporter {
       if ($cleared_caches) {
         $result['summary'][] = "Cleared GraphQL caches for schema updates";
       }
+
+      // Final sweep: some import flows re-save nodes during reference
+      // resolution (resolveConciseReferences) and translation creation,
+      // which can clobber the alias set by the per-createNode force-regen.
+      // As a backstop, walk every node whose current alias still resolves
+      // to /node/<nid> and force pathauto to generate one. Safe no-op for
+      // nodes that already have a proper alias.
+      $this->sweepMissingPathautoAliases($result);
     }
 
     return $result;
+  }
+
+  /**
+   * Force pathauto to regenerate aliases for any node still missing one.
+   */
+  private function sweepMissingPathautoAliases(array &$result): void {
+    if (!\Drupal::moduleHandler()->moduleExists('pathauto')) {
+      return;
+    }
+    $generator = \Drupal::service('pathauto.generator');
+    $alias_manager = \Drupal::service('path_alias.manager');
+    $node_storage = $this->entityTypeManager->getStorage('node');
+
+    // Drop any stub path_alias rows with NULL/empty alias — those are what
+    // prevent pathauto's update op from creating a new alias on re-run.
+    $db = \Drupal::database();
+    $db->delete('path_alias')->isNull('alias')->execute();
+    $db->delete('path_alias')->condition('alias', '')->execute();
+    $alias_manager->cacheClear();
+
+    $nids = $node_storage->getQuery()->accessCheck(FALSE)->execute();
+    $fixed = 0;
+    foreach ($node_storage->loadMultiple($nids) as $node) {
+      $source = '/node/' . $node->id();
+      if ($alias_manager->getAliasByPath($source) === $source) {
+        $generator->updateEntityAlias($node, 'update', ['force' => TRUE]);
+        $fixed++;
+      }
+    }
+    if ($fixed > 0) {
+      $result['summary'][] = "Regenerated pathauto aliases for {$fixed} node(s) missing URLs";
+    }
   }
 
   /**
