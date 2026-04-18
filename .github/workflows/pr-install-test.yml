@@ -136,7 +136,11 @@ jobs:
           github.event.pull_request.head.ref == 'security-updates/automated' &&
           contains(github.event.pull_request.labels.*.name, 'automated')
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use GH_PAT (not GITHUB_TOKEN) so the squash commit fires
+          # downstream push workflows on main — GitHub suppresses
+          # workflow triggers on pushes authored by GITHUB_TOKEN, which
+          # would leave auto-deploy-on-main.yml dormant after merge.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "PR passed install test + matches the automated security-update
           signature — squashing into main."

@@ -51,7 +51,14 @@ jobs:
 
       - name: Record post-deploy release
         if: always()
+        # Informational only — never fail the job on this step. The
+        # Fly deploy above is what actually matters.
+        continue-on-error: true
         run: |
-          post=$(flyctl releases -a decoupled-drupal-frankenphp --json | jq -r '.[0] | "v\(.Version) status=\(.Status) image=\(.ImageRef.Repository):\(.ImageRef.Tag // .ImageRef.Digest // "?")"')
+          # .ImageRef can be either an object (with Repository/Tag/Digest)
+          # or a string, depending on fly CLI version — guard with try.
+          post=$(flyctl releases -a decoupled-drupal-frankenphp --json \
+            | jq -r '.[0] | "v\(.Version) status=\(.Status) image=\(.ImageRef // "?" | if type == "object" then .Repository + ":" + (.Tag // .Digest // "?") else tostring end)"' \
+            || echo "unable to summarize")
           echo "::notice::post-deploy release: ${post}"
           echo "to roll back: trigger rollback-source-image with version=${{ steps.before.outputs.version }}"
