@@ -57,6 +57,9 @@ jobs:
         with:
           php-version: '8.5'
           extensions: mbstring, xml, gd, pdo_mysql, opcache, intl, zip, curl
+          # dc_core + contrib install touches a lot of modules — the
+          # default 128M memory_limit OOMs the site:install command.
+          ini-values: memory_limit=512M, max_execution_time=300
           tools: composer:v2
           coverage: none
 
@@ -84,7 +87,9 @@ jobs:
       - name: Drupal site install (dc_core)
         run: |
           set -euo pipefail
-          php -d memory_limit=512M vendor/bin/drush \
+          # vendor/bin/drush is a bash wrapper that exec's the real
+          # PHP drush binary — call it directly, not via `php`.
+          ./vendor/bin/drush \
             --root="$(pwd)/web" \
             site:install dc_core \
             --db-url=mysql://root:root@127.0.0.1:3306/drupal \
@@ -95,9 +100,9 @@ jobs:
 
       - name: Drush status sanity
         run: |
-          php -d memory_limit=512M vendor/bin/drush --root="$(pwd)/web" status --format=json \
+          set -euo pipefail
+          ./vendor/bin/drush --root="$(pwd)/web" status --format=json \
             | tee /tmp/status.json
-          bootstrap=$(jq -r '.["drupal-settings-file"] // ""' /tmp/status.json)
           db_status=$(jq -r '.["db-status"] // ""' /tmp/status.json)
           echo "db-status=$db_status"
           if [ "$db_status" != "Connected" ]; then
