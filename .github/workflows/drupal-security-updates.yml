@@ -84,24 +84,29 @@ jobs:
         if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
         run: |
           set -euo pipefail
-          # Update only the affected packages + their deps. Anything
-          # else in composer.lock stays pinned.
-          pkgs=$(paste -sd ' ' /tmp/affected-packages.txt)
-          echo "Updating: $pkgs"
+          # Advisory packages are often transitive (e.g. drupal/core
+          # is pulled in via drupal/core-recommended; firebase/php-jwt
+          # via drupal/simple_oauth). `composer update <advisory-pkg>`
+          # only bumps within the constraints of whatever direct
+          # require holds it — which is why an earlier attempt left
+          # drupal/core stuck at 11.3.6 while the advisory range
+          # demanded >=11.3.7. Running `composer update` with
+          # --with-all-dependencies and NO package filter updates
+          # everything within existing composer.json constraints,
+          # which actually resolves the patches. Non-security minor
+          # bumps come along for the ride; the tight PR focus is
+          # traded for an update that actually fixes CVEs.
+          #
           # Composer 2.8's block-insecure resolver refuses to LOAD any
-          # version of a package that has ANY historical advisory —
-          # including the patched versions we're trying to upgrade TO.
-          # That's a recursive trap for a security-update workflow:
-          # composer refuses to resolve because every version of core
-          # has been in some advisory at some point. --no-audit only
-          # suppresses post-install reporting, not the resolver check.
-          # The fix is to toggle block-insecure off just for this
-          # update, then turn it back on. We run composer audit
-          # explicitly before this step and again after, so the safety
-          # guarantee is unchanged.
+          # version of a package with ANY historical advisory — a
+          # recursive trap for a security-update workflow. Toggle it
+          # off for the update, back on after. The explicit composer
+          # audit calls before and after this step keep the safety
+          # guarantee intact.
+          echo "Advised packages that triggered this run:"
+          cat /tmp/affected-packages.txt
           composer config audit.block-insecure false
-          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-audit $pkgs
-          # Remove the override so the file we commit is unchanged.
+          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-audit
           composer config --unset audit.block-insecure
 
           # Verify the advisory is actually resolved post-update.
