@@ -48,6 +48,11 @@ WORKDIR /app
 # Copy what composer needs to resolve + Drupal source so core-composer-scaffold
 # can run its post-install tasks (it writes files into web/ during install).
 COPY composer.json composer.lock patches.lock.json ./
+# cweagans/composer-patches resolves local patch URLs relative to the
+# project root, so the patches/ directory has to be in the build
+# context before `composer install` runs — otherwise the install step
+# dies with "file could not be downloaded: No such file or directory".
+COPY patches/ ./patches/
 COPY web/ ./web/
 COPY config/ ./config/
 
