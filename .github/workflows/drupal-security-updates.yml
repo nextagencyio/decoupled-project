@@ -88,7 +88,15 @@ jobs:
           # else in composer.lock stays pinned.
           pkgs=$(paste -sd ' ' /tmp/affected-packages.txt)
           echo "Updating: $pkgs"
-          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction $pkgs
+          # --no-audit is required because composer 2.8's block-insecure
+          # audit refuses to install ANY version of a package that has
+          # a historical advisory — including the patched versions we
+          # want to upgrade to. We run composer audit explicitly before
+          # this step (in "Scan for security advisories") and again
+          # after (below), so we're not losing any safety guarantee —
+          # we're just working around composer update's own safety
+          # check fighting the whole purpose of this workflow.
+          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-audit $pkgs
 
           # Verify the advisory is actually resolved post-update.
           composer audit --format=json --locked > /tmp/audit-after.json || true
