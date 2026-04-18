@@ -92,6 +92,12 @@ jobs:
       - name: Drupal site install (dc_core)
         run: |
           set -euo pipefail
+          # The repo carries a committed web/sites/default/settings.php
+          # with DDEV-specific DB config (host=mysql-local). That file
+          # hardcodes $databases['default']['default'] and overrides
+          # any --db-url we pass. Remove it so drush site:install
+          # writes a fresh one pointing at the CI MariaDB service.
+          rm -f web/sites/default/settings.php
           # vendor/bin/drush is a bash wrapper that exec's the real
           # PHP drush binary — call it directly, not via `php`.
           ./vendor/bin/drush \
