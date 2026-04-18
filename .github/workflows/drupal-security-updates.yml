@@ -88,15 +88,21 @@ jobs:
           # else in composer.lock stays pinned.
           pkgs=$(paste -sd ' ' /tmp/affected-packages.txt)
           echo "Updating: $pkgs"
-          # --no-audit is required because composer 2.8's block-insecure
-          # audit refuses to install ANY version of a package that has
-          # a historical advisory — including the patched versions we
-          # want to upgrade to. We run composer audit explicitly before
-          # this step (in "Scan for security advisories") and again
-          # after (below), so we're not losing any safety guarantee —
-          # we're just working around composer update's own safety
-          # check fighting the whole purpose of this workflow.
+          # Composer 2.8's block-insecure resolver refuses to LOAD any
+          # version of a package that has ANY historical advisory —
+          # including the patched versions we're trying to upgrade TO.
+          # That's a recursive trap for a security-update workflow:
+          # composer refuses to resolve because every version of core
+          # has been in some advisory at some point. --no-audit only
+          # suppresses post-install reporting, not the resolver check.
+          # The fix is to toggle block-insecure off just for this
+          # update, then turn it back on. We run composer audit
+          # explicitly before this step and again after, so the safety
+          # guarantee is unchanged.
+          composer config audit.block-insecure false
           composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-audit $pkgs
+          # Remove the override so the file we commit is unchanged.
+          composer config --unset audit.block-insecure
 
           # Verify the advisory is actually resolved post-update.
           composer audit --format=json --locked > /tmp/audit-after.json || true
