@@ -1,0 +1,129 @@
+name: Drupal security updates
+
+# Nightly scan for Drupal / contrib security advisories via composer audit.
+# If any are found, runs composer update on the affected packages and opens
+# a PR with the advisory details in the body.
+#
+# Security advisories ONLY — we deliberately do not pull in non-security
+# minor/patch updates here. Keeps the change surface small so the PR is
+# easy to review + the rollback radius is tight.
+#
+# On merge to main, auto-deploy-on-main.yml rebuilds the FrankenPHP
+# image and pushes it to the source Fly app; new tenants pick it up on
+# provision, existing tenants pick it up on their next tier change or
+# via the (TBD) fly-fleet-deploy workflow.
+
+on:
+  schedule:
+    # 04:00 UTC daily — quiet hours in US, before the 05:00 backup cron.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Scan only — do not open PR even if advisories are found'
+        type: boolean
+        default: false
+
+concurrency:
+  group: drupal-security-updates
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install current dependencies
+        run: composer install --no-scripts --no-plugins --no-interaction --prefer-dist
+
+      - name: Scan for security advisories
+        id: audit
+        run: |
+          set -o pipefail
+          # composer audit exits non-zero when advisories are found — we
+          # want that to NOT fail the job, so capture JSON and parse
+          # it ourselves.
+          composer audit --format=json --locked > /tmp/audit.json || true
+          advisories_count=$(jq '[.advisories | to_entries[] | .value[]] | length' /tmp/audit.json 2>/dev/null || echo 0)
+          echo "advisories_count=${advisories_count}" >> "$GITHUB_OUTPUT"
+          echo "::notice::${advisories_count} security advisor(ies) found"
+          if [ "$advisories_count" -gt 0 ]; then
+            jq -r '.advisories | to_entries[] | .value[] | "• \(.packageName) — \(.title) (CVE: \(.cve // "n/a"), affected: \(.affectedVersions))"' /tmp/audit.json | tee /tmp/advisory-summary.txt
+            jq -r '.advisories | keys | .[]' /tmp/audit.json | sort -u > /tmp/affected-packages.txt
+            echo "affected packages:"
+            cat /tmp/affected-packages.txt
+          fi
+
+      - name: Exit if no advisories
+        if: steps.audit.outputs.advisories_count == '0'
+        run: |
+          echo "No advisories — nothing to do."
+          exit 0
+
+      - name: Exit if dry run
+        if: steps.audit.outputs.advisories_count != '0' && inputs.dry_run
+        run: |
+          echo "Advisories found but dry_run=true — not opening PR."
+          cat /tmp/advisory-summary.txt
+          exit 0
+
+      - name: Apply security updates
+        if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
+        run: |
+          set -euo pipefail
+          # Update only the affected packages + their deps. Anything
+          # else in composer.lock stays pinned.
+          pkgs=$(paste -sd ' ' /tmp/affected-packages.txt)
+          echo "Updating: $pkgs"
+          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction $pkgs
+
+          # Verify the advisory is actually resolved post-update.
+          composer audit --format=json --locked > /tmp/audit-after.json || true
+          remaining=$(jq '[.advisories | to_entries[] | .value[]] | length' /tmp/audit-after.json 2>/dev/null || echo 0)
+          echo "advisories remaining after update: $remaining"
+          if [ "$remaining" -gt 0 ]; then
+            echo "::warning::$remaining advisor(ies) still present after composer update — may require a manual fix"
+            jq -r '.advisories | to_entries[] | .value[] | "• \(.packageName) — \(.title)"' /tmp/audit-after.json >> /tmp/advisory-summary.txt
+          fi
+
+      - name: Create pull request
+        if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: security-updates/automated
+          base: main
+          commit-message: |
+            chore(deps): apply Drupal security updates
+
+            Automated by .github/workflows/drupal-security-updates.yml
+          title: "🔒 Drupal security updates"
+          body: |
+            **Automated security advisories applied by the nightly
+            `drupal-security-updates` workflow.**
+
+            ### Advisories addressed
+            ```
+            $(cat /tmp/advisory-summary.txt 2>/dev/null || echo '(see workflow log)')
+            ```
+
+            ### Rollback
+            If this update breaks production after it's deployed:
+            1. Revert this merge commit on `main`, OR
+            2. Manually dispatch [`rollback-source-image`](../actions/workflows/rollback-source-image.yml) with the `version` of the last known-good Fly release.
+
+            Full rollback procedure: [docs/ROLLBACK.md](./docs/ROLLBACK.md).
+          labels: security, dependencies, automated
+          delete-branch: true

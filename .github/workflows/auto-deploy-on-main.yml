@@ -1,0 +1,57 @@
+name: Auto-deploy Drupal source image
+
+# Every push to main triggers a fly deploy against the source Fly app
+# (decoupled-drupal-frankenphp). This builds and pushes the new
+# FrankenPHP image to registry.fly.io, updating:
+#   - the source app itself (so future tenants clone a fresh image)
+#   - existing tenants will pick it up on their next redeploy (tier
+#     change, manual fleet-update, or the TBD fly-fleet-deploy.yml)
+#
+# Concurrency group serializes deploys so two pushes in quick succession
+# don't race and leave the source app in a half-deployed state.
+#
+# Rollback: .github/workflows/rollback-source-image.yml — manual
+# dispatch with a target release version.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/rollback-source-image.yml'
+      - '.github/workflows/drupal-security-updates.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-drupal-source
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Record pre-deploy release version
+        id: before
+        run: |
+          pre=$(flyctl releases -a decoupled-drupal-frankenphp --json | jq -r '.[0].Version // "unknown"')
+          echo "version=${pre}" >> "$GITHUB_OUTPUT"
+          echo "::notice::pre-deploy release: v${pre}"
+
+      - name: Deploy to Fly
+        run: flyctl deploy -a decoupled-drupal-frankenphp --remote-only --wait-timeout 600
+
+      - name: Record post-deploy release
+        if: always()
+        run: |
+          post=$(flyctl releases -a decoupled-drupal-frankenphp --json | jq -r '.[0] | "v\(.Version) status=\(.Status) image=\(.ImageRef.Repository):\(.ImageRef.Tag // .ImageRef.Digest // "?")"')
+          echo "::notice::post-deploy release: ${post}"
+          echo "to roll back: trigger rollback-source-image with version=${{ steps.before.outputs.version }}"
