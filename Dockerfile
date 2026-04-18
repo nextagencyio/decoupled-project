@@ -1,5 +1,7 @@
 FROM dunglas/frankenphp:1-php8.5
 
+# Auto-deploy smoke test: trivial Dockerfile comment bump to verify
+# push-to-main triggers auto-deploy-on-main.yml end-to-end.
 # Bring in composer from the official image (FrankenPHP doesn't ship it).
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
