@@ -852,12 +852,32 @@ class DrupalContentImporter {
     $node = $node_storage->create($node_data);
 
     // If a path is specified, disable pathauto so it doesn't override
-    // our explicit alias with an auto-generated one.
-    if (!empty($path) && $node->hasField('path')) {
-      $node->set('path', ['alias' => '/' . ltrim($path, '/'), 'pathauto' => FALSE]);
+    // our explicit alias with an auto-generated one. If NOT specified,
+    // explicitly flag pathauto=TRUE so the path field isn't left in
+    // the "user-provided empty" state that leads Drupal to persist a
+    // path_alias row with NULL alias + pathauto-skips-on-insert.
+    if ($node->hasField('path')) {
+      if (!empty($path)) {
+        $node->set('path', ['alias' => '/' . ltrim($path, '/'), 'pathauto' => FALSE]);
+      } else {
+        $node->set('path', ['pathauto' => TRUE]);
+      }
     }
 
     $node->save();
+
+    // Belt-and-suspenders: if the node still has no alias after save
+    // (some starter configs + preexisting path_alias stubs slip past
+    // pathauto's postsave), force a regeneration. Safe no-op when the
+    // node already has an alias from the code above.
+    if (empty($path) && \Drupal::moduleHandler()->moduleExists('pathauto')) {
+      $existing_alias = \Drupal::service('path_alias.manager')
+        ->getAliasByPath('/node/' . $node->id());
+      if ($existing_alias === '/node/' . $node->id()) {
+        \Drupal::service('pathauto.generator')
+          ->updateEntityAlias($node, 'update', ['force' => TRUE]);
+      }
+    }
 
     if (!empty($path)) {
       $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle}, path: {$path})";
