@@ -1637,19 +1637,23 @@ class DrupalContentImporter {
       return;
     }
 
-    // Target this specific bundle via the standard node_type selection
-    // criterion so the pattern only fires for this content type.
+    // Target this specific bundle via the entity_bundle:node condition
+    // plugin. The criteria collection is keyed by UUID (pathauto's
+    // config form generates one per criterion and the loader expects
+    // string keys, not a numeric sequence).
+    $uuid = \Drupal::service('uuid')->generate();
     $pattern = $storage->create([
       'id' => $pattern_id,
       'label' => $name . ' URL alias',
       'type' => 'canonical_entities:node',
       'pattern' => '[node:title]',
       'selection_criteria' => [
-        [
-          'id' => 'node_type',
+        $uuid => [
+          'id' => 'entity_bundle:node',
           'bundles' => [$bundle => $bundle],
           'negate' => FALSE,
           'context_mapping' => ['node' => 'node'],
+          'uuid' => $uuid,
         ],
       ],
       'selection_logic' => 'and',
