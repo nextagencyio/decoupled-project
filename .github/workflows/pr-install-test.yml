@@ -70,7 +70,12 @@ jobs:
           # security-update workflow — we're installing a lock that
           # passed audit verification there.
           composer config audit.block-insecure false
-          composer install --no-scripts --no-plugins --no-interaction --prefer-dist
+          # --no-scripts / --no-plugins would skip the
+          # drupal/core-composer-scaffold plugin that writes
+          # web/sites/default/default.settings.php, without which
+          # drush's pre-install bootstrap fails. Keep plugins on; skip
+          # only dev deps we don't need for an install test.
+          composer install --no-interaction --prefer-dist --no-dev
 
       - name: Wait for MariaDB
         run: |
