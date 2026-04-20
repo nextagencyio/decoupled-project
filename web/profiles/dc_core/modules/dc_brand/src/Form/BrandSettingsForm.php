@@ -209,18 +209,36 @@ class BrandSettingsForm extends ConfigFormBase {
       $config->set("colors.{$key}", strtolower($hex));
     }
 
-    // Mark any uploaded files as permanent.
+    // Mark any uploaded files as permanent, register file_usage so cron
+    // doesn't orphan them, and decrement the old file's usage when a slot
+    // is replaced so the replaced asset can be cleaned up on the next
+    // temporary-file sweep.
+    $file_storage = \Drupal::entityTypeManager()->getStorage('file');
+    $file_usage   = \Drupal::service('file.usage');
     foreach (['light', 'dark'] as $slot) {
+      $old_fid = (int) $config->get("logos.{$slot}");
       $fids = $form_state->getValue(['logos', $slot]);
-      $fid = is_array($fids) ? reset($fids) : $fids;
-      $config->set("logos.{$slot}", $fid ? (int) $fid : NULL);
-      if ($fid) {
-        $file = \Drupal::entityTypeManager()->getStorage('file')->load((int) $fid);
-        if ($file && $file->isTemporary()) {
-          $file->setPermanent();
-          $file->save();
+      $new_fid = is_array($fids) ? (int) reset($fids) : (int) $fids;
+
+      if ($new_fid && $new_fid !== $old_fid) {
+        $file = $file_storage->load($new_fid);
+        if ($file) {
+          if ($file->isTemporary()) {
+            $file->setPermanent();
+            $file->save();
+          }
+          $file_usage->add($file, 'dc_brand', 'config', $slot);
         }
       }
+
+      if ($old_fid && $old_fid !== $new_fid) {
+        $old_file = $file_storage->load($old_fid);
+        if ($old_file) {
+          $file_usage->delete($old_file, 'dc_brand', 'config', $slot);
+        }
+      }
+
+      $config->set("logos.{$slot}", $new_fid ?: NULL);
     }
 
     $config->set('build_hook.url',              (string) $form_state->getValue(['build_hook', 'url']));
