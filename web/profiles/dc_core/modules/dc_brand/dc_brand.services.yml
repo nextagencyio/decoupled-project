@@ -5,6 +5,9 @@ services:
   dc_brand.google_fonts_registry:
     class: Drupal\dc_brand\Service\GoogleFontsRegistry
 
+  dc_brand.color_presets_registry:
+    class: Drupal\dc_brand\Service\ColorPresetsRegistry
+
   dc_brand.resolver:
     class: Drupal\dc_brand\Service\BrandResolver
     arguments:

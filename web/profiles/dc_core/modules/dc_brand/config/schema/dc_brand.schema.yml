@@ -53,3 +53,10 @@ dc_brand.settings:
         debounce_seconds:
           type: integer
           label: 'Debounce window (seconds)'
+    preview:
+      type: mapping
+      label: 'Preview'
+      mapping:
+        url:
+          type: string
+          label: 'Preview URL'

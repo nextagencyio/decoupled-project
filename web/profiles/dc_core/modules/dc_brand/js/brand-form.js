@@ -30,6 +30,38 @@
         render();
       });
 
+      // Preset palettes → apply to all 5 color inputs at once.
+      once('dc-brand-preset', '[data-brand-preset]', context).forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          var palette;
+          try { palette = JSON.parse(btn.dataset.brandPreset); }
+          catch (err) { return; }
+          Object.keys(palette).forEach(function (key) {
+            var input = document.querySelector('[data-brand-color="' + key + '"]');
+            if (!input) { return; }
+            input.value = palette[key];
+            // Fire 'input' so the ramp repaints; ChangeEvent alone doesn't
+            // update <input type=color> visuals reliably across browsers.
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+          // Soft visual feedback that a preset was applied.
+          document.querySelectorAll('.brand-preset.is-active').forEach(function (b) {
+            b.classList.remove('is-active');
+          });
+          btn.classList.add('is-active');
+        });
+      });
+
+      // Preview iframe → refresh button.
+      once('dc-brand-preview-refresh', '[data-brand-preview-refresh]', context).forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var iframe = document.querySelector('[data-brand-preview]');
+          if (iframe) { iframe.src = iframe.src; }
+        });
+      });
+
       // Font dropdowns → load family + show sample.
       once('dc-brand-font', '[data-brand-font]', context).forEach(function (select) {
         var slot = select.dataset.brandFont;

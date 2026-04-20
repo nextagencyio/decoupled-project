@@ -4,7 +4,9 @@ namespace Drupal\dc_brand\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Markup;
 use Drupal\dc_brand\Service\BuildHookDispatcher;
+use Drupal\dc_brand\Service\ColorPresetsRegistry;
 use Drupal\dc_brand\Service\GoogleFontsRegistry;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -20,6 +22,7 @@ class BrandSettingsForm extends ConfigFormBase {
 
   public function __construct(
     private readonly GoogleFontsRegistry $googleFontsRegistry,
+    private readonly ColorPresetsRegistry $colorPresets,
     private readonly BuildHookDispatcher $dispatcher,
   ) {}
 
@@ -29,6 +32,7 @@ class BrandSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): self {
     $instance = new self(
       $container->get('dc_brand.google_fonts_registry'),
+      $container->get('dc_brand.color_presets_registry'),
       $container->get('dc_brand.build_hook_dispatcher'),
     );
     $instance->setConfigFactory($container->get('config.factory'));
@@ -76,6 +80,10 @@ class BrandSettingsForm extends ConfigFormBase {
       '#group' => 'tabs',
       '#tree'  => TRUE,
     ];
+    $form['typography']['note'] = [
+      '#type'   => 'markup',
+      '#markup' => '<p class="brand-fonts-note">' . $this->t('Powered by <a href="https://fonts.google.com" target="_blank" rel="noopener">Google Fonts</a>. Families below are loaded with <code>display=swap</code> for fast first paint.') . '</p>',
+    ];
     $form['typography']['heading'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Heading font'),
@@ -103,6 +111,26 @@ class BrandSettingsForm extends ConfigFormBase {
       '#tree'  => TRUE,
       '#description' => $this->t('Pick one color per slot. A 9-stop ramp (50–900) is derived automatically using HSL lightness stepping. The ramp preview updates live.'),
     ];
+
+    // Presets — click a palette to populate all 5 color slots at once.
+    $preset_markup = '<div class="brand-presets"><p class="brand-presets-label">' . $this->t('Quick-start palettes') . '</p><div class="brand-presets-grid">';
+    foreach ($this->colorPresets->all() as $id => $preset) {
+      $payload = htmlspecialchars(json_encode($preset['colors']), ENT_QUOTES);
+      $swatches = '';
+      foreach ($preset['colors'] as $hex) {
+        $swatches .= '<span style="background-color:' . htmlspecialchars($hex) . '"></span>';
+      }
+      $preset_markup .= '<button type="button" class="brand-preset" data-brand-preset="' . $payload . '">'
+        . '<span class="brand-preset-swatches">' . $swatches . '</span>'
+        . '<span class="brand-preset-label">' . htmlspecialchars($preset['label']) . '</span>'
+        . '</button>';
+    }
+    $preset_markup .= '</div></div>';
+    $form['colors']['presets'] = [
+      '#type'   => 'markup',
+      '#markup' => Markup::create($preset_markup),
+    ];
+
     foreach (['primary', 'secondary', 'accent', 'neutral', 'background'] as $key) {
       $default = $config->get("colors.{$key}") ?: '#3b82f6';
       $form['colors'][$key] = [
@@ -151,6 +179,38 @@ class BrandSettingsForm extends ConfigFormBase {
       '#prefix'            => '<div class="brand-logo-upload">',
       '#suffix'            => '</div>',
     ];
+
+    // -- Live preview -------------------------------------------------
+    $form['preview'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Live preview'),
+      '#group' => 'tabs',
+      '#tree'  => TRUE,
+      '#description' => $this->t('Embed the frontend\'s brand-preview page in an iframe so you can see the current state of the deployed site without leaving this screen.'),
+    ];
+    $form['preview']['url'] = [
+      '#type'          => 'url',
+      '#title'         => $this->t('Preview URL'),
+      '#default_value' => $config->get('preview.url'),
+      '#placeholder'   => 'http://localhost:4351/brand-preview',
+      '#description'   => $this->t('Typically <code>&lt;your-frontend&gt;/brand-preview</code>. The frontend must allow iframe embedding (most Astro/Next sites do by default).'),
+    ];
+    $preview_url = (string) $config->get('preview.url');
+    if ($preview_url !== '') {
+      $iframe_markup = '<div class="brand-preview-iframe-wrap">'
+        . '<div class="brand-preview-toolbar">'
+        . '<span class="brand-preview-url">' . htmlspecialchars($preview_url) . '</span>'
+        . '<button type="button" class="button brand-preview-refresh" data-brand-preview-refresh>' . $this->t('Refresh') . '</button>'
+        . '<a href="' . htmlspecialchars($preview_url) . '" target="_blank" rel="noopener" class="button">' . $this->t('Open in new tab') . '</a>'
+        . '</div>'
+        . '<iframe src="' . htmlspecialchars($preview_url) . '" data-brand-preview loading="lazy"></iframe>'
+        . '<p class="brand-preview-note">' . $this->t('Saves trigger a rebuild (after the build-hook debounce). Hit <em>Refresh</em> once the build is done to see the new render.') . '</p>'
+        . '</div>';
+      $form['preview']['iframe'] = [
+        '#type'   => 'markup',
+        '#markup' => Markup::create($iframe_markup),
+      ];
+    }
 
     // -- Build hook ---------------------------------------------------
     $form['build_hook'] = [
@@ -243,6 +303,7 @@ class BrandSettingsForm extends ConfigFormBase {
 
     $config->set('build_hook.url',              (string) $form_state->getValue(['build_hook', 'url']));
     $config->set('build_hook.debounce_seconds', (int)    $form_state->getValue(['build_hook', 'debounce_seconds']));
+    $config->set('preview.url',                 (string) $form_state->getValue(['preview', 'url']));
     $config->save();
 
     parent::submitForm($form, $form_state);

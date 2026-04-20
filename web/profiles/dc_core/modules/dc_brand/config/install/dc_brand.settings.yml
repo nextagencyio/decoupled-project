@@ -13,3 +13,5 @@ logos:
 build_hook:
   url: ''
   debounce_seconds: 60
+preview:
+  url: ''
