@@ -1,0 +1,15 @@
+fonts:
+  heading: 'Inter'
+  body: 'Inter'
+colors:
+  primary: '#3b82f6'
+  secondary: '#8b5cf6'
+  accent: '#ec4899'
+  neutral: '#475569'
+  background: '#0f172a'
+logos:
+  light: null
+  dark: null
+build_hook:
+  url: ''
+  debounce_seconds: 60

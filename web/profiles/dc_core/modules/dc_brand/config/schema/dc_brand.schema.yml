@@ -1,0 +1,55 @@
+dc_brand.settings:
+  type: config_object
+  label: 'Brand settings'
+  mapping:
+    fonts:
+      type: mapping
+      label: 'Fonts'
+      mapping:
+        heading:
+          type: string
+          label: 'Heading font family'
+        body:
+          type: string
+          label: 'Body font family'
+    colors:
+      type: mapping
+      label: 'Colors'
+      mapping:
+        primary:
+          type: string
+          label: 'Primary color'
+        secondary:
+          type: string
+          label: 'Secondary color'
+        accent:
+          type: string
+          label: 'Accent color'
+        neutral:
+          type: string
+          label: 'Neutral color'
+        background:
+          type: string
+          label: 'Background color'
+    logos:
+      type: mapping
+      label: 'Logos'
+      mapping:
+        light:
+          type: integer
+          label: 'Light-mode logo file ID'
+          nullable: true
+        dark:
+          type: integer
+          label: 'Dark-mode logo file ID'
+          nullable: true
+    build_hook:
+      type: mapping
+      label: 'Build hook'
+      mapping:
+        url:
+          type: string
+          label: 'Build hook URL'
+        debounce_seconds:
+          type: integer
+          label: 'Debounce window (seconds)'

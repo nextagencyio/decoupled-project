@@ -1,0 +1,26 @@
+dc_brand.settings_form:
+  path: '/admin/config/brand'
+  defaults:
+    _form: '\Drupal\dc_brand\Form\BrandSettingsForm'
+    _title: 'Brand settings'
+  requirements:
+    _permission: 'administer brand settings'
+
+dc_brand.settings_json:
+  path: '/api/dc-brand/settings'
+  defaults:
+    _controller: '\Drupal\dc_brand\Controller\BrandSettingsController::settings'
+    _title: 'Brand settings (JSON)'
+  requirements:
+    _access: 'TRUE'
+  methods: [GET]
+
+dc_brand.deploy_now:
+  path: '/admin/config/brand/deploy'
+  defaults:
+    _controller: '\Drupal\dc_brand\Controller\BrandSettingsController::deployNow'
+    _title: 'Deploy now'
+  requirements:
+    _permission: 'administer brand settings'
+    _csrf_token: 'TRUE'
+  methods: [POST]

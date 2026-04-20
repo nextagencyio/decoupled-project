@@ -1,0 +1,8 @@
+name: 'Decoupled Brand'
+type: module
+description: 'No-code global branding (fonts, colors, logos) for decoupled sites. Exposes a JSON endpoint consumed by the Astro starter at build time.'
+core_version_requirement: ^10 || ^11
+package: Decoupled
+dependencies:
+  - drupal:file
+  - drupal:image

@@ -1,0 +1,6 @@
+dc_brand.settings_form:
+  title: 'Brand settings'
+  description: 'Configure global fonts, colors, and logos for the decoupled frontend.'
+  parent: system.admin_config_system
+  route_name: dc_brand.settings_form
+  weight: 20
