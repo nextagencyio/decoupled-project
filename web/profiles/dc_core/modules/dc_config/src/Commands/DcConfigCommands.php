@@ -73,11 +73,11 @@ class DcConfigCommands extends DrushCommands {
     $key_generator = \Drupal::service('simple_oauth.key.generator');
     $key_generator->generateKeys($private_path);
 
-    // Ensure key files are readable.
+    // simple_oauth requires 0600/0660 on its key files.
     foreach (['private.key', 'public.key'] as $file) {
       $path = $private_path . '/' . $file;
       if (file_exists($path)) {
-        chmod($path, 0644);
+        chmod($path, 0600);
       }
     }
 

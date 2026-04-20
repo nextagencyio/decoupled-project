@@ -263,14 +263,14 @@ function _dc_core_generate_oauth_keys() {
         \Drupal::service('simple_oauth.key.generator')->generateKeys($private_path);
         \Drupal::logger('dc_core')->notice('OAuth keys generated successfully in ' . $private_path);
 
-        // Fix permissions - keys are created with 0600 but need to be readable by PHP
+        // simple_oauth requires 0600/0660 on its key files.
         if (file_exists($private_key_path)) {
-          chmod($private_key_path, 0644);
+          chmod($private_key_path, 0600);
         }
         if (file_exists($public_key_path)) {
-          chmod($public_key_path, 0644);
+          chmod($public_key_path, 0600);
         }
-        \Drupal::logger('dc_core')->notice('OAuth key permissions set to 0644');
+        \Drupal::logger('dc_core')->notice('OAuth key permissions set to 0600');
       }
       catch (Exception $e) {
         \Drupal::logger('dc_core')->error('Error generating OAuth keys: ' . $e->getMessage());
@@ -916,4 +916,29 @@ function dc_core_update_10024() {
   }
   \Drupal::service('module_installer')->install(['dc_brand']);
   return t('Enabled dc_brand. Configure at /admin/config/brand.');
+}
+
+/**
+ * Re-tighten OAuth key permissions from 0644 to 0600 (simple_oauth requirement).
+ */
+function dc_core_update_10025() {
+  $request = \Drupal::request();
+  $site_path = \Drupal\Core\DrupalKernel::findSitePath($request);
+  $private_path = DRUPAL_ROOT . '/' . $site_path . '/files/private/oauth';
+
+  $fixed = [];
+  foreach (['private.key', 'public.key'] as $file) {
+    $path = $private_path . '/' . $file;
+    if (file_exists($path) && (fileperms($path) & 0777) !== 0600) {
+      chmod($path, 0600);
+      $fixed[] = $file;
+    }
+  }
+
+  if (empty($fixed)) {
+    return t('OAuth key permissions already 0600.');
+  }
+  return t('Set OAuth key permissions to 0600: @keys', [
+    '@keys' => implode(', ', $fixed),
+  ]);
 }
