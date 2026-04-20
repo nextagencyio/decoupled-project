@@ -2,6 +2,9 @@
 
 namespace Drupal\dc_brand\Controller;
 
+use Drupal\Core\Cache\CacheableJsonResponse;
+use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\dc_brand\Service\BrandResolver;
@@ -18,6 +21,9 @@ class BrandSettingsController extends ControllerBase implements ContainerInjecti
   public function __construct(
     private readonly BrandResolver $resolver,
     private readonly BuildHookDispatcher $dispatcher,
+    // `configFactory` collides with ControllerBase's own property, so we
+    // accept the factory under a different name.
+    private readonly ConfigFactoryInterface $config,
   ) {}
 
   /**
@@ -27,14 +33,22 @@ class BrandSettingsController extends ControllerBase implements ContainerInjecti
     return new self(
       $container->get('dc_brand.resolver'),
       $container->get('dc_brand.build_hook_dispatcher'),
+      $container->get('config.factory'),
     );
   }
 
   /**
    * Return the resolved brand payload.
+   *
+   * The response is tagged with the dc_brand.settings config cache tags, so
+   * any config save (form, drush, API) auto-invalidates Drupal's page cache
+   * and the next fetch rebuilds from fresh state.
    */
-  public function settings(): JsonResponse {
-    $response = new JsonResponse($this->resolver->resolve());
+  public function settings(): CacheableJsonResponse {
+    $response = new CacheableJsonResponse($this->resolver->resolve());
+    $metadata = new CacheableMetadata();
+    $metadata->addCacheableDependency($this->config->get('dc_brand.settings'));
+    $response->addCacheableDependency($metadata);
     $response->setPublic();
     $response->setMaxAge(60);
     $response->headers->set('Access-Control-Allow-Origin', '*');
