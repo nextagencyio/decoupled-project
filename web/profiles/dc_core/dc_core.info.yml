@@ -83,6 +83,7 @@ dependencies:
   - dc_revalidate
   - dc_user_redirect
   - dc_puck
+  - dc_brand
 
 # Themes
 themes:
