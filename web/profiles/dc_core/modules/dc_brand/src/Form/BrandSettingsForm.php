@@ -194,14 +194,19 @@ class BrandSettingsForm extends ConfigFormBase {
       '#tree'  => TRUE,
       '#description' => $this->t('Embed the frontend\'s brand-preview page in an iframe so you can see the current state of the deployed site without leaving this screen.'),
     ];
+    $iframe_preview_url = (string) $this->configFactory()
+      ->get('decoupled_preview_iframe.settings')
+      ->get('preview_url');
     $form['preview']['url'] = [
       '#type'          => 'url',
       '#title'         => $this->t('Preview URL'),
-      '#default_value' => $config->get('preview.url'),
+      '#default_value' => $config->get('preview.url') ?: $iframe_preview_url,
       '#placeholder'   => 'http://localhost:4351/brand-preview',
-      '#description'   => $this->t('Typically <code>&lt;your-frontend&gt;/brand-preview</code>. The frontend must allow iframe embedding (most Astro/Next sites do by default).'),
+      '#description'   => $this->t('Typically <code>&lt;your-frontend&gt;/brand-preview</code>. Defaults to the frontend URL configured in <a href=":url">Decoupled Preview</a>. The frontend must allow iframe embedding (most Astro/Next sites do by default).', [
+        ':url' => '/admin/config/decoupled_preview_iframe/settings',
+      ]),
     ];
-    $preview_url = (string) $config->get('preview.url');
+    $preview_url = (string) ($config->get('preview.url') ?: $iframe_preview_url);
     if ($preview_url !== '') {
       $iframe_markup = '<div class="brand-preview-iframe-wrap">'
         . '<div class="brand-preview-toolbar">'
