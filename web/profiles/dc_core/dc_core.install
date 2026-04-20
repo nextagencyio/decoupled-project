@@ -902,3 +902,18 @@ function dc_core_update_10023() {
     '@new' => $from,
   ]);
 }
+
+/**
+ * Enable dc_brand on existing sites.
+ *
+ * Fresh installs of the dc_core profile pick up dc_brand via the profile's
+ * dependencies list; existing tenants need this update to bring the module
+ * online with its menu link, shortcut, JSON endpoint, and default config.
+ */
+function dc_core_update_10024() {
+  if (\Drupal::moduleHandler()->moduleExists('dc_brand')) {
+    return t('dc_brand already enabled, nothing to do.');
+  }
+  \Drupal::service('module_installer')->install(['dc_brand']);
+  return t('Enabled dc_brand. Configure at /admin/config/brand.');
+}
