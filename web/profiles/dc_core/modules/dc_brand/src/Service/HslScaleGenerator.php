@@ -3,12 +3,13 @@
 namespace Drupal\dc_brand\Service;
 
 /**
- * Derives a 9-stop HSL ramp from a single hex color.
+ * Derives a 10-stop HSL ramp from a single hex color.
  *
- * We step lightness symmetrically around the input color so 500 is the user's
- * chosen hue/saturation/lightness, and the ramp runs 50 (lightest) to 900
- * (darkest). Saturation holds roughly constant; lightness is the only axis
- * that moves. Matches the "pick one primary, auto-derive rest" UX.
+ * If the input hex matches any stop of a known Tailwind palette
+ * (violet / teal / indigo / gray / etc.), we return that palette's
+ * full canonical ramp so the site's perceptual match is pixel-accurate.
+ * Otherwise we fall back to a lightness-only synth: 500 is the user's
+ * chosen H/S/L, other stops step lightness symmetrically.
  */
 class HslScaleGenerator {
 
@@ -30,6 +31,67 @@ class HslScaleGenerator {
   ];
 
   /**
+   * Canonical Tailwind v3 scales, keyed by normalized hex (lowercase, no #).
+   * Any matching hex (on any stop) returns the full scale of that palette.
+   */
+  private const KNOWN_SCALES = [
+    // violet
+    'violet' => [
+      '50'  => [250, 100, 98.0],
+      '100' => [251, 91,  95.5],
+      '200' => [251, 95,  91.8],
+      '300' => [252, 94,  85.0],
+      '400' => [255, 92,  76.3],
+      '500' => [258, 90,  66.3],
+      '600' => [262, 83,  57.8],
+      '700' => [263, 70,  50.4],
+      '800' => [263, 69,  42.2],
+      '900' => [264, 68,  34.9],
+    ],
+    'teal' => [
+      '50'  => [166, 76, 96.7],
+      '100' => [167, 85, 89.2],
+      '200' => [168, 84, 78.2],
+      '300' => [171, 77, 64.1],
+      '400' => [172, 66, 50.4],
+      '500' => [173, 80, 40.0],
+      '600' => [175, 84, 32.2],
+      '700' => [175, 77, 26.1],
+      '800' => [176, 69, 21.8],
+      '900' => [176, 61, 18.8],
+    ],
+    'indigo' => [
+      '50'  => [226, 100, 96.7],
+      '100' => [226, 100, 93.9],
+      '200' => [228, 96,  88.8],
+      '300' => [230, 94,  82.2],
+      '400' => [234, 89,  73.9],
+      '500' => [239, 84,  66.7],
+      '600' => [243, 75,  58.6],
+      '700' => [245, 58,  50.8],
+      '800' => [244, 55,  41.4],
+      '900' => [242, 47,  34.3],
+    ],
+    'gray' => [
+      '50'  => [210, 40, 98.0],
+      '100' => [220, 14, 95.9],
+      '200' => [220, 13, 90.9],
+      '300' => [216, 12, 83.9],
+      '400' => [218, 11, 64.9],
+      '500' => [220, 9,  46.1],
+      '600' => [215, 14, 34.1],
+      '700' => [217, 19, 26.7],
+      '800' => [215, 28, 17.1],
+      '900' => [221, 39, 11.0],
+    ],
+  ];
+
+  /**
+   * Reverse index: hex (no leading #) -> palette name. Rebuilt lazily.
+   */
+  private static ?array $hexToPalette = NULL;
+
+  /**
    * Generate a 9-stop ramp from a hex color.
    *
    * @param string $hex
@@ -40,12 +102,13 @@ class HslScaleGenerator {
    *   a `css` string ready for a CSS custom property (`"221 83% 53%"`).
    */
   public function generate(string $hex): array {
+    $palette = $this->matchKnownPalette($hex);
+    if ($palette !== NULL) {
+      return $this->rampFromHslMap(self::KNOWN_SCALES[$palette]);
+    }
     [$h, $s, $l] = $this->hexToHsl($hex);
     $ramp = [];
     foreach (self::LIGHTNESS_MAP as $stop => $target_l) {
-      // PHP coerces numeric string array keys to int, so iterate-bound
-      // $stop is int 50/100/500/…. Cast to string for comparison and for
-      // the output key so downstream JSON has stable string keys.
       $stop_key = (string) $stop;
       $stop_l   = ($stop_key === '500') ? $l : $target_l;
       $h_out = round($h);
@@ -59,6 +122,59 @@ class HslScaleGenerator {
       ];
     }
     return $ramp;
+  }
+
+  /**
+   * Return the palette name (violet/teal/…) whose scale contains $hex on
+   * any stop, or NULL if unmatched.
+   */
+  private function matchKnownPalette(string $hex): ?string {
+    if (self::$hexToPalette === NULL) {
+      self::$hexToPalette = [];
+      foreach (self::KNOWN_SCALES as $name => $scale) {
+        foreach ($scale as $hsl) {
+          self::$hexToPalette[strtolower($this->hslToHex(...$hsl))] = $name;
+        }
+      }
+    }
+    $normalized = strtolower(ltrim($hex, '#'));
+    if (strlen($normalized) === 3) {
+      $normalized = $normalized[0] . $normalized[0] . $normalized[1] . $normalized[1] . $normalized[2] . $normalized[2];
+    }
+    return self::$hexToPalette[$normalized] ?? NULL;
+  }
+
+  private function rampFromHslMap(array $scale): array {
+    $ramp = [];
+    foreach ($scale as $stop => $hsl) {
+      [$h, $s, $l] = $hsl;
+      $ramp[(string) $stop] = [
+        'h'   => $h,
+        's'   => $s,
+        'l'   => $l,
+        'css' => sprintf('%d %s%% %s%%', $h, $s, $l),
+      ];
+    }
+    return $ramp;
+  }
+
+  private function hslToHex(float $h, float $s, float $l): string {
+    $s /= 100;
+    $l /= 100;
+    $c = (1 - abs(2 * $l - 1)) * $s;
+    $x = $c * (1 - abs(fmod($h / 60, 2) - 1));
+    $m = $l - $c / 2;
+    if     ($h < 60)  { [$r, $g, $b] = [$c, $x, 0]; }
+    elseif ($h < 120) { [$r, $g, $b] = [$x, $c, 0]; }
+    elseif ($h < 180) { [$r, $g, $b] = [0, $c, $x]; }
+    elseif ($h < 240) { [$r, $g, $b] = [0, $x, $c]; }
+    elseif ($h < 300) { [$r, $g, $b] = [$x, 0, $c]; }
+    else              { [$r, $g, $b] = [$c, 0, $x]; }
+    return sprintf('%02x%02x%02x',
+      (int) round(($r + $m) * 255),
+      (int) round(($g + $m) * 255),
+      (int) round(($b + $m) * 255)
+    );
   }
 
   /**
