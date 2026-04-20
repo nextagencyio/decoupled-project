@@ -43,11 +43,15 @@ class HslScaleGenerator {
     [$h, $s, $l] = $this->hexToHsl($hex);
     $ramp = [];
     foreach (self::LIGHTNESS_MAP as $stop => $target_l) {
-      $stop_l = ($stop === '500') ? $l : $target_l;
+      // PHP coerces numeric string array keys to int, so iterate-bound
+      // $stop is int 50/100/500/…. Cast to string for comparison and for
+      // the output key so downstream JSON has stable string keys.
+      $stop_key = (string) $stop;
+      $stop_l   = ($stop_key === '500') ? $l : $target_l;
       $h_out = round($h);
       $s_out = round($s, 1);
       $l_out = round($stop_l, 1);
-      $ramp[$stop] = [
+      $ramp[$stop_key] = [
         'h' => $h_out,
         's' => $s_out,
         'l' => $l_out,
@@ -76,7 +80,10 @@ class HslScaleGenerator {
     $l = ($max + $min) / 2;
     $d = $max - $min;
 
-    if ($d === 0.0) {
+    // Grayscale (including pure white / pure black) — no hue, no saturation.
+    // Use value equality rather than `$d === 0.0` because PHP's integer
+    // division returns an int 0 that fails strict comparison with float 0.0.
+    if ($max === $min) {
       $h = 0;
       $s = 0;
     }
