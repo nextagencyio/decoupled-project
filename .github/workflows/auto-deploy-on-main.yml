@@ -68,20 +68,3 @@ jobs:
             || echo "unable to summarize")
           echo "::notice::post-deploy release: ${post}"
           echo "to roll back: trigger rollback-source-image with version=${{ steps.before.outputs.version }}"
-
-      - name: Trigger fleet redeploy in decoupled-dashboard
-        # Fires the fly-fleet-deploy workflow in decoupled-dashboard, which
-        # rolls the new image out to every tenant-* app and runs drush
-        # updatedb on each. Requires DASHBOARD_DISPATCH_TOKEN (a PAT with
-        # `repo` scope on decoupled-dashboard).
-        if: success() && env.DASHBOARD_DISPATCH_TOKEN != ''
-        env:
-          DASHBOARD_DISPATCH_TOKEN: ${{ secrets.DASHBOARD_DISPATCH_TOKEN }}
-        run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $DASHBOARD_DISPATCH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/nextagencyio/decoupled-dashboard/dispatches \
-            -d '{"event_type":"drupal-source-deployed","client_payload":{"source_sha":"${{ github.sha }}"}}'
-          echo "::notice::fleet-deploy dispatch sent"
