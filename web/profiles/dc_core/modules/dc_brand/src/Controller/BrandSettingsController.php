@@ -18,12 +18,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class BrandSettingsController extends ControllerBase implements ContainerInjectionInterface {
 
+  // `protected`, not `private`/`readonly` — so Drupal's DependencySerialization
+  // trait can see these during serialize/wake-up in the controller lifecycle.
   public function __construct(
-    private readonly BrandResolver $resolver,
-    private readonly BuildHookDispatcher $dispatcher,
+    protected BrandResolver $resolver,
+    protected BuildHookDispatcher $dispatcher,
     // `configFactory` collides with ControllerBase's own property, so we
     // accept the factory under a different name.
-    private readonly ConfigFactoryInterface $config,
+    protected ConfigFactoryInterface $config,
   ) {}
 
   /**

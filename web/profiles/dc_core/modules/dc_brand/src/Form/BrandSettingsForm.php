@@ -20,10 +20,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class BrandSettingsForm extends ConfigFormBase {
 
+  // Service props must be `protected`, not `private`, and not `readonly`.
+  // Drupal's DependencySerializationTrait (used by FormBase) calls
+  // `get_object_vars($this)` from FormBase's scope to detect services to
+  // swap out on serialize; private props declared in a subclass aren't
+  // visible there, so they'd be serialized as raw objects and leave the
+  // deserialized form unable to see the container-backed services.
   public function __construct(
-    private readonly GoogleFontsRegistry $googleFontsRegistry,
-    private readonly ColorPresetsRegistry $colorPresets,
-    private readonly BuildHookDispatcher $dispatcher,
+    protected GoogleFontsRegistry $googleFontsRegistry,
+    protected ColorPresetsRegistry $colorPresets,
+    protected BuildHookDispatcher $dispatcher,
   ) {}
 
   /**
