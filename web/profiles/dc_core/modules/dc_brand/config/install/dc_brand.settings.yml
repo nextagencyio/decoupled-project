@@ -2,11 +2,11 @@ fonts:
   heading: 'Inter'
   body: 'Inter'
 colors:
-  primary: '#3b82f6'
-  secondary: '#8b5cf6'
-  accent: '#ec4899'
-  neutral: '#475569'
-  background: '#0f172a'
+  primary: '#7c3aed'
+  secondary: '#14b8a6'
+  accent: '#4f46e5'
+  neutral: '#6b7280'
+  background: '#ffffff'
 logos:
   light: null
   dark: null

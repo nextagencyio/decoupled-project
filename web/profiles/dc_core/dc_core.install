@@ -942,3 +942,49 @@ function dc_core_update_10025() {
     '@keys' => implode(', ', $fixed),
   ]);
 }
+
+/**
+ * Update dc_brand color defaults to the decoupled.io palette.
+ *
+ * Only overwrites values that still match the previous defaults, so sites
+ * that have already customized colors keep their overrides.
+ */
+function dc_core_update_10026() {
+  if (!\Drupal::moduleHandler()->moduleExists('dc_brand')) {
+    return t('dc_brand not installed, nothing to do.');
+  }
+
+  $old_defaults = [
+    'primary'    => '#3b82f6',
+    'secondary'  => '#8b5cf6',
+    'accent'     => '#ec4899',
+    'neutral'    => '#475569',
+    'background' => '#0f172a',
+  ];
+  $new_defaults = [
+    'primary'    => '#7c3aed',
+    'secondary'  => '#14b8a6',
+    'accent'     => '#4f46e5',
+    'neutral'    => '#6b7280',
+    'background' => '#ffffff',
+  ];
+
+  $config = \Drupal::configFactory()->getEditable('dc_brand.settings');
+  $updated = [];
+  foreach ($old_defaults as $key => $old) {
+    $current = (string) $config->get("colors.$key");
+    if (strcasecmp($current, $old) === 0) {
+      $config->set("colors.$key", $new_defaults[$key]);
+      $updated[] = $key;
+    }
+  }
+
+  if (empty($updated)) {
+    return t('dc_brand colors already customized, leaving untouched.');
+  }
+
+  $config->save();
+  return t('Updated dc_brand default colors: @keys', [
+    '@keys' => implode(', ', $updated),
+  ]);
+}
