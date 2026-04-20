@@ -1,0 +1,10 @@
+brand-form:
+  version: 1.x
+  css:
+    theme:
+      css/brand-form.css: {}
+  js:
+    js/brand-form.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

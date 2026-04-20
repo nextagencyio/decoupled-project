@@ -1,0 +1,34 @@
+services:
+  dc_brand.hsl_scale_generator:
+    class: Drupal\dc_brand\Service\HslScaleGenerator
+
+  dc_brand.google_fonts_registry:
+    class: Drupal\dc_brand\Service\GoogleFontsRegistry
+
+  dc_brand.color_presets_registry:
+    class: Drupal\dc_brand\Service\ColorPresetsRegistry
+
+  dc_brand.resolver:
+    class: Drupal\dc_brand\Service\BrandResolver
+    arguments:
+      - '@config.factory'
+      - '@entity_type.manager'
+      - '@file_url_generator'
+      - '@dc_brand.hsl_scale_generator'
+      - '@dc_brand.google_fonts_registry'
+
+  dc_brand.build_hook_dispatcher:
+    class: Drupal\dc_brand\Service\BuildHookDispatcher
+    arguments:
+      - '@config.factory'
+      - '@http_client'
+      - '@state'
+      - '@datetime.time'
+      - '@logger.factory'
+
+  dc_brand.change_subscriber:
+    class: Drupal\dc_brand\EventSubscriber\BrandChangeSubscriber
+    arguments:
+      - '@dc_brand.build_hook_dispatcher'
+    tags:
+      - { name: event_subscriber }

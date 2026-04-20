@@ -1,0 +1,4 @@
+administer brand settings:
+  title: 'Administer brand settings'
+  description: 'Configure global fonts, colors, and logos for the decoupled frontend.'
+  restrict access: true

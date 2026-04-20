@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * @file
+ * Install / uninstall hooks for dc_brand.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Add a "Brand settings" shortcut to the default shortcut set so admins
+ * see a one-click link in the toolbar shortcut tray (visible on the front
+ * page and anywhere in the admin UI).
+ */
+function dc_brand_install() {
+  if (!\Drupal::moduleHandler()->moduleExists('shortcut')) {
+    return;
+  }
+  $storage = \Drupal::entityTypeManager()->getStorage('shortcut');
+  $existing = $storage->loadByProperties([
+    'shortcut_set' => 'default',
+    'title'        => 'Brand settings',
+  ]);
+  if (!empty($existing)) {
+    return;
+  }
+  $storage->create([
+    'shortcut_set' => 'default',
+    'title'        => 'Brand settings',
+    'weight'       => 0,
+    'link'         => ['uri' => 'internal:/admin/config/brand'],
+  ])->save();
+}
+
+/**
+ * Add the Brand settings shortcut on existing sites where the install
+ * hook already ran before this shortcut was defined.
+ */
+function dc_brand_update_10001() {
+  dc_brand_install();
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Remove the shortcut we added on install so a disabled module doesn't
+ * leave a dead-link crumb in the toolbar.
+ */
+function dc_brand_uninstall() {
+  if (!\Drupal::moduleHandler()->moduleExists('shortcut')) {
+    return;
+  }
+  $storage  = \Drupal::entityTypeManager()->getStorage('shortcut');
+  $existing = $storage->loadByProperties([
+    'shortcut_set' => 'default',
+    'title'        => 'Brand settings',
+  ]);
+  if (!empty($existing)) {
+    $storage->delete($existing);
+  }
+}

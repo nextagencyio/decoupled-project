@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Hook implementations for dc_brand.
+ */
+
+/**
+ * Implements hook_file_download().
+ *
+ * Allow public download of brand logo files so the Astro build can fetch them.
+ */
+function dc_brand_file_download($uri) {
+  if (strpos($uri, 'public://brand/') === 0) {
+    return [
+      'Content-Type' => \Drupal::service('file.mime_type.guesser')->guessMimeType($uri),
+      'Cache-Control' => 'public, max-age=300',
+    ];
+  }
+  return NULL;
+}
