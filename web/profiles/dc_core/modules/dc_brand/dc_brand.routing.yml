@@ -24,3 +24,12 @@ dc_brand.deploy_now:
     _permission: 'administer brand settings'
     _csrf_token: 'TRUE'
   methods: [POST]
+
+dc_brand.set_build_hook:
+  path: '/api/dc-brand/build-hook'
+  defaults:
+    _controller: '\Drupal\dc_brand\Controller\BrandSettingsController::setBuildHook'
+    _title: 'Set dc_brand build hook URL'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
