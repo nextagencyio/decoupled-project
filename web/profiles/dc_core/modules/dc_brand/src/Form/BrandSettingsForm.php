@@ -74,6 +74,11 @@ class BrandSettingsForm extends ConfigFormBase {
       '#markup' => '<p class="messages messages--info">' . $this->t('Pick fonts, colors, and logos once. Every connected frontend (Astro, Next.js, etc.) picks up the values at build time from <code>/api/dc-brand/settings</code>.') . '</p>',
     ];
 
+    $form['rebuild_notice'] = [
+      '#type'   => 'markup',
+      '#markup' => '<p class="messages messages--warning">' . $this->t('<strong>Changes are not instant.</strong> Saves here schedule a static-site rebuild, debounced by ~60 seconds to coalesce rapid edits. Once the debounce window closes, the build itself typically takes another 30–90 seconds. Refresh the frontend (or the Live Preview iframe) once the build finishes to see the new styling.') . '</p>',
+    ];
+
     $form['tabs'] = [
       '#type'     => 'vertical_tabs',
       '#default_tab' => 'edit-typography',
