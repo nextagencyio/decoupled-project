@@ -220,7 +220,7 @@ class BrandSettingsForm extends ConfigFormBase {
         . '<a href="' . htmlspecialchars($preview_url) . '" target="_blank" rel="noopener" class="button">' . $this->t('Open in new tab') . '</a>'
         . '</div>'
         . '<iframe src="' . htmlspecialchars($preview_url) . '" data-brand-preview loading="lazy"></iframe>'
-        . '<p class="brand-preview-note">' . $this->t('Saves trigger a rebuild (after the build-hook debounce). Hit <em>Refresh</em> once the build is done to see the new render.') . '</p>'
+        . '<p class="brand-preview-note">' . $this->t('Saves trigger a rebuild immediately. Hit <em>Refresh</em> once the build is done to see the new render.') . '</p>'
         . '</div>';
       $form['preview']['iframe'] = [
         '#type'   => 'markup',
@@ -234,7 +234,7 @@ class BrandSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Build hook'),
       '#group' => 'tabs',
       '#tree'  => TRUE,
-      '#description' => $this->t('Optional. If set, a POST fires on save (after the debounce window) to rebuild your static frontend.'),
+      '#description' => $this->t('Optional. If set, a POST fires immediately on save to rebuild your static frontend.'),
     ];
     $form['build_hook']['url'] = [
       '#type'          => 'url',
@@ -242,13 +242,6 @@ class BrandSettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('build_hook.url'),
       '#placeholder'   => 'https://api.netlify.com/build_hooks/...',
       '#description'   => $this->t('Netlify or Vercel build hook URL. Leave blank to skip auto-deploy.'),
-    ];
-    $form['build_hook']['debounce_seconds'] = [
-      '#type'          => 'number',
-      '#title'         => $this->t('Debounce window (seconds)'),
-      '#default_value' => $config->get('build_hook.debounce_seconds') ?: 60,
-      '#min'           => 0,
-      '#description'   => $this->t('Minimum seconds between builds. Rapid saves inside this window collapse into a single deploy.'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -317,9 +310,8 @@ class BrandSettingsForm extends ConfigFormBase {
       $config->set("logos.{$slot}", $new_fid ?: NULL);
     }
 
-    $config->set('build_hook.url',              (string) $form_state->getValue(['build_hook', 'url']));
-    $config->set('build_hook.debounce_seconds', (int)    $form_state->getValue(['build_hook', 'debounce_seconds']));
-    $config->set('preview.url',                 (string) $form_state->getValue(['preview', 'url']));
+    $config->set('build_hook.url', (string) $form_state->getValue(['build_hook', 'url']));
+    $config->set('preview.url',    (string) $form_state->getValue(['preview', 'url']));
     $config->save();
 
     parent::submitForm($form, $form_state);
