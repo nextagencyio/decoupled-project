@@ -60,7 +60,7 @@ class BuildHookDispatcher {
     if ($pending === 0) {
       return;
     }
-    $debounce = (int) $this->configFactory->get('dc_brand.settings')->get('build_hook.debounce_seconds') ?: 60;
+    $debounce = (int) $this->configFactory->get('dc_brand.settings')->get('build_hook.debounce_seconds') ?: 10;
     if (($this->time->getCurrentTime() - $pending) >= $debounce) {
       $this->fire();
     }

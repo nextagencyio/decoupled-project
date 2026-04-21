@@ -76,7 +76,7 @@ class BrandSettingsForm extends ConfigFormBase {
 
     $form['rebuild_notice'] = [
       '#type'   => 'markup',
-      '#markup' => '<p class="messages messages--warning">' . $this->t('<strong>Changes are not instant.</strong> Saves here schedule a static-site rebuild, debounced by ~60 seconds to coalesce rapid edits. Once the debounce window closes, the build itself typically takes another 30–90 seconds. Refresh the frontend (or the Live Preview iframe) once the build finishes to see the new styling.') . '</p>',
+      '#markup' => '<p class="messages messages--warning">' . $this->t('<strong>Changes are not instant.</strong> Saves here schedule a static-site rebuild, debounced by ~10 seconds to coalesce rapid edits. Once the debounce window closes, the build itself typically takes another 30–90 seconds. Refresh the frontend (or the Live Preview iframe) once the build finishes to see the new styling.') . '</p>',
     ];
 
     $form['tabs'] = [
