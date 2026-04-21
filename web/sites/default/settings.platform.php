@@ -131,6 +131,17 @@ $settings['trusted_host_patterns'] = [
 $settings['file_temp_path']   = '/tmp';
 $settings['file_public_path'] = 'sites/default/files';
 
+// ============================================================================
+// PHP error reporting
+// ============================================================================
+//
+// PHP 8.5 surfaces a flood of E_DEPRECATED notices from contrib modules
+// (graphql, simple_oauth, field_group, gin_login, …) that haven't yet
+// shipped 8.5-compatible releases. Mask deprecations at the PHP level so
+// Drupal's error handler is never invoked for them — keeps dblog focused
+// on real warnings/errors. Unmask once contrib catches up to PHP 8.5.
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 // config_sync_directory is set in docker/drupal-settings.php (relative path,
 // interpreted by Drupal from the site directory). Don't use DRUPAL_ROOT here
 // — Drupal 11's minimal index.php no longer defines that constant before
