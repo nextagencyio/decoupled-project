@@ -48,14 +48,75 @@ class BrandSettingsController extends ControllerBase implements ContainerInjecti
    * and the next fetch rebuilds from fresh state.
    */
   public function settings(): CacheableJsonResponse {
-    $response = new CacheableJsonResponse($this->resolver->resolve());
+    $payload = $this->resolver->resolve();
+
+    // Fold in the site-level brand identity that dc_brand doesn't own
+    // (name + slogan live in system.site — Drupal's canonical source).
+    // Frontends render these in headers/footers instead of hardcoded
+    // fallbacks.
+    $site = $this->config->get('system.site');
+    $payload['site'] = [
+      'name' => (string) ($site->get('name') ?: ''),
+      'slogan' => (string) ($site->get('slogan') ?: ''),
+    ];
+
+    // Primary navigation lives in Drupal's main menu (system.menu.main).
+    // Fold it into the brand payload so frontends that already consume
+    // /api/dc-brand/settings for fonts/colors don't need a second call.
+    $payload['nav'] = $this->resolveMainMenu();
+
+    $response = new CacheableJsonResponse($payload);
     $metadata = new CacheableMetadata();
     $metadata->addCacheableDependency($this->config->get('dc_brand.settings'));
+    $metadata->addCacheableDependency($site);
+    // Main menu changes (add/remove/reorder) must bust this cache too.
+    $metadata->addCacheTags(['config:system.menu.main', 'menu_link_content_list']);
     $response->addCacheableDependency($metadata);
     $response->setPublic();
     $response->setMaxAge(60);
     $response->headers->set('Access-Control-Allow-Origin', '*');
     return $response;
+  }
+
+  /**
+   * Resolve the `main` menu into a flat [{label, href}] array suitable
+   * for direct rendering in a frontend nav. Only enabled links are
+   * included; items without access for the anonymous user are skipped.
+   *
+   * @return array<int, array{label: string, href: string}>
+   */
+  private function resolveMainMenu(): array {
+    $tree_service = \Drupal::menuTree();
+    $params = new \Drupal\Core\Menu\MenuTreeParameters();
+    $params->onlyEnabledLinks();
+    $params->setMinDepth(1);
+    $params->setMaxDepth(1);
+    $tree = $tree_service->load('main', $params);
+    $tree_service->transform($tree, [
+      ['callable' => 'menu.default_tree_manipulators:checkAccess'],
+      ['callable' => 'menu.default_tree_manipulators:generateIndexAndSort'],
+    ]);
+    $out = [];
+    foreach ($tree as $element) {
+      if (!$element->access || !$element->access->isAllowed()) {
+        continue;
+      }
+      $link = $element->link;
+      $url = $link->getUrlObject();
+      // toString() produces the rendered href (/ for routed URLs, full
+      // URLs for externals, and preserves #fragments on internal refs).
+      try {
+        $href = $url->toString();
+      }
+      catch (\Throwable $e) {
+        continue;
+      }
+      $out[] = [
+        'label' => (string) $link->getTitle(),
+        'href' => (string) $href,
+      ];
+    }
+    return $out;
   }
 
   /**

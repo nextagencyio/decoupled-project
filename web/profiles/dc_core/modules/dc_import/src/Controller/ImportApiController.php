@@ -3,6 +3,7 @@
 namespace Drupal\dc_import\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Serialization\Yaml;
 use Drupal\dc_import\Service\DrupalContentImporter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -85,19 +86,35 @@ class ImportApiController extends ControllerBase {
         ], 400);
       }
 
-      // Validate required structure - allow either "model" or "content" or both
-      if (!isset($data['model']) && !isset($data['content'])) {
+      // Validate required structure - allow "model", "content", or "configs"
+      if (!isset($data['model']) && !isset($data['content']) && !isset($data['configs'])) {
         return new JsonResponse([
           'success' => false,
-          'error' => 'Invalid JSON structure. Expected "model" and/or "content" arrays.',
+          'error' => 'Invalid JSON structure. Expected "model", "content", and/or "configs" arrays.',
         ], 400);
       }
 
       // Check for preview mode
       $preview = $request->query->get('preview') === 'true';
 
-      // Perform the import
+      // Optional: apply global configs (e.g. dc_brand.settings) before
+      // content. Skips any config whose owning module isn't installed
+      // so an import from one space can target another with a different
+      // module loadout without erroring out.
+      $configResults = [];
+      if (!empty($data['configs']) && is_array($data['configs'])) {
+        $configResults = $this->applyConfigs($data['configs'], $preview);
+      }
+
+      // Perform the content / model import
       $result = $this->importer->import($data, $preview);
+
+      // Fold the config-apply summary into the response so the caller
+      // knows what got skipped.
+      if ($configResults) {
+        $result = is_array($result) ? $result : ['content' => $result];
+        $result['configs'] = $configResults;
+      }
 
       return new JsonResponse($result);
 
@@ -111,6 +128,113 @@ class ImportApiController extends ControllerBase {
         'error' => 'Import failed: ' . $e->getMessage(),
       ], 500);
     }
+  }
+
+  /**
+   * Allowlisted global configs that dc_import is permitted to write.
+   * Each entry maps config_name => owning_module. We refuse writes to
+   * anything not on this list so the endpoint doesn't become a
+   * general-purpose config injector.
+   */
+  private const ALLOWED_CONFIGS = [
+    'dc_brand.settings' => 'dc_brand',
+    'system.site' => 'system',
+  ];
+
+  /**
+   * Per-config key allowlists for highly-sensitive configs (like
+   * system.site). If a config is listed here, only these keys survive
+   * — the rest of the YAML is stripped before save. Keeps us from
+   * overwriting mail / admin / uuid / page-front routes by accident.
+   */
+  private const ALLOWED_CONFIG_KEYS = [
+    'system.site' => ['name', 'slogan'],
+  ];
+
+  /**
+   * Apply optional global configs passed alongside the content payload.
+   *
+   * Each entry is `{ name: string, yaml: string }`. For each:
+   *   - Reject if config name isn't in the allowlist.
+   *   - Skip (non-fatal) if the owning module isn't enabled — the
+   *     caller may be targeting a tenant with a different module
+   *     loadout (e.g. dc_brand wasn't installed yet).
+   *   - Otherwise parse the YAML and merge into the config.
+   *
+   * @param array<int, array{name: string, yaml: string}> $configs
+   * @param bool $preview
+   *   When true, validate but don't persist.
+   *
+   * @return array<int, array{name: string, status: string, detail?: string}>
+   *   Per-config summary for the response.
+   */
+  private function applyConfigs(array $configs, bool $preview): array {
+    $summary = [];
+    $moduleHandler = \Drupal::moduleHandler();
+    $configFactory = \Drupal::configFactory();
+
+    foreach ($configs as $i => $entry) {
+      $name = is_array($entry) && isset($entry['name']) ? (string) $entry['name'] : '';
+      $yaml = is_array($entry) && isset($entry['yaml']) ? (string) $entry['yaml'] : '';
+
+      if ($name === '' || $yaml === '') {
+        $summary[] = ['index' => $i, 'status' => 'skipped', 'detail' => 'Missing name or yaml'];
+        continue;
+      }
+      if (!isset(self::ALLOWED_CONFIGS[$name])) {
+        $summary[] = ['index' => $i, 'name' => $name, 'status' => 'rejected', 'detail' => 'Config name not in allowlist'];
+        continue;
+      }
+      $owningModule = self::ALLOWED_CONFIGS[$name];
+      if (!$moduleHandler->moduleExists($owningModule)) {
+        $summary[] = ['index' => $i, 'name' => $name, 'status' => 'skipped', 'detail' => "Module {$owningModule} is not enabled on this site"];
+        \Drupal::logger('dc_import')->info('Skipping config @name — module @mod not enabled.', [
+          '@name' => $name,
+          '@mod' => $owningModule,
+        ]);
+        continue;
+      }
+
+      try {
+        $parsed = Yaml::decode($yaml);
+        if (!is_array($parsed)) {
+          $summary[] = ['index' => $i, 'name' => $name, 'status' => 'rejected', 'detail' => 'YAML must decode to an object'];
+          continue;
+        }
+        // Apply per-config key allowlist. Drops any key not listed.
+        if (isset(self::ALLOWED_CONFIG_KEYS[$name])) {
+          $allowedKeys = array_flip(self::ALLOWED_CONFIG_KEYS[$name]);
+          $parsed = array_intersect_key($parsed, $allowedKeys);
+        }
+        if (empty($parsed)) {
+          $summary[] = ['index' => $i, 'name' => $name, 'status' => 'skipped', 'detail' => 'No allowed keys present after filtering'];
+          continue;
+        }
+        if ($preview) {
+          $summary[] = ['index' => $i, 'name' => $name, 'status' => 'preview', 'detail' => 'Would merge ' . count($parsed) . ' key(s)'];
+          continue;
+        }
+        $config = $configFactory->getEditable($name);
+        foreach ($parsed as $key => $value) {
+          $config->set($key, $value);
+        }
+        $config->save();
+        $summary[] = ['index' => $i, 'name' => $name, 'status' => 'applied', 'detail' => 'Merged ' . count($parsed) . ' top-level key(s)'];
+        \Drupal::logger('dc_import')->notice('Applied config @name (@n keys)', [
+          '@name' => $name,
+          '@n' => count($parsed),
+        ]);
+      }
+      catch (\Throwable $e) {
+        $summary[] = ['index' => $i, 'name' => $name, 'status' => 'error', 'detail' => $e->getMessage()];
+        \Drupal::logger('dc_import')->error('Config apply failed for @name: @msg', [
+          '@name' => $name,
+          '@msg' => $e->getMessage(),
+        ]);
+      }
+    }
+
+    return $summary;
   }
 
   /**

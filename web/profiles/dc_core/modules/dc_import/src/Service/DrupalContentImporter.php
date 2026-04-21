@@ -792,6 +792,10 @@ class DrupalContentImporter {
       return $media;
     }
 
+    if ($entity_type === 'menu_link_content') {
+      return $this->createMenuLink($item, $values, $preview_mode, $result);
+    }
+
     // Default: node.
     // Skip if this is a translation - it will be created in the translation pass.
     if (!empty($item['translation_of'])) {
@@ -925,6 +929,61 @@ class DrupalContentImporter {
       $result['summary'][] = "Created node: {$node_data['title']} (ID: {$node->id()}, type: {$bundle})";
     }
     return $node;
+  }
+
+  /**
+   * Create or update a menu link. Invoked via createConciseEntry when a
+   * content item has type starting with `menu_link_content.`. The bundle
+   * part of the type is ignored — menu_link_content is bundle-less from
+   * Drupal's POV — but we still accept the prefix for schema consistency.
+   *
+   * @param array $values
+   *   { title, link|uri, menu_name, weight, enabled, parent }
+   */
+  private function createMenuLink(array $item, array $values, $preview_mode, array &$result) {
+    if ($preview_mode) {
+      $result['summary'][] = "Would create menu link: " . ($values['title'] ?? $item['id'] ?? '?');
+      return NULL;
+    }
+
+    $uri = '';
+    if (isset($values['link'])) {
+      if (is_array($values['link'])) {
+        $uri = (string) ($values['link']['uri'] ?? $values['link']['href'] ?? '');
+      }
+      else {
+        $uri = (string) $values['link'];
+      }
+    }
+    if ($uri === '' && isset($values['uri'])) {
+      $uri = (string) $values['uri'];
+    }
+
+    // Normalize common shorthand. Editors / generators may emit
+    // '/about' or '#about'; Drupal expects 'internal:/about' or
+    // 'internal:/#about' (or 'https://…' for external links).
+    if ($uri !== '' && !preg_match('#^(https?|internal|route|base|entity):#', $uri)) {
+      if ($uri[0] === '#' || $uri[0] === '/') {
+        $uri = 'internal:' . ($uri[0] === '/' ? $uri : '/' . $uri);
+      }
+      else {
+        $uri = 'internal:/' . $uri;
+      }
+    }
+
+    $storage = $this->entityTypeManager->getStorage('menu_link_content');
+    $link = $storage->create([
+      'title' => (string) ($values['title'] ?? $item['id'] ?? 'Link'),
+      'menu_name' => (string) ($values['menu_name'] ?? 'main'),
+      'link' => ['uri' => $uri],
+      'weight' => (int) ($values['weight'] ?? 0),
+      'enabled' => $values['enabled'] ?? TRUE,
+      'expanded' => $values['expanded'] ?? FALSE,
+    ]);
+    $link->save();
+
+    $result['summary'][] = "Created menu link: {$link->getTitle()} ({$uri}) in menu {$link->getMenuName()}";
+    return $link;
   }
 
   /**
