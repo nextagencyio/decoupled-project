@@ -69,14 +69,14 @@ class BrandSettingsForm extends ConfigFormBase {
     $form['#attached']['library'][] = 'dc_brand/brand-form';
     $form['#id'] = 'dc-brand-settings-form';
 
-    $form['intro'] = [
-      '#type'   => 'markup',
-      '#markup' => '<p class="description">' . $this->t('Pick fonts, colors, and logos once. Every connected frontend (Astro, Next.js, etc.) picks up the values at build time from <code>/api/dc-brand/settings</code>.') . '</p>',
-    ];
-
     $form['rebuild_notice'] = [
       '#type'   => 'markup',
       '#markup' => '<p class="messages messages--warning">' . $this->t('<strong>Changes are not instant.</strong> Saving triggers a static-site rebuild that typically takes 30–90 seconds. Refresh the frontend (or the Live Preview iframe) once the build finishes to see the new styling.') . '</p>',
+    ];
+
+    $form['intro'] = [
+      '#type'   => 'markup',
+      '#markup' => '<p class="description">' . $this->t('Pick fonts, colors, and logos once. Every connected frontend (Astro, Next.js, etc.) picks up the values at build time from <code>/api/dc-brand/settings</code>.') . '</p>',
     ];
 
     $form['tabs'] = [
