@@ -71,7 +71,7 @@ class BrandSettingsForm extends ConfigFormBase {
 
     $form['intro'] = [
       '#type'   => 'markup',
-      '#markup' => '<p class="messages messages--info">' . $this->t('Pick fonts, colors, and logos once. Every connected frontend (Astro, Next.js, etc.) picks up the values at build time from <code>/api/dc-brand/settings</code>.') . '</p>',
+      '#markup' => '<p class="description">' . $this->t('Pick fonts, colors, and logos once. Every connected frontend (Astro, Next.js, etc.) picks up the values at build time from <code>/api/dc-brand/settings</code>.') . '</p>',
     ];
 
     $form['rebuild_notice'] = [
