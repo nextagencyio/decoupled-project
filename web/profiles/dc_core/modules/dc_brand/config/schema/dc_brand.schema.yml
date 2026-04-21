@@ -50,9 +50,6 @@ dc_brand.settings:
         url:
           type: string
           label: 'Build hook URL'
-        debounce_seconds:
-          type: integer
-          label: 'Debounce window (seconds)'
     preview:
       type: mapping
       label: 'Preview'

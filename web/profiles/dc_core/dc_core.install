@@ -990,19 +990,18 @@ function dc_core_update_10026() {
 }
 
 /**
- * Shorten dc_brand build-hook debounce from 60s to 10s.
+ * Remove dc_brand build-hook debounce config + stale state.
  *
- * Only changes the value if it still matches the old default — sites
- * that have customized debounce_seconds keep their override.
+ * Saves now fire the hook immediately. Strip the debounce_seconds
+ * config key and any leftover pending_since state so existing tenants
+ * match the new schema.
  */
 function dc_core_update_10027() {
   if (!\Drupal::moduleHandler()->moduleExists('dc_brand')) {
     return t('dc_brand not installed, nothing to do.');
   }
   $config = \Drupal::configFactory()->getEditable('dc_brand.settings');
-  if ((int) $config->get('build_hook.debounce_seconds') !== 60) {
-    return t('Build hook debounce already customized, leaving untouched.');
-  }
-  $config->set('build_hook.debounce_seconds', 10)->save();
-  return t('Lowered dc_brand build hook debounce from 60s to 10s.');
+  $config->clear('build_hook.debounce_seconds')->save();
+  \Drupal::state()->delete('dc_brand.pending_since');
+  return t('Removed dc_brand build hook debounce; saves now fire immediately.');
 }

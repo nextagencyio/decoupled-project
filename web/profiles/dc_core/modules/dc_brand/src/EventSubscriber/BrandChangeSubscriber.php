@@ -6,12 +6,9 @@ use Drupal\Core\Config\ConfigCrudEvent;
 use Drupal\Core\Config\ConfigEvents;
 use Drupal\dc_brand\Service\BuildHookDispatcher;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\TerminateEvent;
-use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Schedules a debounced build when dc_brand.settings saves, and piggybacks on
- * every request termination to flush pending builds whose window has elapsed.
+ * Fires the build hook immediately when dc_brand.settings is saved.
  */
 class BrandChangeSubscriber implements EventSubscriberInterface {
 
@@ -24,8 +21,7 @@ class BrandChangeSubscriber implements EventSubscriberInterface {
    */
   public static function getSubscribedEvents(): array {
     return [
-      ConfigEvents::SAVE     => ['onConfigSave'],
-      KernelEvents::TERMINATE => ['onTerminate'],
+      ConfigEvents::SAVE => ['onConfigSave'],
     ];
   }
 
@@ -33,11 +29,7 @@ class BrandChangeSubscriber implements EventSubscriberInterface {
     if ($event->getConfig()->getName() !== 'dc_brand.settings') {
       return;
     }
-    $this->dispatcher->schedule();
-  }
-
-  public function onTerminate(TerminateEvent $event): void {
-    $this->dispatcher->maybeFire();
+    $this->dispatcher->dispatchNow();
   }
 
 }

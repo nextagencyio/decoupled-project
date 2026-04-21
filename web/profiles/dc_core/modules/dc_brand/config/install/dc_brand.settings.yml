@@ -12,6 +12,5 @@ logos:
   dark: null
 build_hook:
   url: ''
-  debounce_seconds: 10
 preview:
   url: ''
