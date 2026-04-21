@@ -2205,6 +2205,13 @@ class DrupalContentImporter {
    *   The entity data array to populate with placeholders.
    */
   private function fillEmptyImageFields(string $entity_type, string $bundle, array $provided_values, array &$entity_data): void {
+    // Logo paragraphs render as plain-text company names by default
+    // (see frontend ParagraphLogoCollection). Auto-generating cloud-shaped
+    // placeholder images defeats that look — skip empty image fill for logos.
+    if ($entity_type === 'paragraph' && $bundle === 'logo') {
+      return;
+    }
+
     // Look for image fields defined in the model that weren't provided.
     foreach ($this->fieldTypesByBundle as $key => $field_type) {
       // Parse the key: entity_type.bundle.field_id
