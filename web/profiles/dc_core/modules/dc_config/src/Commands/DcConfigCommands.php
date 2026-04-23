@@ -34,9 +34,20 @@ class DcConfigCommands extends DrushCommands {
   /**
    * Initialize a site restored from a template DB snapshot.
    *
-   * Regenerates OAuth keypair, rotates all consumer secrets, sets admin
-   * credentials, updates site name/base_url, and clears caches.
-   * Outputs credentials as JSON for capture by the init container.
+   * Called by clone-tenant.sh's --rotate-secrets path after the volume
+   * snapshot is restored, so the cloned tenant doesn't ship with the
+   * source space's secrets baked in.
+   *
+   * Steps:
+   *   1. Regenerate OAuth2 RSA keypair.
+   *   2. Rotate all non-default consumer secrets (client_secret).
+   *   3. Reset admin user password (and optionally email).
+   *   4. Update site name (and optionally base_url).
+   *   5. Clear per-tenant secrets baked into Drupal config + state by
+   *      the source: dc_brand.settings.build_hook.url,
+   *      dc_brand.settings.preview.url, dc_import.space_auth_token.
+   *   6. Clear caches.
+   *   7. Emit credentials as JSON to stdout for capture.
    *
    * @command dc:init-site
    * @option admin-password Admin user password (generated if omitted).
@@ -126,10 +137,23 @@ class DcConfigCommands extends DrushCommands {
       $site_config->save();
     }
 
-    // 5. Clear caches.
+    // 5. Clear per-tenant secrets baked into Drupal config + state by
+    //    the source tenant. If we leave these in place, the cloned
+    //    site triggers builds and previews against the source's
+    //    Netlify site (build_hook.url) and authenticates dashboard
+    //    callbacks as the source space (space_auth_token). The
+    //    dashboard's frontend provision flow + drupal-ready hook
+    //    push fresh values back in after this command runs.
+    $brand_config = $this->configFactory->getEditable('dc_brand.settings');
+    $brand_config->set('build_hook.url', '');
+    $brand_config->set('preview.url', '');
+    $brand_config->save();
+    \Drupal::state()->delete('dc_import.space_auth_token');
+
+    // 6. Clear caches.
     drupal_flush_all_caches();
 
-    // 6. Output credentials as JSON for the init container to capture.
+    // 7. Output credentials as JSON for the init container to capture.
     $output = [
       'admin_password' => $admin_password,
       'admin_email'    => $admin_email ?? ($admin ? $admin->getEmail() : ''),
