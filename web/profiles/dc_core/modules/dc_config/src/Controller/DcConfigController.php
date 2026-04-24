@@ -1822,4 +1822,82 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     return new JsonResponse(['success' => TRUE]);
   }
 
+  /**
+   * Enable iframe preview for every existing node bundle on the tenant.
+   *
+   * POST /api/dc-config/enable-preview-all
+   * Headers: X-Decoupled-Token: <space auth token>
+   * Body: { "preview_url": "https://<netlify-or-vercel-domain>" }
+   *
+   * Replaces the previous model where the dashboard pushed a hardcoded
+   * preview_types list via dc-config-import. Custom starters with
+   * non-default node types (e.g. 'homepage') now get preview wired up
+   * automatically based on what actually exists on the tenant.
+   */
+  public function enablePreviewAll(Request $request) {
+    // Validate token (same pattern as setFrontendStatus).
+    $token = $request->headers->get('X-Decoupled-Token');
+    if (!$token) {
+      return new JsonResponse(['error' => 'Missing token'], 401);
+    }
+    $state_token = \Drupal::state()->get('dc_import.space_auth_token');
+    $skip = (bool) \Drupal::state()->get('dc_config.skip_auth', FALSE);
+    if (!$skip && $token !== $state_token) {
+      return new JsonResponse(['error' => 'Invalid token'], 403);
+    }
+
+    $data = json_decode($request->getContent(), TRUE);
+    $preview_url = isset($data['preview_url']) && is_string($data['preview_url']) ? trim($data['preview_url']) : '';
+    if ($preview_url === '') {
+      return new JsonResponse(['error' => 'Missing preview_url'], 400);
+    }
+
+    // Collect every currently-defined node bundle. Mapping form the
+    // decoupled_preview_iframe module expects is bundle_id => bundle_id.
+    $bundles = [];
+    try {
+      $types = \Drupal::entityTypeManager()->getStorage('node_type')->loadMultiple();
+      foreach ($types as $type) {
+        $id = $type->id();
+        $bundles[$id] = $id;
+      }
+    }
+    catch (\Exception $e) {
+      return new JsonResponse(['error' => 'Could not load node types: ' . $e->getMessage()], 500);
+    }
+
+    if (empty($bundles)) {
+      return new JsonResponse(['error' => 'No node bundles exist on this tenant'], 400);
+    }
+
+    // Only proceed if the decoupled_preview_iframe config exists
+    // (module must be installed). Create the settings if missing.
+    $config = \Drupal::configFactory()->getEditable('decoupled_preview_iframe.settings');
+    $config->set('status', TRUE);
+    $config->set('redirect_anonymous', FALSE);
+    $config->set('redirect_url', '');
+    $config->set('preview_url', $preview_url);
+    $config->set('preview_types', ['node' => $bundles]);
+    // langcode is required by the module's schema.
+    if ($config->get('langcode') === NULL) {
+      $config->set('langcode', 'en');
+    }
+    $config->save();
+
+    \Drupal::logger('dc_config')->notice(
+      'Preview enabled for @count bundle(s): @list → @url',
+      [
+        '@count' => count($bundles),
+        '@list' => implode(', ', array_keys($bundles)),
+        '@url' => $preview_url,
+      ]
+    );
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'bundles' => array_keys($bundles),
+      'preview_url' => $preview_url,
+    ]);
+  }
+
 }
