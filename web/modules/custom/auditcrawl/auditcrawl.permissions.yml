@@ -1,4 +1,0 @@
-administer auditcrawl:
-  title: 'Administer AuditCrawl'
-  description: 'Connect a report, create draft posts, manage the premium subscription.'
-  restrict access: true
