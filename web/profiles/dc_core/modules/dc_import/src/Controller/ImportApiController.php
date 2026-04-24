@@ -632,4 +632,50 @@ class ImportApiController extends ControllerBase {
     return new JsonResponse(['success' => TRUE, 'message' => 'Token set']);
   }
 
+  /**
+   * Store the active template's metadata so dc_config can surface the
+   * agency's own GitHub repo + content URL instead of the bundled
+   * decoupled-components defaults. Called by the dashboard's
+   * frontend/connect flow.
+   *
+   * Expected body:
+   *   {
+   *     "slug": "my-agency-restaurant",
+   *     "name": "Restaurant Site",
+   *     "description": "...",
+   *     "contentUrl": "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/data/...",
+   *     "vercelUrl": "https://vercel.com/new/clone?repository-url=https://github.com/<owner>/<repo>",
+   *     "repoFullName": "owner/repo"
+   *   }
+   */
+  public function setTemplateInfo(Request $request) {
+    $data = json_decode($request->getContent(), TRUE);
+    if (!is_array($data)) {
+      return new JsonResponse(['error' => 'Invalid payload'], 400);
+    }
+
+    // Minimal validation — we only require a slug and one of the URLs.
+    // Everything else is optional / decorative.
+    $slug = isset($data['slug']) && is_string($data['slug']) ? trim($data['slug']) : '';
+    $contentUrl = isset($data['contentUrl']) && is_string($data['contentUrl']) ? trim($data['contentUrl']) : '';
+    if ($slug === '' && $contentUrl === '') {
+      return new JsonResponse(['error' => 'Must provide slug or contentUrl'], 400);
+    }
+
+    $template_info = [
+      'slug' => $slug,
+      'name' => isset($data['name']) && is_string($data['name']) ? trim($data['name']) : '',
+      'description' => isset($data['description']) && is_string($data['description']) ? trim($data['description']) : '',
+      'contentUrl' => $contentUrl,
+      'vercelUrl' => isset($data['vercelUrl']) && is_string($data['vercelUrl']) ? trim($data['vercelUrl']) : '',
+      'repoFullName' => isset($data['repoFullName']) && is_string($data['repoFullName']) ? trim($data['repoFullName']) : '',
+      'icon' => isset($data['icon']) && is_string($data['icon']) ? trim($data['icon']) : 'layout',
+    ];
+
+    \Drupal::state()->set('dc_config.template_info', $template_info);
+    \Drupal::logger('dc_import')->notice('Template info updated: @slug', ['@slug' => $slug]);
+
+    return new JsonResponse(['success' => TRUE, 'template_info' => $template_info]);
+  }
+
 }

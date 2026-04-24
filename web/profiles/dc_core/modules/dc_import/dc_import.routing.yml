@@ -51,3 +51,11 @@ dc_import.api_set_token:
   requirements:
     _access: 'TRUE'
   methods: [POST]
+
+dc_import.api_set_template_info:
+  path: '/api/dc-import/set-template-info'
+  defaults:
+    _controller: '\Drupal\dc_import\Controller\ImportApiController::setTemplateInfo'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]

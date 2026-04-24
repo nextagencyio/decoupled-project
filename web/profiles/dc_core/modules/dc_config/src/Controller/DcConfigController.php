@@ -130,7 +130,44 @@ class DcConfigController extends ControllerBase {
   }
 
   /**
-   * Get the default starter definition.
+   * Get the starter definition that should drive on-page recommendations.
+   *
+   * The dashboard pushes the active template's metadata into
+   * `dc_config.template_info` state during frontend/connect
+   * (via /api/dc-import/set-template-info below). When that state
+   * slot is populated, we surface it — that way a site provisioned
+   * from an agency's custom template sees the agency's repo, not the
+   * bundled decoupled-components URLs.
+   *
+   * When no template info has been pushed (legacy sites, or sites
+   * that skipped the connect flow), we fall back to the bundled
+   * decoupled-components constants.
+   *
+   * @return array
+   *   The starter data with id, name, description, icon, contentUrl,
+   *   vercelUrl.
+   */
+  private function getActiveStarter() {
+    $template_info = \Drupal::state()->get('dc_config.template_info');
+    if (is_array($template_info) && !empty($template_info['contentUrl'])) {
+      return [
+        'id' => $template_info['slug'] ?? 'components',
+        'name' => $template_info['name'] ?? 'Template',
+        'description' => $template_info['description'] ?? '',
+        'icon' => $template_info['icon'] ?? 'layout',
+        'contentUrl' => $template_info['contentUrl'],
+        'vercelUrl' => $template_info['vercelUrl'] ?? '',
+        'repoFullName' => $template_info['repoFullName'] ?? '',
+      ];
+    }
+    return $this->getDefaultStarter();
+  }
+
+  /**
+   * Get the default starter definition (bundled decoupled-components).
+   *
+   * Fallback used by getActiveStarter() when no template info has
+   * been pushed into state.
    *
    * @return array
    *   The starter data.
@@ -143,6 +180,7 @@ class DcConfigController extends ControllerBase {
       'icon' => 'layout',
       'contentUrl' => 'https://raw.githubusercontent.com/nextagencyio/decoupled-components/main/data/components-content.json',
       'vercelUrl' => 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components',
+      'repoFullName' => 'nextagencyio/decoupled-components',
     ];
   }
 
@@ -202,7 +240,7 @@ class DcConfigController extends ControllerBase {
       ';
     }
 
-    $starter = $this->getDefaultStarter();
+    $starter = $this->getActiveStarter();
 
     return '
     <div class="dc-config-section dc-config-starter-section">
@@ -238,6 +276,14 @@ class DcConfigController extends ControllerBase {
    */
   public function configPage() {
     $build = [];
+
+    // Resolve the active template so the Vercel deploy button +
+    // recommendations match the repo this site was provisioned from.
+    // Falls back to bundled decoupled-components for legacy sites.
+    $starter = $this->getActiveStarter();
+    $vercel_deploy_url = !empty($starter['vercelUrl'])
+      ? $starter['vercelUrl'] . '&project-name=my-app'
+      : 'https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components&project-name=my-app';
 
     // Attach the custom library for styling and JavaScript.
     $build['#attached']['library'][] = 'dc_config/dc_config';
@@ -578,7 +624,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
               <h3>Deploy to Vercel</h3>
               <p>One-click deploy from our Next.js starter with type-safe Drupal client.</p>
             </div>
-            <a href="https://vercel.com/new/clone?repository-url=https://github.com/nextagencyio/decoupled-components&project-name=my-app"
+            <a href="' . htmlspecialchars($vercel_deploy_url, ENT_QUOTES) . '"
                target="_blank"
                class="dc-config-vercel-deploy-btn">
               <svg width="18" height="18" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1614,7 +1660,13 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     if (empty($frontend['content_imported'])) {
       try {
         $importer = \Drupal::service('dc_import.importer');
-        $contentUrl = 'https://raw.githubusercontent.com/nextagencyio/decoupled-components/main/data/components-content.json';
+        // Read from active template's state-pushed contentUrl; falls
+        // back to bundled decoupled-components when no template info
+        // has been set. Mirrors the dashboard's connect-time fetch
+        // logic (see app/api/spaces/[id]/frontend/connect in the
+        // decoupled-dashboard repo).
+        $starter = $this->getActiveStarter();
+        $contentUrl = $starter['contentUrl'];
         $json = file_get_contents($contentUrl);
         if ($json) {
           $contentData = json_decode($json, TRUE);
