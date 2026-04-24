@@ -69,6 +69,19 @@ dc_config.trigger_connect:
     _access: 'TRUE'
   methods: [POST]
 
+# Enable iframe preview for every existing node bundle on the tenant.
+# The dashboard's connect flow calls this instead of pushing a hardcoded
+# bundle list via dc-config-import, so custom starters with non-default
+# node types (e.g. 'homepage') get preview wired up automatically.
+dc_config.enable_preview_all:
+  path: '/api/dc-config/enable-preview-all'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::enablePreviewAll'
+    _title: 'Enable preview for all node bundles'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+
 decoupled.admin_category:
   path: '/admin/config/decoupled'
   defaults:
