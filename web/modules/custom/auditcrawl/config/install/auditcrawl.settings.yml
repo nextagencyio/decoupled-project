@@ -1,0 +1,11 @@
+# Default values for the module's config object. These match what the
+# WP plugin stores in wp_options — code + license the user provides,
+# credit counter topped up by the remote service, stub node id map
+# maintained by the ReportController when a stub is created.
+api_base: 'https://auditcrawl.com'
+report_code: ''
+license_key: ''
+# Map: strategy_item_index (int) -> Drupal node id. Kept in config
+# for simplicity; parallels the WP plugin's auditcrawl_stub_post_ids
+# option array.
+stub_node_ids: []

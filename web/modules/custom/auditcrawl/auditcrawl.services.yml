@@ -1,0 +1,10 @@
+services:
+  # Thin HTTP wrapper over the auditcrawl.com /api/wp/* endpoints.
+  # Mirrors the WP plugin's class-auditcrawl-api.php — same contract
+  # (public vs Bearer-license), same uniform ok/error result shape.
+  auditcrawl.client:
+    class: Drupal\auditcrawl\Service\Client
+    arguments:
+      - '@http_client'
+      - '@config.factory'
+      - '@logger.factory'

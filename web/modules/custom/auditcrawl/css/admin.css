@@ -1,0 +1,237 @@
+/* AuditCrawl admin UI — lightweight brand pass.
+ * Scoped via body.auditcrawl-page (emitted in auditcrawl_preprocess_html)
+ * so we never leak into core Drupal admin screens. */
+
+/* Hide the default page title — our branded header renders it. */
+body.auditcrawl-page #block-claro-page-title,
+body.auditcrawl-page .block-page-title-block,
+body.auditcrawl-page h1.page-title {
+    display: none;
+}
+
+.auditcrawl-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #4338ca 100%);
+    color: #fff;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.auditcrawl-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.auditcrawl-header__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+.auditcrawl-header__icon svg { display: block; }
+
+.auditcrawl-header__title {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0 0 2px;
+    color: #fff;
+}
+
+.auditcrawl-header__subtitle {
+    font-size: 13px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.78);
+    margin: 0;
+    word-break: break-word;
+}
+
+.auditcrawl-header__subtitle code {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.auditcrawl-header__subtitle a {
+    color: #c7d2fe;
+    text-decoration: none;
+}
+.auditcrawl-header__subtitle a:hover { color: #fff; }
+
+/* Credit pill — right side of the header */
+.auditcrawl-pill {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.auditcrawl-pill strong { font-weight: 700; }
+.auditcrawl-pill a {
+    color: #c7d2fe;
+    text-decoration: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.24);
+    padding-left: 8px;
+    margin-left: 2px;
+}
+.auditcrawl-pill a:hover { color: #fff; }
+.auditcrawl-pill--muted {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* Priority chips */
+.auditcrawl-chip {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+}
+.auditcrawl-chip--high   { background: #fee2e2; color: #991b1b; }
+.auditcrawl-chip--medium { background: #fef3c7; color: #92400e; }
+.auditcrawl-chip--low    { background: #e0e7ff; color: #3730a3; }
+
+/* Strategy table — matches Drupal Claro's table treatment */
+body.auditcrawl-page .auditcrawl-strategy-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+body.auditcrawl-page .auditcrawl-strategy-table th,
+body.auditcrawl-page .auditcrawl-strategy-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+    vertical-align: middle;
+}
+body.auditcrawl-page .auditcrawl-strategy-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+body.auditcrawl-page .auditcrawl-strategy-table tr:last-child td {
+    border-bottom: none;
+}
+body.auditcrawl-page .auditcrawl-strategy-table tr:hover td {
+    background: #fafbfc;
+}
+
+.auditcrawl-manage-actions { margin-top: 20px; }
+.auditcrawl-manage-actions .description { color: #64748b; font-size: 13px; }
+
+/* ── Toast ──────────────────────────────────────────────── */
+#auditcrawl-toast-host {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 100001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+.auditcrawl-toast {
+    background: #0f172a;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+    font-size: 13px;
+    line-height: 1.5;
+    min-width: 240px;
+    max-width: 360px;
+    transform: translateX(12px);
+    opacity: 0;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    pointer-events: auto;
+    border-left: 4px solid #4338ca;
+}
+.auditcrawl-toast.is-visible { transform: translateX(0); opacity: 1; }
+.auditcrawl-toast--success { border-left-color: #059669; }
+.auditcrawl-toast--error   { border-left-color: #dc2626; }
+.auditcrawl-toast--info    { border-left-color: #4338ca; }
+
+/* ── Modal ──────────────────────────────────────────────── */
+.auditcrawl-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+.auditcrawl-modal-backdrop.is-visible { opacity: 1; }
+.auditcrawl-modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 440px;
+    padding: 24px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.3);
+    transform: scale(0.96);
+    transition: transform 0.18s ease;
+}
+.auditcrawl-modal-backdrop.is-visible .auditcrawl-modal { transform: scale(1); }
+.auditcrawl-modal__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: #0f172a;
+    line-height: 1.3;
+}
+.auditcrawl-modal__body {
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+}
+.auditcrawl-modal__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.auditcrawl-btn-danger.button--primary,
+.auditcrawl-btn-danger.button--primary:hover,
+.auditcrawl-btn-danger.button--primary:focus {
+    background: #dc2626;
+    border-color: #b91c1c;
+    color: #fff;
+    box-shadow: none;
+}

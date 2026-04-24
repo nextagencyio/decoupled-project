@@ -1,0 +1,114 @@
+<?php
+
+/**
+ * @file
+ * Bootstrap + procedural hooks for the AuditCrawl module.
+ *
+ * We keep this file intentionally thin — all real work lives in
+ * service classes (src/Service) and controllers / forms (src/...).
+ * Only the WordPress-esque hook contracts that Drupal hasn't moved
+ * to attributes / YAML yet live here: hook_cron (for the scheduled
+ * auto-write), hook_page_attachments (for CSS/JS on our admin
+ * screens), and hook_help for the Extend page blurb.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ *
+ * Shown on /admin/help#auditcrawl. Keeps the same tone as the WP
+ * plugin readme.txt.
+ */
+function auditcrawl_help($route_name, RouteMatchInterface $route_match) {
+  if ($route_name === 'help.page.auditcrawl') {
+    return '<p>' . t(
+      'AuditCrawl turns a content-strategy report purchased at <a href="@u">auditcrawl.com</a> into a pile of Drupal draft nodes. Paste your report code on the <em>Connect</em> tab, then create draft nodes from each recommended article. The optional premium subscription auto-writes the drafts for you on a schedule.',
+      ['@u' => 'https://auditcrawl.com']
+    ) . '</p>';
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attaches our branded CSS + JS only on the module's admin routes,
+ * plus a body class so the CSS can scope itself without leaking into
+ * the rest of the admin UI. The equivalent in WordPress is
+ * admin_enqueue_scripts + admin_body_class.
+ */
+function auditcrawl_page_attachments(array &$attachments) {
+  $route = \Drupal::routeMatch()->getRouteName();
+  if (!$route || !str_starts_with($route, 'auditcrawl.')) {
+    return;
+  }
+  $attachments['#attached']['library'][] = 'auditcrawl/admin';
+  $attachments['#attached']['drupalSettings']['auditcrawl'] = [
+    'hasLicense' => (bool) \Drupal::config('auditcrawl.settings')->get('license_key'),
+    // Site URL the license gets locked to — matches home_url('/') in WP.
+    'siteUrl' => \Drupal::request()->getSchemeAndHttpHost() . '/',
+    // Public endpoints the JS POSTs to. Url::fromRoute normally emits a
+    // LAZY-BUILDER PLACEHOLDER for the ?token=... on routes with
+    // `_csrf_token: TRUE` — the placeholder gets replaced during HTML
+    // rendering, but NOT inside JSON-encoded drupalSettings, so the
+    // browser would end up submitting the placeholder hash and hitting
+    // 403. We generate the real token manually using the same path
+    // recipe RouteProcessorCsrf uses (ltrim($route->getPath(), '/')).
+    'endpoints' => _auditcrawl_endpoints([
+      'createStub' => 'auditcrawl.ajax.create_stub',
+      'generateNow' => 'auditcrawl.ajax.generate_now',
+      'rotateLicense' => 'auditcrawl.ajax.rotate_license',
+      'moveLicense' => 'auditcrawl.ajax.move_license',
+      'openPortal' => 'auditcrawl.ajax.open_portal',
+    ]),
+  ];
+  // Tokens are per-session — make sure Drupal's render cache varies
+  // accordingly so one user's token doesn't leak to another.
+  $attachments['#cache']['contexts'][] = 'session';
+}
+
+/**
+ * Map of { setting key => route name } → { setting key => URL?token=... }
+ * using a real CSRF token (not a lazy placeholder).
+ */
+function _auditcrawl_endpoints(array $map): array {
+  /** @var \Drupal\Core\Access\CsrfTokenGenerator $csrf */
+  $csrf = \Drupal::service('csrf_token');
+  $routeProvider = \Drupal::service('router.route_provider');
+  $out = [];
+  foreach ($map as $key => $routeName) {
+    $route = $routeProvider->getRouteByName($routeName);
+    $path = ltrim($route->getPath(), '/');
+    $token = $csrf->get($path);
+    $out[$key] = '/' . $path . '?token=' . rawurlencode($token);
+  }
+  return $out;
+}
+
+/**
+ * Implements hook_preprocess_html().
+ *
+ * Adds a scope class to <body> on our admin pages so the module's
+ * CSS can target its screens without leaking into the rest of wp-
+ * admin… sorry, Drupal admin.
+ */
+function auditcrawl_preprocess_html(array &$variables) {
+  $route = \Drupal::routeMatch()->getRouteName();
+  if ($route && str_starts_with($route, 'auditcrawl.')) {
+    $variables['attributes']['class'][] = 'auditcrawl-page';
+  }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Hourly (or whatever cadence Drupal's cron runs at) we fill ONE
+ * empty stub node with AI content, if the site has a premium
+ * license configured and any credits left. Mirrors the WP plugin's
+ * wp_schedule_event('auditcrawl_fill_one_stub') handler.
+ */
+function auditcrawl_cron() {
+  /** @var \Drupal\auditcrawl\Service\Client $client */
+  $client = \Drupal::service('auditcrawl.client');
+  $client->fillNextEmptyStub();
+}
