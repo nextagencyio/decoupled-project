@@ -89,6 +89,11 @@ class DrupalContentImporter {
     $result = [
       'summary' => [],
       'warnings' => [],
+      // Map of content `id` → ['entity_type', 'entity_id', 'bundle'] for
+      // every entity successfully created or updated by this run. Lets
+      // callers (e.g. the make publish flow) anchor their own identity
+      // store to the created entities by the same `id` they passed in.
+      'created' => [],
     ];
 
     $bundle_defs = [];
@@ -453,6 +458,15 @@ class DrupalContentImporter {
       $entity = $this->createConciseEntry($item, $preview_mode, $result);
       if ($entity && isset($item['id'])) {
         $created[$item['id']] = $entity;
+        // Also expose the mapping in the public result so out-of-band
+        // callers (the make publish flow uses this to write dc_make_link
+        // rows by the make UUID it passed in as `id`) don't have to
+        // reverse-engineer it from the summary strings.
+        $result['created'][$item['id']] = [
+          'entity_type' => $entity->getEntityTypeId(),
+          'entity_id' => (int) $entity->id(),
+          'bundle' => $entity->bundle(),
+        ];
       }
     }
 

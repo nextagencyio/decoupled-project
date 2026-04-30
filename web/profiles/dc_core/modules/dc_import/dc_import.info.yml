@@ -3,5 +3,3 @@ description: 'REST API for importing Drupal model and content from concise JSON.
 type: module
 core_version_requirement: ^10 || ^11
 package: Decoupled
-dependencies:
-  - dc_puck:dc_puck
