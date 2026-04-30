@@ -59,3 +59,18 @@ dc_import.api_set_template_info:
   requirements:
     _access: 'TRUE'
   methods: [POST]
+
+# Site Health audit summary — single JSON snapshot of content + module
+# inventory consumed by the decoupled.io dashboard's "Drupal" tab. Auth
+# via Simple OAuth bearer using the MCP Agent consumer (admin context).
+# See decoupled-dashboard/docs/SITE-HEALTH-AUDITS.md for the integration.
+dc_import.api_audit_summary:
+  path: '/api/dc-import/audit-summary'
+  defaults:
+    _controller: '\Drupal\dc_import\Controller\AuditSummaryController::summary'
+  requirements:
+    _permission: 'access content'
+    _format: 'json'
+  options:
+    _auth: ['oauth2']
+  methods: [GET]
