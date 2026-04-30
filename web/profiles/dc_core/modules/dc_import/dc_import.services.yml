@@ -11,3 +11,10 @@ services:
 
   dc_import.schema_validator:
     class: Drupal\dc_import\Service\JsonSchemaValidator
+
+  # Maps make.decoupled.io UUIDs to local Drupal entities. Owned by
+  # the make publish controller and the edit-redirect hook in
+  # dc_import.module. See dc_import.install for the underlying schema.
+  dc_import.make_link_repository:
+    class: Drupal\dc_import\Service\MakeLinkRepository
+    arguments: ['@database', '@entity_type.manager']

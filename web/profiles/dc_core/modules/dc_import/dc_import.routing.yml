@@ -74,3 +74,18 @@ dc_import.api_audit_summary:
   options:
     _auth: ['oauth2']
   methods: [GET]
+
+# Make publish — receives a full project payload from make.decoupled.io
+# and upserts a landing_page node + article nodes + tags by UUID.
+# Same OAuth bearer flow as audit_summary; runs as the MCP Agent
+# consumer (admin context) so it can write nodes and terms.
+dc_import.api_make_publish:
+  path: '/api/dc-import/make/publish'
+  defaults:
+    _controller: '\Drupal\dc_import\Controller\MakePublishController::publish'
+  requirements:
+    _permission: 'administer dc_import'
+    _format: 'json'
+  options:
+    _auth: ['oauth2']
+  methods: [POST]

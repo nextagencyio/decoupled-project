@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * @file
+ * Hooks for dc_import.
+ *
+ * Currently this just contains the make-managed-content edit redirect
+ * and the entity-delete cleanup. The publish controller, schema, and
+ * services live in their own files.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Entity\EntityInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+
+/**
+ * Implements hook_entity_delete().
+ *
+ * Cleans up the dc_make_link row when an entity is deleted directly
+ * in Drupal (admin UI, drush, devel) so a future publish under the
+ * same UUID re-creates the entity instead of trying to update a
+ * vanished entity id.
+ */
+function dc_import_entity_delete(EntityInterface $entity): void {
+  // Only nodes and taxonomy_terms are linked today; bail early for
+  // every other entity type to keep this hook cheap on hot paths.
+  $type = $entity->getEntityTypeId();
+  if ($type !== 'node' && $type !== 'taxonomy_term') {
+    return;
+  }
+  /** @var \Drupal\dc_import\Service\MakeLinkRepository $repo */
+  $repo = \Drupal::service('dc_import.make_link_repository');
+  $repo->unlinkEntity($entity);
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * If an admin opens the edit form of a node or term that's managed by
+ * make, redirect them to the make builder so edits happen at the
+ * source of truth. The `?override=1` escape hatch lets a site builder
+ * bypass the redirect when they genuinely need to set a Drupal-only
+ * field on a make-owned entity.
+ *
+ * We hook form_alter rather than a route subscriber because edit
+ * forms can be reached via several routes (canonical, layout builder,
+ * inline blocks) and form-alter catches them all.
+ */
+function dc_import_form_alter(array &$form, $form_state, string $form_id): void {
+  // Cheap pre-filter — only node/term edit forms.
+  if (!preg_match('/^(node_[a-z0-9_]+_edit_form|taxonomy_term_[a-z0-9_]+_form)$/', $form_id)) {
+    return;
+  }
+
+  $request = \Drupal::request();
+  if ($request->query->get('override') === '1') {
+    \Drupal::messenger()->addWarning(t(
+      'You are editing make-managed content directly. Changes here may be overwritten on the next publish from make.',
+    ));
+    return;
+  }
+
+  $entity = NULL;
+  if (method_exists($form_state, 'getFormObject')) {
+    $obj = $form_state->getFormObject();
+    if (method_exists($obj, 'getEntity')) {
+      $entity = $obj->getEntity();
+    }
+  }
+  if (!$entity instanceof EntityInterface || $entity->isNew()) {
+    return;
+  }
+
+  /** @var \Drupal\dc_import\Service\MakeLinkRepository $repo */
+  $repo = \Drupal::service('dc_import.make_link_repository');
+  $link = $repo->findLinkForEntity($entity);
+  if (!$link) {
+    return;
+  }
+
+  $url = _dc_import_make_edit_url($link, $entity);
+  if (!$url) {
+    return;
+  }
+
+  // Throw a redirect from form_alter — handled as an exception by the
+  // kernel and turned into a 307 response. Also surface a status
+  // message in case the redirect is followed back.
+  \Drupal::messenger()->addStatus(t(
+    'This content is managed in make. Redirecting you to the builder.',
+  ));
+  $response = new RedirectResponse($url, 307);
+  $response->send();
+  exit;
+}
+
+/**
+ * Builds the make.decoupled.io URL the admin should be sent to.
+ *
+ * Project landing page → /build/<project-uuid>
+ * Article (post)       → /build/<project-uuid>/posts/<post-uuid>
+ * Tag term             → /build/<project-uuid>/tags
+ *
+ * Returns NULL for entity shapes we don't know how to deep-link
+ * (defensive — keeps the form rendering instead of redirecting to a
+ * malformed URL).
+ */
+function _dc_import_make_edit_url(array $link, EntityInterface $entity): ?string {
+  $base = \Drupal::config('dc_import.settings')->get('make_base_url')
+    ?: 'https://make.decoupled.io';
+  $project = $link['parent_project_uuid'];
+
+  if ($link['entity_type'] === 'node' && $link['bundle'] === 'landing_page') {
+    return "$base/build/$project";
+  }
+  if ($link['entity_type'] === 'node' && $link['bundle'] === 'article') {
+    return "$base/build/$project/posts/{$link['uuid']}";
+  }
+  if ($link['entity_type'] === 'taxonomy_term') {
+    return "$base/build/$project/tags";
+  }
+  return NULL;
+}

@@ -1,0 +1,106 @@
+<?php
+
+/**
+ * @file
+ * Install / schema / update hooks for dc_import.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ *
+ * Defines the `dc_make_link` table — the cross-system identity map
+ * between content in this Drupal site and content in the make.decoupled.io
+ * builder. A row is written every time make publishes an entity; the
+ * UUID is owned by make and is stable for the life of the entity on
+ * the make side.
+ *
+ * Why a custom table instead of a Drupal field on the entity:
+ *   - The UUID is plumbing, not content. Putting it on a field clutters
+ *     the field UI and pollutes node revisions.
+ *   - One table covers any entity type; a field would require an
+ *     instance per bundle.
+ *   - Lookups by UUID hit a single indexed table instead of joining
+ *     a per-bundle field-data table.
+ *
+ * `parent_project_uuid` is denormalized so the edit-redirect hook can
+ * build a make.decoupled.io URL without a second lookup. For a project
+ * landing page the parent is itself; for posts and tags it's the
+ * owning project's UUID. Make sends it on every publish.
+ */
+function dc_import_schema(): array {
+  $schema['dc_make_link'] = [
+    'description' => 'Maps make.decoupled.io UUIDs to local Drupal entities.',
+    'fields' => [
+      'uuid' => [
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => TRUE,
+        'description' => 'Make-side UUID (owner of the identity).',
+      ],
+      'entity_type' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => "Drupal entity type id, e.g. 'node' or 'taxonomy_term'.",
+      ],
+      'entity_id' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Drupal entity id.',
+      ],
+      'bundle' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => "Bundle for fast filtering (e.g. 'landing_page', 'article', 'tags').",
+      ],
+      'parent_project_uuid' => [
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => TRUE,
+        'description' => 'UUID of the make project this entity belongs to. Self for project landing pages.',
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp of first link.',
+      ],
+      'updated' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp of most recent publish.',
+      ],
+    ],
+    'primary key' => ['uuid'],
+    'unique keys' => [
+      'entity' => ['entity_type', 'entity_id'],
+    ],
+    'indexes' => [
+      'parent_project_uuid' => ['parent_project_uuid'],
+      'bundle' => ['entity_type', 'bundle'],
+    ],
+  ];
+  return $schema;
+}
+
+/**
+ * Create the `dc_make_link` table on existing sites.
+ *
+ * `hook_schema()` only fires on a fresh module install; existing
+ * tenants already had `dc_import` enabled before this table existed,
+ * so they need an explicit update hook to create it.
+ */
+function dc_import_update_10001(): string {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('dc_make_link')) {
+    return 'dc_make_link table already exists; skipped.';
+  }
+  $tables = dc_import_schema();
+  $schema->createTable('dc_make_link', $tables['dc_make_link']);
+  return 'Created dc_make_link table.';
+}
