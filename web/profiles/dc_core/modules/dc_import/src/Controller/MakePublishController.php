@@ -109,7 +109,7 @@ final class MakePublishController extends ControllerBase {
     }
     catch (PublishException $e) {
       $tx->rollBack();
-      return $this->errorResponse($e->code, $e->getMessage(), 400, $e->details);
+      return $this->errorResponse($e->errorCode, $e->getMessage(), 400, $e->details);
     }
     catch (\Throwable $e) {
       $tx->rollBack();
@@ -316,10 +316,14 @@ final class MakePublishController extends ControllerBase {
  * Internal exception used to bubble validation failures up to the
  * publish() handler so the transaction rolls back cleanly. Callers
  * outside this controller shouldn't catch this.
+ *
+ * Don't use a constructor-promoted `readonly $code` here — PHP 8.4
+ * forbids redeclaring \Exception::$code (which is non-readonly) as
+ * readonly in a subclass. Same trap we hit on AuditSummaryController.
  */
 final class PublishException extends \RuntimeException {
   public function __construct(
-    public readonly string $code,
+    public readonly string $errorCode,
     string $message,
     public readonly array $details = [],
   ) {
