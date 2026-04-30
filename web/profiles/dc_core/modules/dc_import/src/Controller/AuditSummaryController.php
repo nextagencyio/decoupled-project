@@ -6,7 +6,6 @@ namespace Drupal\dc_import\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleExtensionList;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,15 +31,18 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  */
 final class AuditSummaryController extends ControllerBase {
 
+  // ControllerBase already declares $entityTypeManager + $database as
+  // protected, non-readonly properties in Drupal 11. We can't redeclare
+  // them as readonly via constructor promotion, so we keep our own
+  // distinct properties for the database + module list, and use the
+  // parent's $this->entityTypeManager() accessor.
   public function __construct(
-    private readonly EntityTypeManagerInterface $entityTypeManager,
-    private readonly Connection $database,
+    private readonly Connection $db,
     private readonly ModuleExtensionList $moduleList,
   ) {}
 
   public static function create(ContainerInterface $container): static {
     return new static(
-      $container->get('entity_type.manager'),
       $container->get('database'),
       $container->get('extension.list.module'),
     );
@@ -68,19 +70,19 @@ final class AuditSummaryController extends ControllerBase {
    * show up with a zero count rather than silently disappearing.
    */
   private function contentTypeStats(): array {
-    $type_storage = $this->entityTypeManager->getStorage('node_type');
+    $type_storage = $this->entityTypeManager()->getStorage('node_type');
     $types = $type_storage->loadMultiple();
     $out = [];
 
     foreach ($types as $type) {
       $machine_name = $type->id();
-      $count_q = $this->database->select('node_field_data', 'n')
+      $count_q = $this->db->select('node_field_data', 'n')
         ->condition('n.type', $machine_name)
         ->condition('n.default_langcode', 1);
       $count_q->addExpression('COUNT(*)', 'cnt');
       $count = (int) $count_q->execute()->fetchField();
 
-      $last_q = $this->database->select('node_field_data', 'n')
+      $last_q = $this->db->select('node_field_data', 'n')
         ->condition('n.type', $machine_name)
         ->condition('n.default_langcode', 1);
       $last_q->addExpression('MAX(n.changed)', 'last');
@@ -100,14 +102,14 @@ final class AuditSummaryController extends ControllerBase {
    * Site-wide totals. Cheap aggregate queries — no per-row work.
    */
   private function totals(): array {
-    $node_count = (int) $this->database
+    $node_count = (int) $this->db
       ->select('node_field_data', 'n')
       ->condition('n.default_langcode', 1)
       ->countQuery()
       ->execute()
       ->fetchField();
 
-    $user_count = (int) $this->database
+    $user_count = (int) $this->db
       ->select('users_field_data', 'u')
       ->condition('u.uid', 0, '>')
       ->condition('u.default_langcode', 1)
@@ -118,7 +120,7 @@ final class AuditSummaryController extends ControllerBase {
     // Media might not be installed — guard so older installs don't 500.
     $media_count = 0;
     if ($this->moduleHandler()->moduleExists('media')) {
-      $media_count = (int) $this->database
+      $media_count = (int) $this->db
         ->select('media_field_data', 'm')
         ->condition('m.default_langcode', 1)
         ->countQuery()
@@ -140,14 +142,14 @@ final class AuditSummaryController extends ControllerBase {
     if (!$this->moduleHandler()->moduleExists('taxonomy')) {
       return ['vocab_count' => 0, 'term_count' => 0];
     }
-    $vocab_count = (int) $this->entityTypeManager
+    $vocab_count = (int) $this->entityTypeManager()
       ->getStorage('taxonomy_vocabulary')
       ->getQuery()
       ->accessCheck(FALSE)
       ->count()
       ->execute();
 
-    $term_count = (int) $this->database
+    $term_count = (int) $this->db
       ->select('taxonomy_term_field_data', 't')
       ->condition('t.default_langcode', 1)
       ->countQuery()
@@ -215,7 +217,7 @@ final class AuditSummaryController extends ControllerBase {
     if (!$this->moduleHandler()->moduleExists('dblog')) {
       return [];
     }
-    $rows = $this->database
+    $rows = $this->db
       ->select('watchdog', 'w')
       ->fields('w', ['type', 'severity', 'message', 'variables', 'timestamp', 'location'])
       ->condition('w.type', ['image', 'file', 'content', 'access denied'], 'IN')
