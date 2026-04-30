@@ -70,6 +70,9 @@ final class MakePublishController extends ControllerBase {
     }
     $projectUuid = (string) $payload['projectUuid'];
     $deletedUuids = is_array($payload['deletedUuids'] ?? null) ? $payload['deletedUuids'] : [];
+    $adminEmail = isset($payload['adminEmail']) && is_string($payload['adminEmail'])
+      ? trim($payload['adminEmail'])
+      : '';
 
     // dc_import's import() takes the whole envelope; pass it through
     // unchanged. It already validates `model` / `content`. We use the
@@ -115,10 +118,28 @@ final class MakePublishController extends ControllerBase {
         $deleted[] = $uuid;
       }
 
+      // Align user 1's email to the make user's email so the CMS admin
+      // and the make customer are the same identity (mirrors what the
+      // dashboard does at space provisioning via --account-mail). Only
+      // touch it if it actually drifted; on subsequent re-publishes
+      // this is a fast no-op.
+      $emailChanged = FALSE;
+      if ($adminEmail !== '' && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+        $userStorage = $this->entityTypes->getStorage('user');
+        /** @var \Drupal\user\UserInterface|null $admin */
+        $admin = $userStorage->load(1);
+        if ($admin && $admin->getEmail() !== $adminEmail) {
+          $admin->setEmail($adminEmail);
+          $admin->save();
+          $emailChanged = TRUE;
+        }
+      }
+
       return new JsonResponse([
         'ok' => TRUE,
         'linked' => $linked,
         'deleted' => $deleted,
+        'adminEmailUpdated' => $emailChanged,
         'summary' => $result['summary'] ?? [],
         'warnings' => $result['warnings'] ?? [],
       ]);
