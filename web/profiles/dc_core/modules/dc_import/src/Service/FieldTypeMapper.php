@@ -575,6 +575,61 @@ class FieldTypeMapper {
           'widget' => 'entity_reference_autocomplete',
         ];
 
+      case 'radio':
+        // radio(option1|option2|option3) — same shape as select, just
+        // a hint to the editor that radios should render. dc_import
+        // doesn't model widgets per Drupal-side field; we store the
+        // selected value as list_string and the make side knows to
+        // render it as radios.
+        $radioValues = [];
+        if ($param) {
+          foreach (preg_split('/[|,]/', $param) as $option) {
+            $option = trim($option);
+            if ($option === '') continue;
+            $radioValues[$option] = ucwords(str_replace(['_', '-'], ' ', $option));
+          }
+        }
+        return [
+          'type' => 'list_string',
+          'settings' => ['allowed_values' => $radioValues],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'options_buttons',
+        ];
+
+      case 'icon':
+        // PascalCase Lucide icon names ("Rocket", "Zap"). Make picks
+        // them via a custom IconField; on the Drupal side we just
+        // store the string so the public site renderer can pass it
+        // back to the same Lucide component.
+        return [
+          'type' => 'string',
+          'settings' => ['max_length' => 64],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'string_textfield',
+        ];
+
+      case 'post-ids':
+      case 'tag-slugs':
+        // Multi-value identifier lists used by ParagraphDynamic for
+        // manual post selection / tag-based filters. We store the
+        // ids as plain strings cardinality-unlimited; the public
+        // site queries posts/tags by these on the make side, so the
+        // Drupal copy is just preservation. (A future iteration could
+        // upgrade to entity_reference once the Drupal side learns to
+        // resolve make-uuid-keyed posts via dc_make_link.)
+        return [
+          'type' => 'string',
+          'settings' => ['max_length' => 128],
+          'cardinality' => -1,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'string_textfield',
+        ];
+
       default:
         return NULL;
     }
