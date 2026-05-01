@@ -84,6 +84,25 @@ final class MakePublishController extends ControllerBase {
       $importPayload = [];
       if (isset($payload['model']))   $importPayload['model']   = $payload['model'];
       if (isset($payload['content'])) $importPayload['content'] = $payload['content'];
+
+      // Idempotency: DrupalContentImporter always creates new entities,
+      // it never updates an existing one by id. So on a re-publish, the
+      // payload's `id`s would land on fresh entity rows and orphan the
+      // previous copies. We pre-delete any entities already linked
+      // under one of these ids so the importer can recreate them
+      // cleanly. The link rows get rewritten by the link() loop below.
+      $contentItems = is_array($importPayload['content'] ?? null) ? $importPayload['content'] : [];
+      foreach ($contentItems as $item) {
+        $uuid = isset($item['id']) ? (string) $item['id'] : '';
+        if ($uuid === '') continue;
+        $row = $this->links->unlinkUuid($uuid);
+        if (!$row) continue;
+        $stale = $this->entityTypes->getStorage($row['entity_type'])->load($row['entity_id']);
+        if ($stale) {
+          $stale->delete();
+        }
+      }
+
       $result = $this->importer->import($importPayload, FALSE);
 
       $linked = [];
