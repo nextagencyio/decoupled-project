@@ -120,6 +120,8 @@ class DrupalContentImporter {
       $entity_type = $def['entity'] ?? 'node';
       if ($entity_type === 'paragraph') {
         $this->createBundleParagraphConcise($def, $preview_mode, $result);
+      } elseif ($entity_type === 'contact_form') {
+        $this->createBundleContactFormConcise($def, $preview_mode, $result);
       } else {
         $this->createBundleNodeConcise($def, $preview_mode, $result);
       }
@@ -304,6 +306,95 @@ class DrupalContentImporter {
 
     if (!$preview_mode) {
       $this->createFormDisplayConcise('paragraph', $id, $fields, $def['form_display'] ?? NULL, $result);
+    }
+  }
+
+  /**
+   * Create or update a contact_form config entity + the field
+   * instances on its contact_message bundle.
+   *
+   * Used by the make publish bridge: each ParagraphForm in a make
+   * project produces one contact_form definition. The bundle name is
+   * derived from the make project UUID + section ID so re-publishes
+   * find the existing form and update it instead of creating a
+   * duplicate.
+   *
+   * Bundle definition shape (from buildPublishPayload in
+   * lib/drupal-publish.ts):
+   *   {
+   *     entity:     'contact_form',
+   *     bundle:     '<machine_name>',
+   *     label:      'Send a message',
+   *     recipients: ['owner@example.com'],
+   *     fields: [
+   *       { id: 'field_name', type: 'string', label: 'Name', required: true },
+   *       { id: 'field_email', type: 'email', label: 'Email', required: true },
+   *       { id: 'field_message', type: 'string_long', label: 'Message' },
+   *       { id: 'field_topic', type: 'list_string', options: [...] },
+   *     ],
+   *   }
+   *
+   * Field instances live on the contact_message entity, scoped to
+   * a bundle whose ID matches the contact_form's ID. That's how
+   * Drupal's contact module models per-form custom fields — each
+   * named contact_form is itself a bundle of contact_message.
+   */
+  private function createBundleContactFormConcise(array $def, $preview_mode, array &$result) {
+    $id = $def['bundle'] ?? '';
+    if ($id === '') {
+      $result['warnings'][] = "contact_form definition missing 'bundle' (machine name)";
+      return;
+    }
+    $label = $def['label'] ?? $id;
+    $recipients = is_array($def['recipients'] ?? null) ? $def['recipients'] : [];
+    if (empty($recipients)) {
+      $result['warnings'][] = "contact_form '{$id}' has no recipients; the form will save submissions but no email will fire";
+    }
+
+    if ($preview_mode) {
+      $result['summary'][] = "Would create contact_form: {$label} ({$id})";
+    } else {
+      // Idempotent upsert. Updating a contact_form is just config save;
+      // existing contact_message rows in this bundle keep working.
+      $storage = $this->entityTypeManager->getStorage('contact_form');
+      $form = $storage->load($id);
+      if ($form) {
+        $form->set('label', $label);
+        $form->set('recipients', $recipients);
+        $form->save();
+        $result['summary'][] = "Updated contact_form: {$label} ({$id})";
+      } else {
+        $form = $storage->create([
+          'id' => $id,
+          'label' => $label,
+          'recipients' => $recipients,
+          'reply' => '',
+          'weight' => 0,
+          // Hide the default "Copy yourself a copy" checkbox + the
+          // built-in subject field; we control the form's appearance
+          // via the embed in the paragraph render.
+          'message' => '',
+          'redirect' => '',
+        ]);
+        $form->save();
+        $result['summary'][] = "Created contact_form: {$label} ({$id})";
+      }
+    }
+
+    // Add the per-field instances to the contact_message bundle named
+    // after this form. createField() handles entity_type +
+    // bundle-aware storage and skips duplicates, so re-publishes are
+    // safe even if a customer added their own fields in Drupal admin.
+    $fields = $def['fields'] ?? [];
+    foreach ($fields as $field) {
+      if (!isset($field['name']) && isset($field['label'])) {
+        $field['name'] = $field['label'];
+      }
+      $this->createField('contact_message', $id, $field, $preview_mode, $result);
+    }
+
+    if (!$preview_mode) {
+      $this->createFormDisplayConcise('contact_message', $id, $fields, $def['form_display'] ?? null, $result);
     }
   }
 
@@ -1158,9 +1249,13 @@ class DrupalContentImporter {
     // }
 
     foreach ($values as $field_id => $value) {
-      // Special handling for field_content which is already prefixed
-      if ($field_id === 'field_content') {
-        $drupal_field_name = 'field_content';
+      // Already-prefixed `field_*` keys (e.g. field_contact_form on
+      // paragraph.form, set by the make publish bridge) name the field
+      // directly — DON'T add another `field_` prefix.
+      // field_content is the historical case; this generalizes it for
+      // any caller that pre-prefixes the field key.
+      if (is_string($field_id) && str_starts_with($field_id, 'field_') && $entity->hasField($field_id)) {
+        $drupal_field_name = $field_id;
       } else {
         $drupal_field_name = $this->isReservedField($field_id, $entity_type) ? $field_id : 'field_' . $this->sanitizeFieldName($field_id);
       }
@@ -1226,7 +1321,36 @@ class DrupalContentImporter {
             $result['summary'][] = "Resolved reference (fallback): {$field_id} -> {$ref}";
           }
         } else {
-          $result['warnings'][] = "Could not resolve reference {$field_id} -> {$ref}";
+          // Not in $created — fall back to looking the ref up as a
+          // config entity matching the field's declared target_type.
+          // This is how the make publish bridge points
+          // paragraph.form.field_contact_form at a contact_form config
+          // entity created earlier in the same payload's `model`
+          // array (config entities don't pass through createContent
+          // so they're never in $created).
+          $resolved = FALSE;
+          $field_type = $field_definition->getType();
+          if ($field_type === 'entity_reference') {
+            $target_type = $field_definition->getFieldStorageDefinition()->getSetting('target_type');
+            if ($target_type) {
+              try {
+                $config_entity = $this->entityTypeManager->getStorage($target_type)->load($ref);
+              } catch (\Exception $e) {
+                $config_entity = NULL;
+              }
+              if ($config_entity) {
+                // Config entity IDs are strings (e.g. 'make_xxx');
+                // content entity IDs are ints. Both work in entity_reference.
+                $entity->set($drupal_field_name, ['target_id' => $config_entity->id()]);
+                $entity->save();
+                $result['summary'][] = "Resolved config entity reference: {$field_id} -> {$ref} ({$target_type})";
+                $resolved = TRUE;
+              }
+            }
+          }
+          if (!$resolved) {
+            $result['warnings'][] = "Could not resolve reference {$field_id} -> {$ref}";
+          }
         }
         continue;
       }
@@ -1452,7 +1576,13 @@ class DrupalContentImporter {
     $field_id = $field_config['id'];
     $field_label = $field_config['name'];
     $field_type = $field_config['type'];
-    $required = $field_config['required'] ?? FALSE;
+    // The model-DSL `!` suffix (e.g. `string!`, `email!`) is stripped
+    // by FieldTypeMapper but its required-ness is propagated through
+    // the mapped result. Look at both sources so callers can express
+    // required either way: top-level `required: true` OR the trailing
+    // `!` in the type string.
+    $required = ($field_config['required'] ?? FALSE)
+      || (is_string($field_type) && substr($field_type, -1) === '!');
 
     // Handle reserved field names.
     if ($this->isReservedField($field_id, $entity_type)) {

@@ -84,6 +84,7 @@ dependencies:
   - dc_user_redirect
   - dc_puck
   - dc_brand
+  - dc_form
 
 # Themes
 themes:

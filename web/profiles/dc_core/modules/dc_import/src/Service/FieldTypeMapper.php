@@ -338,6 +338,59 @@ class FieldTypeMapper {
           'widget' => 'text_textarea',
         ];
 
+      case 'textarea':
+        // Plain (non-formatted) long-text. Used by ParagraphForm's
+        // multi-line input fields where rich text would be overkill
+        // and CSS would have to fight the WYSIWYG widget anyway.
+        return [
+          'type' => 'string_long',
+          'settings' => [],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'string_textarea',
+        ];
+
+      case 'email':
+        return [
+          'type' => 'email',
+          'settings' => [],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'email_default',
+        ];
+
+      case 'tel':
+      case 'telephone':
+        // Requires the core 'telephone' module to be enabled. dc_core's
+        // contact-form bridge update hook turns it on alongside contact.
+        return [
+          'type' => 'telephone',
+          'settings' => [],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'telephone_default',
+        ];
+
+      case 'time':
+        // Drupal core has no time-only field, so we model it as a
+        // datetime with the time-only display format applied at render.
+        // The make-side ParagraphForm renders its own native <input type=time>
+        // for editor preview; the Drupal-rendered version gets a full
+        // datetime widget — acceptable v1 compromise.
+        return [
+          'type' => 'datetime',
+          'settings' => [
+            'datetime_type' => 'datetime',
+          ],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'datetime_default',
+        ];
+
       case 'int':
       case 'integer':
         return [

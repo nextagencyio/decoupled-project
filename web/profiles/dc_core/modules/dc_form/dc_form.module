@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * @file
+ * Plugin-only module — no hooks, no procedural code beyond this stub.
+ *
+ * Drupal's plugin discovery handles the rest: GraphQLCompose entity-type
+ * + schema-type plugins under src/Plugin/GraphQLCompose/, and a
+ * resolver schema extension under src/Plugin/GraphQL/SchemaExtension/.
+ *
+ * The module exists to give make.decoupled.io's published forms a
+ * proper Drupal-native representation:
+ *   make ParagraphForm  →  paragraph.form (paragraph entity)
+ *                       →  contact_form (config entity, one per form)
+ *                       →  contact_message (entity bundle, fields per form)
+ *
+ * Without this module, headless consumers can read the inline
+ * paragraph.form_field children (a make-managed mirror of the form
+ * structure) but can't see the contact_form entity that admins manage
+ * in Drupal. With this module, both views are queryable, and
+ * paragraph.form.field_contact_form resolves to a real ContactForm
+ * GraphQL type instead of UnsupportedType.
+ */
+
+declare(strict_types=1);
