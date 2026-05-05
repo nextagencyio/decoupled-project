@@ -1005,3 +1005,148 @@ function dc_core_update_10027() {
   \Drupal::state()->delete('dc_brand.pending_since');
   return t('Removed dc_brand build hook debounce; saves now fire immediately.');
 }
+
+/**
+ * Enable contact + telephone modules and add field_contact_form
+ * reference on paragraph.form.
+ *
+ * Make.decoupled.io's ParagraphForm sections publish into Drupal as
+ * a contact_form config entity per form (created on demand by
+ * dc_import's contact_form bundle handler). The paragraph.form bundle
+ * needs a field_contact_form reference so the Drupal-side renderer
+ * can pick the right form to embed for a given paragraph.
+ *
+ * Idempotent: safe to re-run. Module enable is no-op when already on,
+ * and the reference field is only created if missing.
+ */
+function dc_core_update_10028() {
+  $messages = [];
+
+  // Enable required modules:
+  //  - contact   (core) — contact_form / contact_message entities
+  //  - telephone (core) — tel field type for phone-number form fields
+  //  - dc_form   (profile) — graphql_compose plugin exposing ContactForm
+  //                          to headless consumers
+  $module_handler = \Drupal::moduleHandler();
+  $module_installer = \Drupal::service('module_installer');
+  $needed = ['contact', 'telephone', 'dc_form'];
+  $to_install = [];
+  foreach ($needed as $m) {
+    if (!$module_handler->moduleExists($m)) $to_install[] = $m;
+  }
+  if (!empty($to_install)) {
+    $module_installer->install($to_install);
+    $messages[] = 'Enabled modules: ' . implode(', ', $to_install);
+  }
+
+  // The paragraph.form bundle is created by dc_import on first
+  // make publish; if it doesn't exist yet there's nothing to add a
+  // field to. The reference field is only meaningful once the
+  // paragraph type exists, so we check first.
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $paragraph_type = $entity_type_manager->getStorage('paragraphs_type')->load('form');
+  if (!$paragraph_type) {
+    $messages[] = 'paragraph.form bundle not yet created — field_contact_form will be added on first make publish that includes a Form section.';
+    return implode(' / ', $messages);
+  }
+
+  $field_name = 'field_contact_form';
+  $entity_type = 'paragraph';
+  $bundle = 'form';
+
+  // Field storage (entity_type-wide). One per entity_type + field_name.
+  $storage = $entity_type_manager->getStorage('field_storage_config')
+    ->load("{$entity_type}.{$field_name}");
+  if (!$storage) {
+    $entity_type_manager->getStorage('field_storage_config')->create([
+      'field_name' => $field_name,
+      'entity_type' => $entity_type,
+      'type' => 'entity_reference',
+      'cardinality' => 1,
+      'settings' => [
+        'target_type' => 'contact_form',
+      ],
+    ])->save();
+    $messages[] = 'Created field storage paragraph.field_contact_form';
+  }
+
+  // Field instance (per-bundle).
+  $instance = $entity_type_manager->getStorage('field_config')
+    ->load("{$entity_type}.{$bundle}.{$field_name}");
+  if (!$instance) {
+    $entity_type_manager->getStorage('field_config')->create([
+      'field_name' => $field_name,
+      'entity_type' => $entity_type,
+      'bundle' => $bundle,
+      'label' => 'Contact form',
+      'description' => 'Drupal contact_form to embed when this paragraph renders. Set automatically on publish from make.',
+      'required' => FALSE,
+      'settings' => [
+        'handler' => 'default:contact_form',
+        'handler_settings' => [],
+      ],
+    ])->save();
+    $messages[] = 'Added field_contact_form to paragraph.form';
+  }
+
+  return implode(' / ', $messages) ?: t('field_contact_form already configured; no changes.');
+}
+
+/**
+ * Add new top-level paragraph types to landing_page.field_sections's
+ * allow-list so make publishes can reference them.
+ *
+ * The dc_import bundle handler creates field instances once and
+ * never re-touches them — so when components-content.json's
+ * landing_page model gets new bundles in its `paragraph(...)[]`
+ * union (cta, team, steps, form…), the existing
+ * node.landing_page.field_sections target_bundles setting on
+ * already-deployed tenants stays stuck on the original list. This
+ * hook merges the new bundles in once.
+ *
+ * Idempotent: only adds bundles that aren't already in the list,
+ * skips paragraph types that don't exist on this tenant.
+ */
+function dc_core_update_10029() {
+  $field = \Drupal::entityTypeManager()
+    ->getStorage('field_config')
+    ->load('node.landing_page.field_sections');
+  if (!$field) {
+    return t('node.landing_page.field_sections not found; nothing to do.');
+  }
+
+  $settings = $field->getSettings();
+  $current = (array) ($settings['handler_settings']['target_bundles'] ?? []);
+
+  // Top-level section bundles that the make scaffold can emit.
+  // Excludes nested-only bundles (card, faq_item, pricing_tier, etc.)
+  // and chrome (site_header / site_footer) which aren't sectionable.
+  $wanted = [
+    'hero', 'card_group', 'sidebyside', 'accordion', 'quote',
+    'pricing', 'logo_collection', 'stats', 'newsletter', 'text_block',
+    'dynamic', 'cta', 'team', 'steps', 'form',
+  ];
+  $paragraph_types = \Drupal::entityTypeManager()
+    ->getStorage('paragraphs_type')
+    ->loadMultiple();
+
+  $added = [];
+  foreach ($wanted as $bundle) {
+    if (isset($current[$bundle])) continue;
+    if (!isset($paragraph_types[$bundle])) continue; // bundle doesn't exist yet
+    $current[$bundle] = $bundle;
+    $added[] = $bundle;
+  }
+
+  if (empty($added)) {
+    return t('All wanted bundles already in field_sections target_bundles.');
+  }
+
+  $settings['handler_settings']['target_bundles'] = $current;
+  $field->set('settings', $settings);
+  $field->save();
+
+  return t('Added bundles to node.landing_page.field_sections: @added', [
+    '@added' => implode(', ', $added),
+  ]);
+}

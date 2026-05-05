@@ -1,0 +1,8 @@
+name: 'Decoupled Form'
+description: 'Exposes Drupal core contact_form + contact_message entities to GraphQL Compose so headless consumers can read form definitions published from make.decoupled.io.'
+type: module
+core_version_requirement: ^10.2 || ^11
+package: Decoupled
+dependencies:
+  - drupal:contact
+  - graphql_compose:graphql_compose
