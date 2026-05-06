@@ -75,11 +75,17 @@ final class MakePublishController extends ControllerBase {
       : '';
 
     // dc_import's import() takes the whole envelope; pass it through
-    // unchanged. It already validates `model` / `content`. We use the
-    // same DB transaction as the existing importer behavior — wrap the
-    // whole publish so a failure leaves Drupal untouched and the link
-    // table unchanged.
-    $tx = $this->db->startTransaction('dc_import_make_publish');
+    // unchanged. It already validates `model` / `content`.
+    //
+    // We deliberately do NOT wrap this in an outer transaction. The
+    // import() path triggers many entity saves (path alias regen,
+    // dc_revalidate hooks, GraphQL cache clears, sub-entity saves on
+    // reference resolution) and each one opens its own savepoint.
+    // A naive outer $tx leads to TransactionOutOfOrderException on
+    // rollback when downstream hooks happen to commit/close the
+    // outer tx state — masking the actual error and leaving partial
+    // state in the database anyway. Per-entity savepoints are the
+    // right unit of atomicity for this controller's workload.
     try {
       $importPayload = [];
       if (isset($payload['model']))   $importPayload['model']   = $payload['model'];
@@ -194,8 +200,20 @@ final class MakePublishController extends ControllerBase {
       ]);
     }
     catch (\Throwable $e) {
-      $tx->rollBack();
-      \Drupal::logger('dc_import')->error('make publish failed: @msg', ['@msg' => $e->getMessage()]);
+      // No explicit rollback — Drupal's per-entity savepoints handle
+      // local atomicity, and a manual outer rollback proved fragile
+      // (TransactionOutOfOrderException would mask the real error).
+      // Log the full exception with class + trace so prod debugging
+      // doesn't require ssh + watchdog inspection every time.
+      \Drupal::logger('dc_import')->error(
+        'make publish failed: @class: @msg @nl@trace',
+        [
+          '@class' => get_class($e),
+          '@msg' => $e->getMessage(),
+          '@nl' => "\n",
+          '@trace' => $e->getTraceAsString(),
+        ],
+      );
       return $this->errorResponse('publish_failed', $e->getMessage(), 500);
     }
   }
