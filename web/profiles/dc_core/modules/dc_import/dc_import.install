@@ -35,9 +35,15 @@ function dc_import_schema(): array {
     'fields' => [
       'uuid' => [
         'type' => 'varchar',
-        'length' => 36,
+        // 128 chars: holds a base UUID (36) plus an optional suffix
+        // make uses to namespace per-page nodes (e.g. ":/portfolio").
+        // The make-side multi-page publish synthesises UUIDs like
+        // "<projectUuid>:/<slug>" so each landing_page page in a
+        // project gets a stable, deterministic id without needing
+        // a second column.
+        'length' => 128,
         'not null' => TRUE,
-        'description' => 'Make-side UUID (owner of the identity).',
+        'description' => 'Make-side UUID (owner of the identity). May include a per-page suffix like ":/slug".',
       ],
       'entity_type' => [
         'type' => 'varchar',
@@ -59,6 +65,9 @@ function dc_import_schema(): array {
       ],
       'parent_project_uuid' => [
         'type' => 'varchar',
+        // Standard 36-char UUID for project anchors. Children's `uuid`
+        // may include the per-page suffix; their parent_project_uuid
+        // is the bare project UUID without it.
         'length' => 36,
         'not null' => TRUE,
         'description' => 'UUID of the make project this entity belongs to. Self for project landing pages.',
@@ -103,4 +112,27 @@ function dc_import_update_10001(): string {
   $tables = dc_import_schema();
   $schema->createTable('dc_make_link', $tables['dc_make_link']);
   return 'Created dc_make_link table.';
+}
+
+/**
+ * Widen `dc_make_link.uuid` from 36 to 128 chars.
+ *
+ * The make-side multi-page publish synthesises per-page UUIDs of the
+ * form "<projectUuid>:/<slug>" so each landing_page in a project gets
+ * a stable, deterministic id. The original 36-char column was sized
+ * for bare UUIDs only; long slugs (e.g. ":/portfolio") overflow with
+ * SQLSTATE[22001] String data right truncated.
+ */
+function dc_import_update_10002(): string {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('dc_make_link')) {
+    return 'dc_make_link table missing; nothing to widen.';
+  }
+  $schema->changeField('dc_make_link', 'uuid', 'uuid', [
+    'type' => 'varchar',
+    'length' => 128,
+    'not null' => TRUE,
+    'description' => 'Make-side UUID (owner of the identity). May include a per-page suffix like ":/slug".',
+  ]);
+  return 'Widened dc_make_link.uuid to 128 chars.';
 }
