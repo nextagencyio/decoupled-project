@@ -1646,8 +1646,72 @@ class DrupalContentImporter {
       $field->save();
       $result['summary'][] = "Created field: {$field_label} ({$field_name}) for {$entity_type} {$bundle}";
     } else {
-      $result['warnings'][] = "Field '{$field_name}' already exists for {$entity_type} {$bundle}, skipping";
+      // Field already exists, but the model may have widened the
+      // allowed bundles since the previous import — e.g. a new
+      // paragraph type added to a `paragraph(hero|...)[]` allowlist
+      // on landing_page.field_sections. Merge any new bundles into
+      // the existing FieldConfig so editors can actually reference
+      // the new types. Without this, dc_import created the bundles
+      // but the parent reference field rejects them on edit with
+      // "This entity (paragraph: N) cannot be referenced".
+      $merged = $this->mergeReferenceTargetBundles($field, $drupal_field_info, $entity_type, $bundle, $field_name, $result);
+      if (!$merged) {
+        $result['warnings'][] = "Field '{$field_name}' already exists for {$entity_type} {$bundle}, skipping";
+      }
     }
+  }
+
+  /**
+   * When a paragraph / entity_reference_revisions field already exists,
+   * merge any new bundles declared by the current model into its
+   * `target_bundles` allowlist. Returns TRUE if the field was updated
+   * (so the caller can suppress the "skipping" warning), FALSE if
+   * nothing needed merging or the field isn't a reference type.
+   *
+   * Conservative: only merges, never removes bundles. If the model
+   * shrinks the allowlist we leave the existing wider list alone —
+   * removing a bundle would orphan any existing referenced entities
+   * of that type.
+   */
+  private function mergeReferenceTargetBundles($field, array $drupal_field_info, $entity_type, $bundle, $field_name, array &$result) {
+    $new_settings = $drupal_field_info['instance_settings'] ?? [];
+    $new_targets = $new_settings['handler_settings']['target_bundles'] ?? NULL;
+    if (!is_array($new_targets) || empty($new_targets)) {
+      return FALSE;
+    }
+    $existing_settings = $field->getSettings();
+    $existing_targets = $existing_settings['handler_settings']['target_bundles'] ?? [];
+    if (!is_array($existing_targets)) {
+      $existing_targets = [];
+    }
+    $missing = array_diff_key($new_targets, $existing_targets);
+    if (empty($missing)) {
+      return FALSE;
+    }
+    $merged = $existing_targets + $missing;
+    ksort($merged);
+    $existing_settings['handler_settings']['target_bundles'] = $merged;
+    // Keep target_bundles_drag_drop in sync if the field is a
+    // paragraphs widget that uses it.
+    if (isset($existing_settings['handler_settings']['target_bundles_drag_drop'])) {
+      $drag_drop = $existing_settings['handler_settings']['target_bundles_drag_drop'];
+      foreach (array_keys($missing) as $b) {
+        if (!isset($drag_drop[$b])) {
+          $drag_drop[$b] = [
+            'enabled' => TRUE,
+            'weight' => count($drag_drop),
+          ];
+        }
+      }
+      $existing_settings['handler_settings']['target_bundles_drag_drop'] = $drag_drop;
+    }
+    foreach ($existing_settings as $k => $v) {
+      $field->setSetting($k, $v);
+    }
+    $field->save();
+    $added = implode(', ', array_keys($missing));
+    $result['summary'][] = "Updated field: {$field_name} on {$entity_type}.{$bundle} — added bundles [{$added}]";
+    return TRUE;
   }
 
   /**
