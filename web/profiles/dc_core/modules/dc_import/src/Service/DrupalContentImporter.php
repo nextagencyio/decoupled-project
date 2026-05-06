@@ -202,12 +202,22 @@ class DrupalContentImporter {
 
     $nids = $node_storage->getQuery()->accessCheck(FALSE)->execute();
     $fixed = 0;
+    $stateStore = \Drupal::keyValue('pathauto_state.node');
     foreach ($node_storage->loadMultiple($nids) as $node) {
       $source = '/node/' . $node->id();
-      if ($alias_manager->getAliasByPath($source) === $source) {
-        $generator->updateEntityAlias($node, 'update', ['force' => TRUE]);
-        $fixed++;
+      if ($alias_manager->getAliasByPath($source) !== $source) {
+        // Already has an alias.
+        continue;
       }
+      // Respect persistent pathauto opt-out: createConciseEntry writes
+      // a 0 to pathauto_state.node[$nid] when the caller (e.g. the
+      // make publish flow's home node) wants NO alias. Honor that
+      // signal so this sweep doesn't re-create what we just deleted.
+      if ($stateStore->get((int) $node->id()) === 0) {
+        continue;
+      }
+      $generator->updateEntityAlias($node, 'update', ['force' => TRUE]);
+      $fixed++;
     }
     if ($fixed > 0) {
       $result['summary'][] = "Regenerated pathauto aliases for {$fixed} node(s) missing URLs";
@@ -1000,14 +1010,27 @@ class DrupalContentImporter {
 
     $node = $node_storage->create($node_data);
 
-    // If a path is specified, disable pathauto so it doesn't override
-    // our explicit alias with an auto-generated one. If NOT specified,
-    // explicitly flag pathauto=TRUE so the path field isn't left in
-    // the "user-provided empty" state that leads Drupal to persist a
-    // path_alias row with NULL alias + pathauto-skips-on-insert.
+    // Three states for the node's path/alias:
+    //   - explicit alias: set the alias, opt out of pathauto
+    //   - explicit "no alias": opt out of pathauto AND don't seed an
+    //     alias (the make publish flow uses this for the home node so
+    //     the site's "Default front page" setting controls / instead
+    //     of competing with an auto-generated alias like
+    //     /brooklyn-renovation-studio)
+    //   - default: enable pathauto so the field isn't left in the
+    //     "user-provided empty" state that leaves a NULL alias row
+    //     and pathauto-skips-on-insert
+    $pathautoFlag = $item['pathauto'] ?? NULL;
+    $optedOutOfAlias = ($pathautoFlag === FALSE || $pathautoFlag === 0 || $pathautoFlag === '0' || $pathautoFlag === 'false');
     if ($node->hasField('path')) {
       if (!empty($path)) {
         $node->set('path', ['alias' => '/' . ltrim($path, '/'), 'pathauto' => FALSE]);
+      } elseif ($optedOutOfAlias) {
+        // Caller explicitly opted out of any alias for this node.
+        // Setting alias='' + pathauto=FALSE on the field is a runtime
+        // hint; pathauto's persistent opt-out is recorded via its
+        // own state service after save (see below).
+        $node->set('path', ['alias' => '', 'pathauto' => FALSE]);
       } else {
         $node->set('path', ['pathauto' => TRUE]);
       }
@@ -1015,11 +1038,26 @@ class DrupalContentImporter {
 
     $node->save();
 
+    // Persistent pathauto opt-out: pathauto stores per-entity "should
+    // I generate an alias?" state in a keyValue store. Setting it to
+    // PathautoState::SKIP (= 0) keeps the node alias-less across saves
+    // + cron sweeps + re-imports. The path field's `pathauto: FALSE`
+    // is only a one-save runtime hint; the keyValue write is durable.
+    // Also remove any alias pathauto already wrote during the save()
+    // above so we end up with the desired empty state.
+    if ($optedOutOfAlias && \Drupal::moduleHandler()->moduleExists('pathauto')) {
+      \Drupal::service('pathauto.alias_storage_helper')
+        ->deleteEntityPathAll($node);
+      \Drupal::keyValue('pathauto_state.' . $node->getEntityTypeId())
+        ->set((int) $node->id(), 0);
+    }
+
     // Belt-and-suspenders: if the node still has no alias after save
     // (some starter configs + preexisting path_alias stubs slip past
     // pathauto's postsave), force a regeneration. Safe no-op when the
-    // node already has an alias from the code above.
-    if (empty($path) && \Drupal::moduleHandler()->moduleExists('pathauto')) {
+    // node already has an alias from the code above. Skipped when the
+    // caller explicitly opted out of pathauto — they want NO alias.
+    if (empty($path) && !$optedOutOfAlias && \Drupal::moduleHandler()->moduleExists('pathauto')) {
       $existing_alias = \Drupal::service('path_alias.manager')
         ->getAliasByPath('/node/' . $node->id());
       if ($existing_alias === '/node/' . $node->id()) {
