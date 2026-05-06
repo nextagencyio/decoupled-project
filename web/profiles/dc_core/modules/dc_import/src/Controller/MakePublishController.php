@@ -137,6 +137,36 @@ final class MakePublishController extends ControllerBase {
         $deleted[] = $uuid;
       }
 
+      // Orphan GC: any entity linked under this projectUuid whose UUID
+      // wasn't in the current publish payload represents content that
+      // was removed on the make side (page deleted, slug renamed, a
+      // paragraph dropped). Delete the orphan + its link row so the
+      // tenant doesn't accumulate stale nodes / paragraphs across
+      // re-publishes. Caller-side deletedUuids is still respected
+      // (those are processed first above) — this just catches what
+      // make didn't explicitly tell us about.
+      $publishedUuids = [];
+      foreach ($contentItems as $item) {
+        $uuid = isset($item['id']) ? (string) $item['id'] : '';
+        if ($uuid !== '') $publishedUuids[$uuid] = TRUE;
+      }
+      $allRows = $this->links->findRowsForProject($projectUuid);
+      foreach ($allRows as $uuid => $row) {
+        if (isset($publishedUuids[$uuid])) continue;
+        // The project's own anchor row is NEVER orphaned by this pass —
+        // its uuid IS the projectUuid and the publish always re-emits
+        // the home node under that id, so it's already in $publishedUuids.
+        // But guard anyway in case a payload lacks the home page.
+        if ($uuid === $projectUuid) continue;
+        $unlinked = $this->links->unlinkUuid($uuid);
+        if (!$unlinked) continue;
+        $entity = $this->entityTypes->getStorage($unlinked['entity_type'])->load($unlinked['entity_id']);
+        if ($entity) {
+          $entity->delete();
+        }
+        $deleted[] = $uuid;
+      }
+
       // Align user 1's email to the make user's email so the CMS admin
       // and the make customer are the same identity (mirrors what the
       // dashboard does at space provisioning via --account-mail). Only

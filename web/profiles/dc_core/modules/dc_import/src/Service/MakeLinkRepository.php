@@ -125,6 +125,24 @@ final class MakeLinkRepository {
   }
 
   /**
+   * Returns all link rows for a given parent project, keyed by UUID.
+   *
+   * Used by the publish endpoint's orphan-GC pass: after a re-publish
+   * we diff the rows here against the UUIDs in the incoming payload,
+   * and any row whose UUID wasn't in the payload represents an entity
+   * that was removed on the make side (page deleted, slug renamed,
+   * paragraph dropped).
+   */
+  public function findRowsForProject(string $projectUuid): array {
+    $rows = $this->db->select('dc_make_link', 'l')
+      ->fields('l', ['uuid', 'entity_type', 'entity_id', 'bundle'])
+      ->condition('parent_project_uuid', $projectUuid)
+      ->execute()
+      ->fetchAllAssoc('uuid', \PDO::FETCH_ASSOC);
+    return $rows ?: [];
+  }
+
+  /**
    * Removes a link row by UUID. Used when make tells us a UUID was
    * deleted on its side via the publish payload's `deletedXxxUuids`.
    * Returns the entity id that was unlinked (so the caller can also
