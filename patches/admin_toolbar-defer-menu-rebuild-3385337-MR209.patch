@@ -1,0 +1,184 @@
+diff --git a/admin_toolbar_tools/admin_toolbar_tools.module b/admin_toolbar_tools/admin_toolbar_tools.module
+index 414bb54c7b7f6100e5821f6dfd6cc5f78e67cf67..021c73b4da5778518a29e1f90b0ff0387db56d8a 100644
+--- a/admin_toolbar_tools/admin_toolbar_tools.module
++++ b/admin_toolbar_tools/admin_toolbar_tools.module
+@@ -53,12 +53,10 @@ function admin_toolbar_tools_help($route_name, RouteMatchInterface $route_match)
+  * Implements hook_entity_insert().
+  */
+ function admin_toolbar_tools_entity_insert(EntityInterface $entity) {
+-  // Skip rebuild during config sync because rebuild should
+-  // always be a post-sync step.
+   if (!\Drupal::isConfigSyncing()) {
+     $entities = \Drupal::service('admin_toolbar_tools.helper')->getRebuildEntityTypes();
+     if (in_array($entity->getEntityTypeId(), $entities)) {
+-      \Drupal::service('plugin.manager.menu.link')->rebuild();
++      \Drupal::service('admin_toolbar_tools.menu_link_rebuild_manager')->requestRebuild();
+     }
+   }
+ }
+@@ -67,12 +65,10 @@ function admin_toolbar_tools_entity_insert(EntityInterface $entity) {
+  * Implements hook_entity_update().
+  */
+ function admin_toolbar_tools_entity_update(EntityInterface $entity) {
+-  // Skip rebuild during config sync because rebuild should
+-  // always be a post-sync step.
+   if (!\Drupal::isConfigSyncing()) {
+     $entities = \Drupal::service('admin_toolbar_tools.helper')->getRebuildEntityTypes();
+     if (in_array($entity->getEntityTypeId(), $entities)) {
+-      \Drupal::service('plugin.manager.menu.link')->rebuild();
++      \Drupal::service('admin_toolbar_tools.menu_link_rebuild_manager')->requestRebuild();
+     }
+   }
+ }
+@@ -81,12 +77,10 @@ function admin_toolbar_tools_entity_update(EntityInterface $entity) {
+  * Implements hook_entity_delete().
+  */
+ function admin_toolbar_tools_entity_delete(EntityInterface $entity) {
+-  // Skip rebuild during config sync because rebuild should
+-  // always be a post-sync step.
+   if (!\Drupal::isConfigSyncing()) {
+     $entities = \Drupal::service('admin_toolbar_tools.helper')->getRebuildEntityTypes();
+     if (in_array($entity->getEntityTypeId(), $entities)) {
+-      \Drupal::service('plugin.manager.menu.link')->rebuild();
++      \Drupal::service('admin_toolbar_tools.menu_link_rebuild_manager')->requestRebuild();
+     }
+   }
+ }
+diff --git a/admin_toolbar_tools/admin_toolbar_tools.services.yml b/admin_toolbar_tools/admin_toolbar_tools.services.yml
+index f9101836d92d776b163efff762c5f8e1dc0bc20c..285a2d02b1078af63dc9872e19b43a780bceea18 100644
+--- a/admin_toolbar_tools/admin_toolbar_tools.services.yml
++++ b/admin_toolbar_tools/admin_toolbar_tools.services.yml
+@@ -6,3 +6,8 @@ services:
+       - '@plugin.manager.menu.local_task'
+       - '@current_route_match'
+       - '@config.factory'
++  admin_toolbar_tools.menu_link_rebuild_manager:
++    class: Drupal\admin_toolbar_tools\MenuLinkRebuildManager
++    arguments: ['@plugin.manager.menu.link']
++    tags:
++      - { name: needs_destruction }
+diff --git a/admin_toolbar_tools/src/MenuLinkRebuildManager.php b/admin_toolbar_tools/src/MenuLinkRebuildManager.php
+new file mode 100644
+index 0000000000000000000000000000000000000000..e8ca10b0723982a386e70a632b5a03b1c5d5aaff
+--- /dev/null
++++ b/admin_toolbar_tools/src/MenuLinkRebuildManager.php
+@@ -0,0 +1,49 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\admin_toolbar_tools;
++
++use Drupal\Core\DestructableInterface;
++use Drupal\Core\Menu\MenuLinkManagerInterface;
++
++/**
++ * Defers menu link rebuilds to the end of the request.
++ *
++ * Entity hooks in admin_toolbar_tools trigger menu link rebuilds when
++ * relevant entities (menus, roles, views, bundle types) are created,
++ * updated, or deleted. During module installation, hundreds of config
++ * entities may be created in sequence, each triggering a full rebuild.
++ * This service collects those requests and executes a single rebuild
++ * at request termination via DestructableInterface.
++ */
++class MenuLinkRebuildManager implements DestructableInterface {
++
++  /**
++   * Whether a menu link rebuild has been requested.
++   *
++   * @var bool
++   */
++  protected bool $needsRebuild = FALSE;
++
++  public function __construct(
++    protected MenuLinkManagerInterface $menuLinkManager,
++  ) {}
++
++  /**
++   * Marks that a menu link rebuild is needed.
++   */
++  public function requestRebuild(): void {
++    $this->needsRebuild = TRUE;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function destruct(): void {
++    if ($this->needsRebuild) {
++      $this->menuLinkManager->rebuild();
++    }
++  }
++
++}
+diff --git a/admin_toolbar_tools/src/Plugin/Derivative/ExtraLinks.php b/admin_toolbar_tools/src/Plugin/Derivative/ExtraLinks.php
+index 26b986c43b466fd54059f54eb21418d8153a523d..61d7bd315b58d385f4d958d536d0b460ed13e663 100644
+--- a/admin_toolbar_tools/src/Plugin/Derivative/ExtraLinks.php
++++ b/admin_toolbar_tools/src/Plugin/Derivative/ExtraLinks.php
+@@ -65,6 +65,13 @@ class ExtraLinks extends DeriverBase implements ContainerDeriverInterface {
+    */
+   protected $currentUser;
+ 
++  /**
++   * Cache of existing route names keyed by route name.
++   *
++   * @var array<string, bool>|null
++   */
++  protected ?array $existingRoutes = NULL;
++
+   /**
+    * {@inheritdoc}
+    */
+@@ -784,7 +791,20 @@ class ExtraLinks extends DeriverBase implements ContainerDeriverInterface {
+    *   Whether a route with that route name exists.
+    */
+   public function routeExists($route_name) {
+-    return (count($this->routeProvider->getRoutesByNames([$route_name])) === 1);
++    if (!isset($this->existingRoutes)) {
++      $this->preloadRouteCache();
++    }
++    return isset($this->existingRoutes[$route_name]);
++  }
++
++  /**
++   * Preloads all routes into a local cache to avoid repeated route rebuilds.
++   */
++  protected function preloadRouteCache(): void {
++    $this->existingRoutes = [];
++    foreach ($this->routeProvider->getAllRoutes() as $name => $route) {
++      $this->existingRoutes[$name] = TRUE;
++    }
+   }
+ 
+   /**
+diff --git a/admin_toolbar_tools/tests/src/Functional/AdminToolbarToolsExtraLinksTest.php b/admin_toolbar_tools/tests/src/Functional/AdminToolbarToolsExtraLinksTest.php
+index 08a6df7abfc867a051a1ef14ed8c44c89b1dbdb6..ed771f2dadb373c76699dde7253514705f89e787 100644
+--- a/admin_toolbar_tools/tests/src/Functional/AdminToolbarToolsExtraLinksTest.php
++++ b/admin_toolbar_tools/tests/src/Functional/AdminToolbarToolsExtraLinksTest.php
+@@ -576,6 +576,10 @@ class AdminToolbarToolsExtraLinksTest extends BrowserTestBase {
+       }
+     }
+ 
++    // Flush the deferred menu link rebuild so deleted/updated entities
++    // are reflected in menu links before the next page load.
++    \Drupal::service('admin_toolbar_tools.menu_link_rebuild_manager')->destruct();
++
+     // Reload the admin page to ensure the HTML and JS are reloaded.
+     $this->drupalGet('admin');
+ 
+diff --git a/admin_toolbar_tools/tests/src/Traits/AdminToolbarToolsEntityCreationTrait.php b/admin_toolbar_tools/tests/src/Traits/AdminToolbarToolsEntityCreationTrait.php
+index e0fe1974cd0b0773e458d38dee5f951123886752..442411765a91dbe18568a3eba7ac1882402c7b16 100644
+--- a/admin_toolbar_tools/tests/src/Traits/AdminToolbarToolsEntityCreationTrait.php
++++ b/admin_toolbar_tools/tests/src/Traits/AdminToolbarToolsEntityCreationTrait.php
+@@ -406,6 +406,10 @@ trait AdminToolbarToolsEntityCreationTrait {
+     // array $testEntityTypesExtraLinks['bundle_ids'] in 'raw' and 'chunked'.
+     $this->createRandomEntityTypeBundles($max_bundle_number, $entity_bundle_ids_count);
+ 
++    // Flush the deferred menu link rebuild so links created above are
++    // available for subsequent HTTP requests in the test.
++    \Drupal::service('admin_toolbar_tools.menu_link_rebuild_manager')->destruct();
++
+     // Remove the 'permissions' operation link for 'comment_type' and
+     // 'contact_form' entity types for Drupal 10 and below, since they do not
+     // have a 'Manage permissions' link in these versions.

@@ -120,6 +120,9 @@
         "patches": {
             "webonyx/graphql-php": {
                 "CVE-2026-40476 (GHSA-68jq-c3rv-pcrr) — backport of DoS fix from v15.31.5 to v14.x; upstream commit b5e7c995b6": "patches/webonyx-graphql-php-dos-fix-GHSA-68jq-c3rv-pcrr.patch"
+            },
+            "drupal/admin_toolbar": {
+                "Issue #3385337 / MR !209 — defer menu link rebuilds in admin_toolbar_tools so a programmatic import that creates many bundles in one request triggers ONE rebuild at request termination instead of one per entity. Without this, dc_import's first publish to a fresh tenant times out at 120s when admin_toolbar_tools_entity_insert calls MenuLinkManager::rebuild() on every paragraph type save. Drop this entry once admin_toolbar 3.x merges the MR.": "patches/admin_toolbar-defer-menu-rebuild-3385337-MR209.patch"
             }
         }
     }
