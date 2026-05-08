@@ -503,6 +503,23 @@ class FieldTypeMapper {
           'widget' => 'image_image',
         ];
 
+      case 'geo':
+        // Geofield-backed lat/lng pair. Stored as a single WKT POINT
+        // value internally; the leaflet_widget renders an interactive
+        // map picker for editors instead of two raw decimal inputs.
+        // Requires modules: geofield, leaflet (provided by the
+        // dc_core profile dependencies).
+        return [
+          'type' => 'geofield',
+          'settings' => [
+            'backend' => 'geofield_backend_default',
+          ],
+          'cardinality' => $cardinality,
+          'instance_settings' => [],
+          'required' => $required,
+          'widget' => 'leaflet_widget_default',
+        ];
+
       case 'paragraph':
         // Support multiple paragraph types separated by | or , (e.g., "hero|card_group|sidebyside")
         $target_bundles = [];

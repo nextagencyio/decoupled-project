@@ -1093,6 +1093,46 @@ function dc_core_update_10028() {
 }
 
 /**
+ * Enable geofield + leaflet on existing tenants.
+ *
+ * Fresh installs of dc_core get these via the profile's dependencies
+ * list (dc_core.info.yml). Existing tenants need this update so a
+ * `drush updb` per-tenant brings them online without manual intervention.
+ *
+ * These modules back the `geo` shorthand in dc_import's FieldTypeMapper:
+ * any paragraph with a `"type": "geo!"` field (currently map_pin.location
+ * and map.center from make.decoupled.io's ParagraphMap) gets a Drupal
+ * Geofield with the Leaflet map widget for editors. Without these
+ * modules, dc_import would fail to create the field at first publish.
+ *
+ * Idempotent: module install is no-op when already enabled.
+ */
+function dc_core_update_10030() {
+  $module_handler = \Drupal::moduleHandler();
+  $module_installer = \Drupal::service('module_installer');
+
+  $needed = ['geofield', 'leaflet'];
+  $to_install = [];
+  foreach ($needed as $m) {
+    if (!$module_handler->moduleExists($m)) {
+      $to_install[] = $m;
+    }
+  }
+
+  if (empty($to_install)) {
+    return t('geofield + leaflet already enabled, nothing to do.');
+  }
+
+  $module_installer->install($to_install);
+  \Drupal::logger('dc_core')->notice('Enabled geo modules: @mods', [
+    '@mods' => implode(', ', $to_install),
+  ]);
+  return t('Enabled @mods. Geo fields published from make now use the Leaflet map widget by default.', [
+    '@mods' => implode(', ', $to_install),
+  ]);
+}
+
+/**
  * Add new top-level paragraph types to landing_page.field_sections's
  * allow-list so make publishes can reference them.
  *

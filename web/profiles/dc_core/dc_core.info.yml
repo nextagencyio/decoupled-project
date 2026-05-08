@@ -72,6 +72,14 @@ dependencies:
   # Field modules
   - field_group:field_group
 
+  # Geolocation: stores lat/lng as a single Geofield (WKT-backed)
+  # and offers a Leaflet-based map picker as the default editor
+  # widget. Enabled site-wide so any paragraph that emits a `geo`
+  # field (currently map_pin → field_location) gets the same admin
+  # UX without per-bundle widget config.
+  - geofield:geofield
+  - leaflet:leaflet
+
   # Profile modules (from profile/modules directory)
   - dc_api
   - dc_admin
