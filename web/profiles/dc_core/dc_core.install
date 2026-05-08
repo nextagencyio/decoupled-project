@@ -1101,9 +1101,9 @@ function dc_core_update_10028() {
  *
  * These modules back the `geo` shorthand in dc_import's FieldTypeMapper:
  * any paragraph with a `"type": "geo!"` field (currently map_pin.location
- * and map.center from make.decoupled.io's ParagraphMap) gets a Drupal
- * Geofield with the Leaflet map widget for editors. Without these
- * modules, dc_import would fail to create the field at first publish.
+ * from make.decoupled.io's ParagraphMap) gets a Drupal Geofield with
+ * the Leaflet map widget for editors. Without these modules, dc_import
+ * would fail to create the field at first publish.
  *
  * Idempotent: module install is no-op when already enabled.
  */
@@ -1130,6 +1130,43 @@ function dc_core_update_10030() {
   return t('Enabled @mods. Geo fields published from make now use the Leaflet map widget by default.', [
     '@mods' => implode(', ', $to_install),
   ]);
+}
+
+/**
+ * Drop field_center + field_zoom from paragraph.map.
+ *
+ * Both fields turned out to be vestigial: the make-side ParagraphMap
+ * renderer always frames the viewport via Leaflet's fitBounds (or
+ * setView for single-pin maps), so explicit center/zoom were never
+ * read at render time. They were left over from an earlier draft
+ * where authors could "frame" the map differently from the pin set.
+ *
+ * Removing them on existing tenants prevents stale fields cluttering
+ * the Drupal admin paragraph form. Fresh tenants installed after the
+ * components-content.json drop never see these fields.
+ *
+ * Idempotent: skips fields that don't exist on this tenant.
+ */
+function dc_core_update_10031() {
+  $messages = [];
+  foreach (['field_center', 'field_zoom'] as $field_name) {
+    $storage = \Drupal\field\Entity\FieldStorageConfig::loadByName('paragraph', $field_name);
+    if (!$storage) {
+      $messages[] = "paragraph.$field_name already absent";
+      continue;
+    }
+    $storage->delete();
+    $messages[] = "deleted paragraph.$field_name";
+  }
+
+  // Two-phase delete: actually purge the field rows + schema so a
+  // re-import of components-content.json doesn't conflict on the
+  // dormant field. Without this the storage stays in a "deleted but
+  // not purged" state visible to entity_type.manager.
+  field_purge_batch(50);
+  $messages[] = 'purge complete';
+
+  return implode('; ', $messages);
 }
 
 /**
