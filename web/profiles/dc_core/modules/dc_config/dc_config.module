@@ -8,15 +8,15 @@
 /**
  * Implements hook_page_attachments().
  *
- * Attach admin branding CSS to all admin pages.
+ * Attach admin branding CSS, but only on the dc_config dashboard
+ * route itself. The CSS file contains global selectors
+ * (* { box-sizing }, details > summary) which collide with Gin's
+ * dropbuttons (visible as a stacked / double-bordered Edit ▾ on
+ * /admin/content) when loaded on every admin page.
  */
 function dc_config_page_attachments(array &$attachments) {
-  // Check if we're on an admin route
-  $route_match = \Drupal::routeMatch();
-  $is_admin = \Drupal::service('router.admin_context')->isAdminRoute($route_match->getRouteObject());
-
-  // Attach admin branding library on admin pages
-  if ($is_admin) {
+  $route = \Drupal::routeMatch()->getRouteName();
+  if ($route === 'dc_config.homepage') {
     $attachments['#attached']['library'][] = 'dc_config/admin_branding';
   }
 }
