@@ -1,0 +1,13 @@
+services:
+  dc_dashboard.audit_fetcher:
+    class: Drupal\dc_dashboard\Service\AuditFetcher
+    arguments:
+      - '@http_client'
+      - '@cache.default'
+      - '@logger.channel.dc_dashboard'
+      - '@config.factory'
+
+  logger.channel.dc_dashboard:
+    parent: logger.channel_base
+    arguments:
+      - 'dc_dashboard'

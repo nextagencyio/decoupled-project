@@ -1,0 +1,25 @@
+dc_dashboard.settings:
+  type: config_object
+  label: 'DC Dashboard settings'
+  mapping:
+    audit_url_a11y:
+      type: string
+      label: 'Full URL to the accessibility audit JSON'
+    audit_url_seo:
+      type: string
+      label: 'Full URL to the SEO audit JSON'
+    audit_url_performance:
+      type: string
+      label: 'Full URL to the performance audit JSON'
+    ttl_seconds:
+      type: integer
+      label: 'Cache TTL for fetched audit JSON, in seconds'
+    site_name:
+      type: label
+      label: 'Display name for the audited site'
+    site_url:
+      type: string
+      label: 'Audited site URL (rendered on the dashboard)'
+    site_repo:
+      type: string
+      label: 'GitHub repo slug (e.g. owner/repo) where the GHA workflows live'

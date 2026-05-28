@@ -1,0 +1,7 @@
+name: 'DC Dashboard'
+type: module
+description: 'Compliance dashboard for headless Drupal + Astro projects: pulls a11y / SEO / performance scan results published by GitHub Actions on the Astro frontend and renders a single /dashboard page. Designed to be wired as the operator front page. Configure via the dc_dashboard.settings config object — see README.md.'
+core_version_requirement: ^11
+package: 'Decoupled'
+dependencies:
+  - drupal:system

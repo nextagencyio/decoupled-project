@@ -1,0 +1,119 @@
+{#
+/**
+ * @file
+ * Compliance dashboard template.
+ *
+ * Variables:
+ *   - a11y, seo, performance: keyed arrays with title, standard,
+ *     runAt, baseUrl, status (pass/fail/warn/pending), headline
+ *     (value + label), metrics ([{label,value}]), pages ([…]).
+ *   - site: { name, url, repo }.
+ */
+#}
+<div class="dc-dashboard">
+  <header class="dc-dashboard__header">
+    <p class="dc-dashboard__eyebrow">Compliance dashboard</p>
+    <h1 class="dc-dashboard__title">{{ site.name }} — daily audit</h1>
+  </header>
+
+  <section class="dc-dashboard__cards" aria-label="Headline scores">
+    {% for report in [a11y, seo, performance] %}
+      <article class="dc-card dc-card--{{ report.status }}">
+        <header class="dc-card__head">
+          <p class="dc-card__category">{{ report.title }}</p>
+          <span class="dc-card__badge dc-card__badge--{{ report.status }}">
+            {{- report.status == 'pass' ? 'PASS' : (report.status == 'fail' ? 'FAIL' : (report.status == 'warn' ? 'WARN' : 'PENDING')) -}}
+          </span>
+        </header>
+        <p class="dc-card__headline">
+          <span class="dc-card__value">{{ report.headline.value }}</span>
+          <span class="dc-card__unit">{{ report.headline.label }}</span>
+        </p>
+        <p class="dc-card__standard">{{ report.standard }}</p>
+        {% if report.runAt %}
+          <p class="dc-card__timestamp">Last run: {{ report.runAt|date('Y-m-d H:i T') }}</p>
+        {% else %}
+          <p class="dc-card__timestamp">Awaiting first scheduled run.</p>
+        {% endif %}
+        {% if report.metrics %}
+          <dl class="dc-card__metrics">
+            {% for m in report.metrics %}
+              <div>
+                <dt>{{ m.label }}</dt>
+                <dd>{{ m.value }}</dd>
+              </div>
+            {% endfor %}
+          </dl>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+
+  {# Per-report tables #}
+  {% for report in [a11y, seo, performance] %}
+    {% if report.pages %}
+      <section class="dc-dashboard__table-block">
+        <h2 class="dc-dashboard__table-title">
+          {{ report.title }} — per-page results
+        </h2>
+        <div class="dc-table-wrap">
+          <table class="dc-table">
+            <thead>
+              <tr>
+                <th scope="col">Page</th>
+                <th scope="col">URL</th>
+                {% if report.title == 'Accessibility' %}
+                  <th scope="col" class="dc-num">Violations</th>
+                {% elseif report.title == 'SEO' %}
+                  <th scope="col" class="dc-num">Score</th>
+                  <th scope="col" class="dc-num">Errors</th>
+                  <th scope="col" class="dc-num">Warnings</th>
+                {% else %}
+                  <th scope="col" class="dc-num">Mobile</th>
+                  <th scope="col" class="dc-num">Desktop</th>
+                  <th scope="col" class="dc-num">LCP (ms)</th>
+                  <th scope="col" class="dc-num">CLS</th>
+                {% endif %}
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in report.pages %}
+                <tr>
+                  <td>{{ p.label }}</td>
+                  <td><a href="{{ site.url }}{{ p.url }}" target="_blank" rel="noopener"><code>{{ p.url }}</code></a></td>
+                  {% if report.title == 'Accessibility' %}
+                    <td class="dc-num">{{ p.violations }}</td>
+                  {% elseif report.title == 'SEO' %}
+                    <td class="dc-num">{{ p.score is not null ? p.score : '—' }}</td>
+                    <td class="dc-num">{{ p.errors }}</td>
+                    <td class="dc-num">{{ p.warnings }}</td>
+                  {% else %}
+                    <td class="dc-num">{{ p.mobileScore is not null ? p.mobileScore : '—' }}</td>
+                    <td class="dc-num">{{ p.desktopScore is not null ? p.desktopScore : '—' }}</td>
+                    <td class="dc-num">{{ p.lcp is not null ? p.lcp : '—' }}</td>
+                    <td class="dc-num">{{ p.cls is not null ? p.cls : '—' }}</td>
+                  {% endif %}
+                  <td>
+                    <span class="dc-pill dc-pill--{{ p.status }}">
+                      {{- p.status|upper -}}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  <footer class="dc-dashboard__footer">
+    <p>
+      Data is cached for 60 seconds. Source JSON files live in
+      <code>public/audits/&lt;scanner&gt;/latest.json</code> in the
+      <a href="https://github.com/{{ site.repo }}" target="_blank" rel="noopener">{{ site.repo }}</a>
+      repository.
+    </p>
+  </footer>
+</div>

@@ -1,0 +1,7 @@
+dc_dashboard.dashboard:
+  path: '/dashboard'
+  defaults:
+    _controller: '\Drupal\dc_dashboard\Controller\DashboardController::page'
+    _title: 'Compliance Dashboard'
+  requirements:
+    _permission: 'administer site configuration'

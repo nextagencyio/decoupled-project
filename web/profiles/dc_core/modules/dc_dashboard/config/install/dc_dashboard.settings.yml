@@ -1,0 +1,26 @@
+# Default settings for the dc_dashboard module.
+#
+# Override these in your project's config sync directory or via
+# `drush config:set dc_dashboard.settings <key> <value>`.
+#
+# audit_url_a11y / audit_url_seo / audit_url_performance:
+#   Full public URLs to each scanner's latest JSON report. Each is
+#   independent — the files can live on different hosts, paths, or
+#   names. Typically the Astro frontend publishes them at e.g.
+#   https://example.vercel.app/audits/a11y/latest.json
+#   Leave empty here so a misconfigured site fails loudly with a log
+#   message instead of pointing at a stale default.
+#
+# ttl_seconds: how long Drupal caches each fetched audit JSON. Short
+#   so a fresh GHA run reflects on /dashboard within ~60s of deploy.
+#
+# site_name / site_url / site_repo: rendered on the dashboard so the
+#   page is self-describing. site_name falls back to system.site:name
+#   if left empty.
+audit_url_a11y: ''
+audit_url_seo: ''
+audit_url_performance: ''
+ttl_seconds: 60
+site_name: ''
+site_url: ''
+site_repo: ''

@@ -1,0 +1,271 @@
+<?php
+
+/**
+ * @file
+ * Hook implementations for the DC Dashboard module.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ *
+ * Shown at /admin/help/dc_dashboard and linked from the Extend page.
+ * Aimed at someone who enabled the module without context: explains
+ * what it does, that nothing renders until it's pointed at audit JSON,
+ * and — most importantly — the exact JSON shape each scanner must
+ * produce to power the dashboard.
+ */
+function dc_dashboard_help($route_name, RouteMatchInterface $route_match): string {
+  if ($route_name !== 'help.page.dc_dashboard') {
+    return '';
+  }
+
+  // Rendered as raw HTML on the help page. Kept as a heredoc rather
+  // than a render array because it's static documentation — easier to
+  // read and edit inline, and the help page already trusts module
+  // output. The JSON examples use htmlspecialchars-safe content (no
+  // user input) so there's nothing to sanitize.
+  return <<<'HELP'
+<h2>What this module does</h2>
+<p>DC Dashboard renders a single <code>/dashboard</code> page that pulls
+live accessibility, SEO, and performance scan results from a decoupled
+Astro frontend and shows them as summary tiles plus per-page tables.
+It is the <strong>read</strong> half of a compliance pipeline — the
+<strong>write</strong> half is three GitHub Actions workflows in the
+Astro frontend repo that run the scans and publish the results as JSON.</p>
+
+<p>The module fetches nothing until you give it URLs. Visit
+<code>/dashboard</code> and you'll see "pending" cards until the three
+scanner URLs are configured (see below).</p>
+
+<h2>Configuration</h2>
+<p>Set the three scanner JSON URLs — each a full public URL, no path
+convention assumed:</p>
+<pre>
+drush config:set dc_dashboard.settings audit_url_a11y \
+  'https://your-frontend.example.com/audits/a11y/latest.json' -y
+drush config:set dc_dashboard.settings audit_url_seo \
+  'https://your-frontend.example.com/audits/seo/latest.json' -y
+drush config:set dc_dashboard.settings audit_url_performance \
+  'https://your-frontend.example.com/audits/performance/latest.json' -y
+</pre>
+<p>Optional cosmetic metadata: <code>site_name</code>,
+<code>site_url</code>, <code>site_repo</code>. Cache TTL for fetched
+JSON is <code>ttl_seconds</code> (default 60). You can override any one
+URL at runtime via Drupal state, e.g.
+<code>drush state:set dc_dashboard.audit_url_a11y '…'</code>; state wins
+over config.</p>
+
+<h2>The JSON shape the dashboard expects</h2>
+<p>Each URL must return a JSON object with this envelope. Fields not
+listed are ignored; missing fields degrade gracefully to em-dashes.</p>
+
+<h3>Common envelope (all three scanners)</h3>
+<pre>
+{
+  "runAt": "2026-05-12T17:12:18.930Z",   // ISO 8601 timestamp
+  "baseUrl": "https://example.com",       // site that was audited
+  "standard": "WCAG 2.2 AA",              // free-text label for the card
+  "summary": { ... },                      // scanner-specific, see below
+  "pages": [ ... ]                          // per-page rows, see below
+}
+</pre>
+
+<h3>Accessibility (<code>audit_url_a11y</code>)</h3>
+<pre>
+{
+  "standard": "WCAG 2.2 AA",
+  "summary": {
+    "pagesAudited": 13,
+    "pagesPassing": 13,
+    "totalViolations": 0,
+    "pass": true
+  },
+  "pages": [
+    {
+      "label": "Home",          // optional; falls back to url
+      "url": "/",
+      "violationCount": 0,       // optional; else counted from violations[]
+      "violations": []            // empty array = page passes
+    }
+  ]
+}
+</pre>
+
+<h3>SEO (<code>audit_url_seo</code>)</h3>
+<pre>
+{
+  "standard": "Lighthouse SEO",
+  "summary": {
+    "avgScore": 98,
+    "pagesAudited": 13,
+    "pagesPassing": 13,
+    "pass": true
+  },
+  "site": {
+    "sitemap": { "ok": true },   // shown as the "Sitemap" metric
+    "robots":  { "ok": true }    // shown as the "Robots.txt" metric
+  },
+  "pages": [
+    {
+      "label": "Home",
+      "url": "/",
+      "lighthouseScore": 100,
+      "issues": [
+        { "severity": "error" }, // "error" | "warn" — counted per page
+        { "severity": "warn" }
+      ]
+    }
+  ]
+}
+</pre>
+
+<h3>Performance (<code>audit_url_performance</code>)</h3>
+<pre>
+{
+  "standard": "Lighthouse + CWV",
+  "summary": {
+    "avgMobileScore": 96,
+    "avgDesktopScore": 99,
+    "pagesAudited": 13,
+    "pass": true
+  },
+  "pages": [
+    {
+      "label": "Home",
+      "url": "/",
+      "mobile":  { "score": 96, "metrics": { "lcp": 1800, "cls": 0.02 } },
+      "desktop": { "score": 99 }
+    }
+  ]
+}
+</pre>
+<p>Per-page status thresholds (mobile): score &lt; 80, LCP &gt; 2500ms,
+or CLS &gt; 0.1 → fail; score &lt; 90 → warn; otherwise pass. LCP is in
+milliseconds.</p>
+
+<h2>Reference implementation</h2>
+<p>The companion GitHub Actions workflows that produce these files live
+in the paired Astro frontend repo as <code>.github/workflows/a11y.yml</code>,
+<code>seo.yml</code>, and <code>performance.yml</code>. Each writes its
+result to <code>public/audits/&lt;scanner&gt;/latest.json</code>, which
+the host then serves at the URL you configured above.</p>
+HELP;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function dc_dashboard_theme(): array {
+  return [
+    'dc_dashboard' => [
+      'variables' => [
+        'a11y' => [],
+        'seo' => [],
+        'performance' => [],
+        'site' => [],
+      ],
+      'template' => 'dashboard',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_user_login().
+ *
+ * Overrides dc_config's post-login redirect (which lands on /dc-config)
+ * so editors arrive at the compliance dashboard instead. dc_config runs
+ * at weight 10; this module's weight is forced to 20 in
+ * hook_module_implements_alter() so we run last and win.
+ */
+function dc_dashboard_user_login($account): void {
+  $request = \Drupal::request();
+  // Don't clobber an explicit destination from r4032login / login links.
+  $destination = $request->query->get('destination');
+  if (!$destination || $destination === '/dc-config') {
+    $request->query->set('destination', '/dashboard');
+  }
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * Make sure dc_dashboard_user_login() fires after dc_config's
+ * implementation so our destination wins.
+ */
+function dc_dashboard_module_implements_alter(&$implementations, $hook): void {
+  if ($hook === 'user_login' && isset($implementations['dc_dashboard'])) {
+    $value = $implementations['dc_dashboard'];
+    unset($implementations['dc_dashboard']);
+    $implementations['dc_dashboard'] = $value;
+  }
+}
+
+/**
+ * Allowed-values callback for paragraph.forms.field_webform.
+ *
+ * Returns every currently-defined webform keyed by machine name.
+ * The field stores the machine name as a plain string so the
+ * GraphQL Compose schema surfaces it as a String scalar — the
+ * Astro frontend then hits /webform_rest/{machine_name}/elements
+ * to render the form.
+ */
+function dc_dashboard_webform_options(): array {
+  $options = [];
+  if (!\Drupal::entityTypeManager()->hasDefinition('webform')) {
+    return $options;
+  }
+  $webforms = \Drupal::entityTypeManager()->getStorage('webform')->loadMultiple();
+  foreach ($webforms as $id => $webform) {
+    // Skip Webform's "template" and built-in archived forms.
+    if ($webform->isTemplate() || $webform->isArchived()) continue;
+    $options[$id] = $webform->label();
+  }
+  asort($options);
+  return $options;
+}
+
+/**
+ * Implements hook_page_attachments_alter().
+ *
+ * dc_config attaches its dc_config/admin_branding library — a 2,000-
+ * line CSS file built for the /dc-config settings page — to every
+ * admin route via its own hook_page_attachments(). That CSS leaks
+ * global `* { box-sizing }` + `details > summary` rules which break
+ * Gin's dropbuttons (the Edit ▾ caret on /admin/content stacks
+ * weirdly).
+ *
+ * Strip the library on every admin route except /dc-config itself,
+ * where the CSS is actually intended to render the dashboard layout.
+ */
+function dc_dashboard_page_attachments_alter(array &$attachments): void {
+  $libs = &$attachments['#attached']['library'];
+  if (!is_array($libs)) return;
+  $key = array_search('dc_config/admin_branding', $libs, TRUE);
+  if ($key === FALSE) return;
+
+  $route = \Drupal::routeMatch()->getRouteName();
+  if ($route === 'dc_config.homepage') return;  // /dc-config — leave it alone
+
+  unset($libs[$key]);
+  $libs = array_values($libs);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave() for field_config.
+ *
+ * Enforces RFP §2.2e: editorial accessibility at the CMS level.
+ * Every image field gets alt_field + alt_field_required + title_field
+ * turned on automatically, so editors can't publish an image without
+ * descriptive text. Same enforcement for image-source media bundles.
+ */
+function dc_dashboard_field_config_presave(\Drupal\field\Entity\FieldConfig $field): void {
+  if ($field->getType() === 'image') {
+    $field->setSetting('alt_field', TRUE);
+    $field->setSetting('alt_field_required', TRUE);
+    $field->setSetting('title_field', TRUE);
+  }
+}
