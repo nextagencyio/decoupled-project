@@ -1,7 +1,10 @@
 name: decoupled-project
 type: drupal11
 docroot: web
-php_version: "8.3"
+# 8.5 to match the production Dockerfile (dunglas/frankenphp:1-php8.5)
+# and composer.lock — lcobucci/clock 3.6 needs PHP ~8.4 || ~8.5, so a
+# fresh `ddev composer install` / platform_check fails on 8.3.
+php_version: "8.5"
 webserver_type: nginx-fpm
 xdebug_enabled: false
 additional_hostnames: []
