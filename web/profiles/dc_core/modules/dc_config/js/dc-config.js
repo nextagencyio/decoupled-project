@@ -838,4 +838,67 @@
     }
   };
 
+  /**
+   * Manual "Re-sync frontend" button.
+   *
+   * Operator-facing recovery action when the auto-connect flow left the
+   * Netlify site half-configured (env vars missing, or stale after a
+   * credential rotation). POSTs to the same endpoint the auto-connect
+   * uses; the dashboard re-pushes env vars + triggers a fresh redeploy.
+   *
+   * Visible in the "Connected" state. Renders inline status so the
+   * operator sees what happened without reloading.
+   */
+  Drupal.behaviors.decoupledFrontendResync = {
+    attach: function (context) {
+      var btn = context.querySelector ? context.querySelector('#dc-config-resync-btn') : null;
+      if (!btn || btn.dataset.dcResyncBound === '1') return;
+      btn.dataset.dcResyncBound = '1';
+
+      var statusEl = context.querySelector('#dc-config-resync-status');
+      function setStatus(text, color) {
+        if (!statusEl) return;
+        statusEl.textContent = text || '';
+        statusEl.style.color = color || '';
+      }
+
+      btn.addEventListener('click', function () {
+        var spaceToken = drupalSettings.dcConfig ? drupalSettings.dcConfig.spaceToken : '';
+        if (!spaceToken) {
+          setStatus('No space token available — reload the page and try again.', '#dc2626');
+          return;
+        }
+
+        btn.disabled = true;
+        var originalText = btn.textContent;
+        btn.textContent = 'Re-syncing…';
+        setStatus('Pushing env vars and triggering Netlify rebuild…', '#6b7280');
+
+        fetch('https://dashboard.decoupled.io/api/spaces/frontend-trigger-connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ spaceToken: spaceToken })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
+          })
+          .then(function (r) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            if (!r.ok || (r.data && r.data.success === false)) {
+              var msg = (r.data && (r.data.error || r.data.message)) || ('HTTP ' + r.status);
+              setStatus('Re-sync failed: ' + msg, '#dc2626');
+              return;
+            }
+            setStatus('✓ Env vars pushed. Netlify rebuild typically takes 30–60s.', '#059669');
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            setStatus('Re-sync error: ' + err.message, '#dc2626');
+          });
+      });
+    }
+  };
+
 })(Drupal);
