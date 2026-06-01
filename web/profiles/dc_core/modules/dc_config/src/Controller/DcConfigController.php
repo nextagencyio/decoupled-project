@@ -567,6 +567,17 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
                 <li>Open the <strong>Design Studio</strong> to build pages visually — drag, drop, publish</li>
               </ul>
             </div>
+
+            <div class="dc-config-netlify-resync">
+              <button type="button" class="dc-config-resync-btn" id="dc-config-resync-btn">
+                Re-sync frontend
+              </button>
+              <span class="dc-config-resync-status" id="dc-config-resync-status"></span>
+              <p class="dc-config-resync-help">
+                Re-push environment variables and trigger a Netlify rebuild.
+                Use this if the frontend looks unconfigured or after rotating credentials.
+              </p>
+            </div>
           </div>';
       }
     }
