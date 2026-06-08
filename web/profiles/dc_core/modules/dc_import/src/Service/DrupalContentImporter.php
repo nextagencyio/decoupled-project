@@ -834,53 +834,7 @@ class DrupalContentImporter {
         return NULL;
       }
 
-      $file_entity = NULL;
       $alt_text = $values['alt'] ?? $values['field_image']['alt'] ?? $values['title'] ?? $item['id'] ?? 'image';
-      
-      // Try to fetch image from external service (Pexels/Unsplash) if configured
-      $image_data = NULL;
-      $file_extension = 'png';
-      
-      if (\Drupal::hasService('drupalx_ai.image_generator')) {
-        $image_generator = \Drupal::service('drupalx_ai.image_generator');
-        $fetched_image = $image_generator->fetchImage($alt_text);
-        
-        if ($fetched_image) {
-          $image_data = $fetched_image['data'];
-          $file_extension = $fetched_image['extension'];
-        }
-      }
-      
-      // Fallback to placeholder image if no external image was fetched
-      if (!$image_data) {
-        $placeholder_path = \Drupal::service('extension.list.module')->getPath('drupalx_ai') . '/files/card.png';
-        if (!file_exists($placeholder_path)) {
-          // Fallback to json_import placeholder if drupalx_ai one doesn't exist
-          $placeholder_path = \Drupal::service('extension.list.module')->getPath('dc_import') . '/resources/placeholder.png';
-        }
-
-        if (file_exists($placeholder_path)) {
-          $image_data = file_get_contents($placeholder_path);
-          $file_extension = 'png';
-        }
-      }
-
-      if ($image_data) {
-        // Create a unique filename to avoid conflicts
-        $safe_filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($alt_text)) . '.' . $file_extension;
-        $destination = 'public://ai-generated/' . $safe_filename;
-
-        // Ensure directory exists
-        $directory = dirname($destination);
-        \Drupal::service('file_system')->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY);
-
-        // Save image data to destination
-        $file_entity = \Drupal::service('file.repository')->writeData(
-          $image_data,
-          $destination,
-          \Drupal\Core\File\FileSystemInterface::EXISTS_REPLACE
-        );
-      }
 
       $media_storage = $this->entityTypeManager->getStorage('media');
       $media_data = [
@@ -890,15 +844,22 @@ class DrupalContentImporter {
         'uid' => 1,
       ];
 
-      // Handle media-specific fields with actual file
-      if ($file_entity) {
-        // Try to get alt text from various sources
-        $alt_text = $values['alt'] ?? $values['field_image']['alt'] ?? $values['title'] ?? $item['id'] ?? 'Image';
-        
-        $media_data['field_image'] = [
-          'target_id' => $file_entity->id(),
-          'alt' => $alt_text,
-        ];
+      // If the caller provided a URL for field_image, download it and
+      // attach. If they didn't, the media entity is created with an
+      // empty field_image — same posture as the rest of dc_import:
+      // dc_import no longer fabricates placeholder imagery.
+      $provided_image = $values['field_image'] ?? $values['uri'] ?? NULL;
+      if (is_string($provided_image) && (strpos($provided_image, 'http://') === 0 || strpos($provided_image, 'https://') === 0)) {
+        $image_value = $this->handleImageFieldValue(['uri' => $provided_image, 'alt' => $alt_text], 'field_image');
+        if ($image_value) {
+          $media_data['field_image'] = $image_value;
+        }
+      }
+      elseif (is_array($provided_image) && !empty($provided_image['uri'])) {
+        $image_value = $this->handleImageFieldValue($provided_image + ['alt' => $alt_text], 'field_image');
+        if ($image_value) {
+          $media_data['field_image'] = $image_value;
+        }
       }
 
       $media = $media_storage->create($media_data);
@@ -2290,7 +2251,7 @@ class DrupalContentImporter {
       $source_path = $module_path . '/' . $relative_path;
       $filename = basename($relative_path);
     } elseif (strpos($uri, '/') === 0) {
-      // Relative path from Drupal root (e.g., /modules/custom/dc_import/resources/placeholder.png)
+      // Relative path from Drupal root (e.g., /sites/default/files/photo.jpg)
       $source_path = \Drupal::root() . $uri;
       $filename = basename($uri);
     } elseif (strpos($uri, 'http://') === 0 || strpos($uri, 'https://') === 0) {
@@ -2399,91 +2360,6 @@ class DrupalContentImporter {
   }
 
   /**
-   * Generates a placeholder image for empty image fields.
-   *
-   * @param string $alt_text
-   *   The alt text to use for the image and filename.
-   * @param string $field_id
-   *   The field ID for logging purposes.
-   *
-   * @return array|null
-   *   The image field value structure, or NULL on failure.
-   */
-  private function generatePlaceholderImage(string $alt_text, string $field_id) {
-    $image_data = NULL;
-    $file_extension = 'png';
-
-    // Try to fetch image from external service (Pexels/Unsplash) if configured.
-    if (\Drupal::hasService('drupalx_ai.image_generator')) {
-      $image_generator = \Drupal::service('drupalx_ai.image_generator');
-      $fetched_image = $image_generator->fetchImage($alt_text);
-
-      if ($fetched_image) {
-        $image_data = $fetched_image['data'];
-        $file_extension = $fetched_image['extension'];
-      }
-    }
-
-    // Fallback to placeholder image if no external image was fetched.
-    if (!$image_data) {
-      $placeholder_path = NULL;
-
-      // Try drupalx_ai module's placeholder first (if module exists).
-      if (\Drupal::moduleHandler()->moduleExists('drupalx_ai')) {
-        $placeholder_path = \Drupal::service('extension.list.module')->getPath('drupalx_ai') . '/files/card.png';
-        if (!file_exists($placeholder_path)) {
-          $placeholder_path = NULL;
-        }
-      }
-
-      // Fallback to dc_import placeholder.
-      if (!$placeholder_path) {
-        $placeholder_path = \Drupal::service('extension.list.module')->getPath('dc_import') . '/resources/placeholder.png';
-      }
-
-      if ($placeholder_path && file_exists($placeholder_path)) {
-        $image_data = file_get_contents($placeholder_path);
-        $file_extension = 'png';
-      }
-    }
-
-    if (!$image_data) {
-      \Drupal::logger('dc_import')->warning('Could not generate placeholder image for field @field_id', ['@field_id' => $field_id]);
-      return NULL;
-    }
-
-    // Create a unique filename.
-    $safe_filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($alt_text)) . '_' . uniqid() . '.' . $file_extension;
-    $destination = 'public://ai-generated/' . $safe_filename;
-
-    // Ensure directory exists.
-    $directory = dirname($destination);
-    \Drupal::service('file_system')->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY);
-
-    // Save image data to destination.
-    $file_entity = \Drupal::service('file.repository')->writeData(
-      $image_data,
-      $destination,
-      \Drupal\Core\File\FileSystemInterface::EXISTS_REPLACE
-    );
-
-    if ($file_entity) {
-      \Drupal::logger('dc_import')->info('Generated placeholder image for field @field_id (file ID: @file_id)', [
-        '@field_id' => $field_id,
-        '@file_id' => $file_entity->id(),
-      ]);
-
-      return [
-        'target_id' => $file_entity->id(),
-        'alt' => $alt_text,
-        'title' => $alt_text,
-      ];
-    }
-
-    return NULL;
-  }
-
-  /**
    * Checks if a field type is an image field.
    *
    * @param string $field_type
@@ -2498,7 +2374,10 @@ class DrupalContentImporter {
   }
 
   /**
-   * Fills empty image fields with placeholder images.
+   * Downloads any explicitly-provided image URLs into Drupal file entities
+   * and assigns them to their image field. Empty image fields are left
+   * empty — callers that want imagery in their content must include a uri
+   * in the import JSON; dc_import no longer auto-fills with a placeholder.
    *
    * @param string $entity_type
    *   The entity type (e.g., 'node', 'paragraph').
@@ -2507,17 +2386,10 @@ class DrupalContentImporter {
    * @param array $provided_values
    *   The values that were provided in the import JSON.
    * @param array &$entity_data
-   *   The entity data array to populate with placeholders.
+   *   The entity data array to populate with downloaded image references.
    */
   private function fillEmptyImageFields(string $entity_type, string $bundle, array $provided_values, array &$entity_data): void {
-    // Logo paragraphs render as plain-text company names by default
-    // (see frontend ParagraphLogoCollection). Auto-generating cloud-shaped
-    // placeholder images defeats that look — skip empty image fill for logos.
-    if ($entity_type === 'paragraph' && $bundle === 'logo') {
-      return;
-    }
-
-    // Look for image fields defined in the model that weren't provided.
+    // Walk image fields defined in the model and download any provided URLs.
     foreach ($this->fieldTypesByBundle as $key => $field_type) {
       // Parse the key: entity_type.bundle.field_id
       $parts = explode('.', $key, 3);
@@ -2591,33 +2463,10 @@ class DrupalContentImporter {
         continue;
       }
 
-      // Generate placeholder for this image field.
-      $drupal_field_name = 'field_' . $this->sanitizeFieldName($field_id);
-
-      // Skip if already set in entity_data.
-      if (isset($entity_data[$drupal_field_name]) && !empty($entity_data[$drupal_field_name])) {
-        continue;
-      }
-
-      // Generate a descriptive alt text from field_id and title.
-      $title = $provided_values['title'] ?? $bundle;
-      $alt_text = ucwords(str_replace('_', ' ', $field_id)) . ' for ' . $title;
-
-      \Drupal::logger('dc_import')->info('Generating placeholder image for empty field @field_id on @bundle', [
-        '@field_id' => $field_id,
-        '@bundle' => $bundle,
-      ]);
-
-      $placeholder_value = $this->generatePlaceholderImage($alt_text, $field_id);
-
-      if ($placeholder_value) {
-        // Check if this is a multi-value field (image[]).
-        if (strpos($field_type, '[]') !== FALSE) {
-          $entity_data[$drupal_field_name] = [$placeholder_value];
-        } else {
-          $entity_data[$drupal_field_name] = $placeholder_value;
-        }
-      }
+      // No value provided for this image field. Leave it empty —
+      // dc_import no longer auto-fills with a placeholder. Callers
+      // that want imagery must include a uri in the import JSON
+      // (which the branch above will download).
     }
   }
 
