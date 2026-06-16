@@ -935,22 +935,31 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       '#markup' => '
         <div class="dc-config-section dc-config-login-redirect-section">
           <h2>Login behavior</h2>
-          <div class="dc-config-setting-card">
-            <label class="dc-config-switch-row">
-              <input type="checkbox" id="dc-config-login-redirect" class="dc-config-switch-input"' . ($login_redirect_enabled ? ' checked' : '') . ' />
-              <span class="dc-config-switch"></span>
-              <span class="dc-config-switch-label">
-                <span class="dc-config-switch-title">Redirect to this configuration page after login</span>
-                <span class="dc-config-switch-help">When off, users land on their normal Drupal destination after logging in.</span>
-              </span>
-            </label>
-            <div class="dc-config-setting-actions">
-              <button type="button" id="dc-config-login-redirect-save" class="dc-config-import-btn" disabled>Save</button>
-              <span id="dc-config-login-redirect-status" class="dc-config-setting-status"></span>
-            </div>
-          </div>
-        </div>',
-      '#allowed_tags' => ['div', 'h2', 'label', 'input', 'span', 'button'],
+          <label class="dc-config-toggle">
+            <input type="checkbox" id="dc-config-login-redirect"' . ($login_redirect_enabled ? ' checked' : '') . ' />
+            Redirect to this configuration page after login
+          </label>
+          <p class="dc-config-toggle-help">When off, users land on their normal Drupal destination after logging in.</p>
+          <span id="dc-config-login-redirect-status" class="dc-config-toggle-status"></span>
+        </div>
+        <script>
+        (function () {
+          var cb = document.getElementById("dc-config-login-redirect");
+          if (!cb) { return; }
+          cb.addEventListener("change", function () {
+            var s = document.getElementById("dc-config-login-redirect-status");
+            var cfg = (window.drupalSettings && drupalSettings.dcConfig) || {};
+            var body = new URLSearchParams();
+            body.set("enabled", cb.checked ? "1" : "0");
+            body.set("form_token", cfg.loginRedirectToken || "");
+            fetch("/dc-config/set-login-redirect", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString() })
+              .then(function (r) { return r.json(); })
+              .then(function (d) { if (s) { s.textContent = d.success ? "Saved." : ("Error: " + (d.error || "failed")); } })
+              .catch(function () { if (s) { s.textContent = "Error saving."; } });
+          });
+        })();
+        </script>',
+      '#allowed_tags' => ['div', 'h2', 'label', 'input', 'p', 'span', 'script'],
     ];
 
     // Disable render caching so Vercel connection status is always fresh.
