@@ -1338,16 +1338,24 @@ function dc_core_update_10032() {
 
   // Patch the filter formats: enable the media_embed filter (and on
   // basic_html, allow the <drupal-media> tag through filter_html).
-  $format_storage = $entity_type_manager->getStorage('filter_format');
+  //
+  // NOTE: we write directly through the config factory rather than
+  // FilterFormat::setFilterConfig() + save(). Adding a *new* filter
+  // (media_embed) via the plugin-collection API does not reliably persist
+  // — the saved filters.* config and the in-memory collection desync, and
+  // the new filter comes back status=FALSE with empty settings. Writing the
+  // config object directly is the robust path. (Updating an *existing*
+  // filter like filter_html via the API works, but we do everything the
+  // same way here for consistency.)
   foreach (['basic_html', 'full_html'] as $format_id) {
-    $format = $format_storage->load($format_id);
-    if (!$format) {
+    $config = \Drupal::configFactory()->getEditable('filter.format.' . $format_id);
+    if ($config->isNew()) {
       continue;
     }
     $changed = FALSE;
 
-    if (!$format->filters()->has('media_embed')) {
-      $format->setFilterConfig('media_embed', [
+    if ($config->get('filters.media_embed') === NULL) {
+      $config->set('filters.media_embed', [
         'id' => 'media_embed',
         'provider' => 'media',
         'status' => TRUE,
@@ -1358,25 +1366,36 @@ function dc_core_update_10032() {
           'allowed_media_types' => ['image' => 'image'],
         ],
       ]);
+      // media_embed is provided by the media module — record the dependency.
+      $deps = $config->get('dependencies.module') ?? [];
+      if (!in_array('media', $deps, TRUE)) {
+        $deps[] = 'media';
+        sort($deps);
+        $config->set('dependencies.module', $deps);
+      }
       $changed = TRUE;
     }
 
     // basic_html runs a restrictive filter_html; allow drupal-media.
-    if ($format->filters()->has('filter_html')) {
-      $config = $format->filters('filter_html')->getConfiguration();
-      $allowed = $config['settings']['allowed_html'] ?? '';
-      if (strpos($allowed, '<drupal-media') === FALSE) {
-        $config['settings']['allowed_html'] = trim($allowed) . ' <drupal-media data-entity-type data-entity-uuid data-view-mode data-align data-caption alt title>';
-        $format->setFilterConfig('filter_html', $config);
-        $changed = TRUE;
-      }
+    $allowed = $config->get('filters.filter_html.settings.allowed_html');
+    if (is_string($allowed) && strpos($allowed, '<drupal-media') === FALSE) {
+      $config->set(
+        'filters.filter_html.settings.allowed_html',
+        trim($allowed) . ' <drupal-media data-entity-type data-entity-uuid data-view-mode data-align data-caption alt title>'
+      );
+      $changed = TRUE;
     }
 
     if ($changed) {
-      $format->save();
+      $config->save();
       $messages[] = "enabled media_embed on $format_id";
     }
   }
+
+  // Filter formats changed via the config factory bypass the filter plugin
+  // collection cache — clear it so the new media_embed filter takes effect.
+  \Drupal::service('plugin.manager.filter')->clearCachedDefinitions();
+  filter_formats_reset();
 
   return implode('; ', $messages) ?: t('media type + Insert Media already provisioned; no changes.');
 }
