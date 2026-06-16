@@ -2050,3 +2050,112 @@ details[open] > summary svg {
   color: #6b7280;
   line-height: 1.4;
 }
+
+/* ============================================================
+   Login behavior — post-login redirect toggle
+   ============================================================ */
+.dc-config-setting-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.dc-config-switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Hide the native checkbox; the .dc-config-switch span is the visual control. */
+.dc-config-switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dc-config-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  margin-top: 2px;
+  background: #cbd5e1;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.dc-config-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.dc-config-switch-input:checked + .dc-config-switch {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+}
+
+.dc-config-switch-input:checked + .dc-config-switch::after {
+  transform: translateX(20px);
+}
+
+.dc-config-switch-input:focus-visible + .dc-config-switch {
+  outline: 2px solid #8B5CF6;
+  outline-offset: 2px;
+}
+
+.dc-config-switch-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dc-config-switch-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.dc-config-switch-help {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.dc-config-setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.dc-config-setting-actions .dc-config-import-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+}
+
+.dc-config-setting-status {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.dc-config-setting-status.is-success {
+  color: #16a34a;
+}
+
+.dc-config-setting-status.is-error {
+  color: #dc2626;
+}
