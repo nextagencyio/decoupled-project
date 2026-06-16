@@ -303,8 +303,6 @@ class DcConfigController extends ControllerBase {
       'vercelLastSynced' => $vercel_last_synced,
       'csrfToken' => \Drupal::csrfToken()->get('dc_config_vercel_sync'),
       'disconnectToken' => \Drupal::csrfToken()->get('dc_config_vercel_disconnect'),
-      'loginRedirectToken' => \Drupal::csrfToken()->get('dc_config_set_login_redirect'),
-      'loginRedirectEnabled' => (\Drupal::config('dc_config.settings')->get('enabled') !== FALSE),
     ];
 
     // Get or create Next.js consumer information.
@@ -927,41 +925,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'g',
     ];
 
-    // Post-login redirect toggle. Lets an admin turn off the forced
-    // redirect to /dc-config after login (dc_config.settings:enabled),
-    // straight from this page. Posts to dc_config.set_login_redirect.
-    $login_redirect_enabled = (\Drupal::config('dc_config.settings')->get('enabled') !== FALSE);
-    $build['login_redirect'] = [
-      '#markup' => '
-        <div class="dc-config-section dc-config-login-redirect-section">
-          <h2>Login behavior</h2>
-          <label class="dc-config-toggle">
-            <input type="checkbox" id="dc-config-login-redirect"' . ($login_redirect_enabled ? ' checked' : '') . ' />
-            Redirect to this configuration page after login
-          </label>
-          <p class="dc-config-toggle-help">When off, users land on their normal Drupal destination after logging in.</p>
-          <span id="dc-config-login-redirect-status" class="dc-config-toggle-status"></span>
-        </div>
-        <script>
-        (function () {
-          var cb = document.getElementById("dc-config-login-redirect");
-          if (!cb) { return; }
-          cb.addEventListener("change", function () {
-            var s = document.getElementById("dc-config-login-redirect-status");
-            var cfg = (window.drupalSettings && drupalSettings.dcConfig) || {};
-            var body = new URLSearchParams();
-            body.set("enabled", cb.checked ? "1" : "0");
-            body.set("form_token", cfg.loginRedirectToken || "");
-            fetch("/dc-config/set-login-redirect", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString() })
-              .then(function (r) { return r.json(); })
-              .then(function (d) { if (s) { s.textContent = d.success ? "Saved." : ("Error: " + (d.error || "failed")); } })
-              .catch(function () { if (s) { s.textContent = "Error saving."; } });
-          });
-        })();
-        </script>',
-      '#allowed_tags' => ['div', 'h2', 'label', 'input', 'p', 'span', 'script'],
-    ];
-
     // Disable render caching so Vercel connection status is always fresh.
     $build['#cache'] = ['max-age' => 0];
 
@@ -1147,31 +1110,6 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     }
 
     return new JsonResponse($response_data);
-  }
-
-  /**
-   * Enable/disable the post-login redirect to /dc-config.
-   *
-   * Sets dc_config.settings:enabled. When false, dc_config_user_login()
-   * skips the forced redirect and users land on their normal destination.
-   * POSTed from the checkbox on the configuration page.
-   */
-  public function setLoginRedirect(Request $request) {
-    if (!$this->currentUser()->hasPermission('administer site configuration')) {
-      return new JsonResponse(['error' => 'Access denied'], 403);
-    }
-    $token = $request->request->get('form_token');
-    if (!\Drupal::csrfToken()->validate($token, 'dc_config_set_login_redirect')) {
-      return new JsonResponse(['error' => 'Invalid form token'], 403);
-    }
-    // Checkbox semantics: "Redirect to config page after login" — checked
-    // means enabled=true. Accept '1'/'0'/true/false.
-    $raw = $request->request->get('enabled');
-    $enabled = ($raw === '1' || $raw === 1 || $raw === true || $raw === 'true');
-    $this->configFactory->getEditable('dc_config.settings')
-      ->set('enabled', $enabled)
-      ->save();
-    return new JsonResponse(['success' => true, 'enabled' => $enabled]);
   }
 
   // ============================================================
