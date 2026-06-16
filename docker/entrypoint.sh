@@ -92,6 +92,16 @@ fi
 
 mkdir -p "${FILES_DIR}"
 chown -R www-data:www-data "${FILES_DIR}"
+# Drupal's FileSystem::prepareDirectory() (used by JSON:API file uploads
+# and the media field) verifies the destination is writable per
+# file_chmod_directory (0775). A plain `mkdir -p` creates the base dir as
+# 0755 under the default umask, so www-data can't create the dated
+# subdirectories media/JSON:API need — uploads then fail with
+# "Destination file path is not writable". Force the whole public files
+# tree to 0775 so the web user can prepare subdirs. Runs every boot, so
+# existing tenants self-heal on their next restart.
+chmod 0775 "${FILES_DIR}"
+find "${FILES_DIR}" -type d -exec chmod 0775 {} + 2>/dev/null || true
 
 # -------------------------------------------------------------
 # Start the real mariadbd in the background
