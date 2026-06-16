@@ -1,0 +1,7 @@
+dc_config.settings:
+  type: config_object
+  label: 'Decoupled Config settings'
+  mapping:
+    enabled:
+      type: boolean
+      label: 'Enable dc_config runtime behavior (post-login redirect to /dc-config)'

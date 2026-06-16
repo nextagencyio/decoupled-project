@@ -25,8 +25,21 @@ function dc_config_page_attachments(array &$attachments) {
  * Implements hook_user_login().
  *
  * Redirect users to the dc-config page after login instead of /user.
+ *
+ * Gated by the dc_config.settings:enabled flag so the redirect can be
+ * turned off per tenant without uninstalling the module (which isn't
+ * possible — dc_config is a hard dependency of the dc_core profile).
+ * Toggle with `drush dc-config:toggle 0` / `drush dc-config:toggle 1`.
  */
 function dc_config_user_login($account) {
+  // Respect the runtime toggle. Defaults to enabled (config ships with
+  // enabled: true); a missing value is treated as enabled for back-compat
+  // on tenants provisioned before this setting existed.
+  $enabled = \Drupal::config('dc_config.settings')->get('enabled');
+  if ($enabled === FALSE) {
+    return;
+  }
+
   // Only redirect if there's no destination already set (e.g., from a login link).
   $current_request = \Drupal::request();
   if (!$current_request->query->has('destination')) {
