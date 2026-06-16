@@ -141,45 +141,4 @@ class DcConfigCommands extends DrushCommands {
     $this->output()->writeln(json_encode($output, JSON_PRETTY_PRINT));
   }
 
-  /**
-   * Enable or disable dc_config runtime behavior.
-   *
-   * dc_config is a hard dependency of the dc_core install profile, so it
-   * cannot be uninstalled. This toggle turns its runtime behavior on/off
-   * instead — currently the post-login redirect to /dc-config
-   * (see dc_config_user_login()). When disabled, login lands on the normal
-   * Drupal destination.
-   *
-   * @command dc-config:toggle
-   * @param string|null $state Pass "1"/"on"/"true" to enable, "0"/"off"/"false"
-   *   to disable. Omit to print the current state.
-   * @usage drush dc-config:toggle 0
-   *   Disable the post-login redirect.
-   * @usage drush dc-config:toggle 1
-   *   Re-enable it.
-   * @usage drush dc-config:toggle
-   *   Print the current state.
-   */
-  public function toggle(?string $state = NULL): void {
-    $config = $this->configFactory->getEditable('dc_config.settings');
-
-    if ($state === NULL) {
-      $current = $config->get('enabled');
-      // Missing value is treated as enabled (back-compat default).
-      $this->output()->writeln('dc_config enabled: ' . ($current === FALSE ? 'false' : 'true'));
-      return;
-    }
-
-    $normalized = strtolower($state);
-    $on = in_array($normalized, ['1', 'on', 'true', 'yes', 'enable', 'enabled'], TRUE);
-    $off = in_array($normalized, ['0', 'off', 'false', 'no', 'disable', 'disabled'], TRUE);
-
-    if (!$on && !$off) {
-      throw new \InvalidArgumentException("Invalid state '$state'. Use 1/on/true or 0/off/false.");
-    }
-
-    $config->set('enabled', $on)->save();
-    $this->output()->writeln('dc_config enabled set to: ' . ($on ? 'true' : 'false'));
-  }
-
 }
