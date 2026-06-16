@@ -1227,3 +1227,156 @@ function dc_core_update_10029() {
     '@added' => implode(', ', $added),
   ]);
 }
+
+/**
+ * Provision the standard core "Image" media type + wire CKEditor Insert Media.
+ *
+ * Fresh installs of dc_core get all of this from the profile's
+ * config/install directory (media.type.image, the field_media_image
+ * storage + instance, the four entity displays, plus the drupalMedia
+ * toolbar button / media_embed filter baked into the editor + filter
+ * formats). Existing tenants (e.g. space 1740) predate those configs,
+ * so this hook backfills them so editors get the media library + the
+ * CKEditor5 "Insert Media" button without a full reinstall.
+ *
+ * Two parts:
+ *  1. Read the seven media configs straight out of the profile's
+ *     config/install dir and save them through their config entity
+ *     storages, in dependency order (storage -> media.type -> field
+ *     instance -> displays) so dependencies resolve cleanly.
+ *  2. Idempotently patch the basic_html / full_html editors + filter
+ *     formats to add the `drupalMedia` toolbar button, the `media_media`
+ *     CKEditor5 plugin config, and the `media_embed` filter (plus the
+ *     <drupal-media> allowed tag on basic_html's restricted filter_html).
+ *
+ * Idempotent: each config entity is only created if missing, and the
+ * editor/filter edits skip when the change is already present.
+ */
+function dc_core_update_10032() {
+  $messages = [];
+
+  // The media + media_library modules are profile dependencies and so
+  // are already enabled on existing tenants. Guard anyway: without them
+  // the media.type config entity type wouldn't exist.
+  $module_handler = \Drupal::moduleHandler();
+  if (!$module_handler->moduleExists('media')) {
+    return t('media module not enabled; skipping media type provisioning.');
+  }
+
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  // Read the new configs from the profile's config/install directory.
+  $profile_path = \Drupal::service('extension.list.profile')->getPath('dc_core');
+  $install_dir = $profile_path . '/' . \Drupal\Core\Config\InstallStorage::CONFIG_INSTALL_DIRECTORY;
+  $source = new \Drupal\Core\Config\FileStorage($install_dir);
+
+  // (config name => config entity storage id), in dependency order.
+  $config_map = [
+    'field.storage.media.field_media_image' => 'field_storage_config',
+    'media.type.image' => 'media_type',
+    'field.field.media.image.field_media_image' => 'field_config',
+    'core.entity_form_display.media.image.default' => 'entity_form_display',
+    'core.entity_form_display.media.image.media_library' => 'entity_form_display',
+    'core.entity_view_display.media.image.default' => 'entity_view_display',
+    'core.entity_view_display.media.image.media_library' => 'entity_view_display',
+  ];
+
+  foreach ($config_map as $config_name => $storage_id) {
+    $data = $source->read($config_name);
+    if ($data === FALSE) {
+      $messages[] = "missing $config_name in profile config/install";
+      continue;
+    }
+    $storage = $entity_type_manager->getStorage($storage_id);
+    // Config entity id is everything after the entity-type config prefix.
+    $prefix = $storage->getEntityType()->getConfigPrefix() . '.';
+    $id = substr($config_name, strlen($prefix));
+    if ($storage->load($id)) {
+      $messages[] = "$config_name already present";
+      continue;
+    }
+    $storage->createFromStorageRecord($data)->save();
+    $messages[] = "installed $config_name";
+  }
+
+  // Patch the editors: add the drupalMedia toolbar button + media_media
+  // plugin config so the "Insert Media" button shows up in CKEditor5.
+  $editor_storage = $entity_type_manager->getStorage('editor');
+  foreach (['basic_html', 'full_html'] as $format) {
+    $editor = $editor_storage->load($format);
+    if (!$editor) {
+      continue;
+    }
+    $settings = $editor->getSettings();
+    $changed = FALSE;
+
+    $items = $settings['toolbar']['items'] ?? [];
+    if (!in_array('drupalMedia', $items, TRUE)) {
+      // Insert right after drupalInsertImage if present, else append.
+      $pos = array_search('drupalInsertImage', $items, TRUE);
+      if ($pos !== FALSE) {
+        array_splice($items, $pos + 1, 0, 'drupalMedia');
+      }
+      else {
+        $items[] = 'drupalMedia';
+      }
+      $settings['toolbar']['items'] = $items;
+      $changed = TRUE;
+    }
+
+    if (!isset($settings['plugins']['media_media'])) {
+      $settings['plugins']['media_media'] = ['allow_view_mode_override' => FALSE];
+      $changed = TRUE;
+    }
+
+    if ($changed) {
+      $editor->setSettings($settings);
+      $editor->save();
+      $messages[] = "added drupalMedia button to $format editor";
+    }
+  }
+
+  // Patch the filter formats: enable the media_embed filter (and on
+  // basic_html, allow the <drupal-media> tag through filter_html).
+  $format_storage = $entity_type_manager->getStorage('filter_format');
+  foreach (['basic_html', 'full_html'] as $format_id) {
+    $format = $format_storage->load($format_id);
+    if (!$format) {
+      continue;
+    }
+    $changed = FALSE;
+
+    if (!$format->filters()->has('media_embed')) {
+      $format->setFilterConfig('media_embed', [
+        'id' => 'media_embed',
+        'provider' => 'media',
+        'status' => TRUE,
+        'weight' => 100,
+        'settings' => [
+          'default_view_mode' => 'default',
+          'allowed_view_modes' => ['default' => 'default'],
+          'allowed_media_types' => ['image' => 'image'],
+        ],
+      ]);
+      $changed = TRUE;
+    }
+
+    // basic_html runs a restrictive filter_html; allow drupal-media.
+    if ($format->filters()->has('filter_html')) {
+      $config = $format->filters('filter_html')->getConfiguration();
+      $allowed = $config['settings']['allowed_html'] ?? '';
+      if (strpos($allowed, '<drupal-media') === FALSE) {
+        $config['settings']['allowed_html'] = trim($allowed) . ' <drupal-media data-entity-type data-entity-uuid data-view-mode data-align data-caption alt title>';
+        $format->setFilterConfig('filter_html', $config);
+        $changed = TRUE;
+      }
+    }
+
+    if ($changed) {
+      $format->save();
+      $messages[] = "enabled media_embed on $format_id";
+    }
+  }
+
+  return implode('; ', $messages) ?: t('media type + Insert Media already provisioned; no changes.');
+}

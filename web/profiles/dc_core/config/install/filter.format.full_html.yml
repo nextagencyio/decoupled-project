@@ -3,6 +3,7 @@ status: true
 dependencies:
   module:
     - editor
+    - media
 name: 'Full HTML'
 format: full_html
 weight: 2
@@ -39,3 +40,14 @@ filters:
     status: true
     weight: 15
     settings: {  }
+  media_embed:
+    id: media_embed
+    provider: media
+    status: true
+    weight: 100
+    settings:
+      default_view_mode: default
+      allowed_view_modes:
+        default: default
+      allowed_media_types:
+        image: image
