@@ -47,6 +47,56 @@ function dc_config_install() {
 }
 
 /**
+ * Implements hook_uninstall().
+ *
+ * Reverts the install-time side effects that would break or misrender once
+ * this module (and its assets/routes) are gone:
+ *   - The front page was set to /dc-config; that route disappears with the
+ *     module, so reset it to the standard login page to avoid a 404 home.
+ *   - The Gin theme + Gin Login logo/favicon/brand_image pointed at files
+ *     under this module's directory, which no longer exists after uninstall.
+ *     Reset them to use their defaults.
+ * Cosmetic Gin settings (colors, density) are left as-is — harmless if they
+ * persist, and reverting them risks clobbering an admin's later changes.
+ */
+function dc_config_uninstall() {
+  // Front page back to the default login page.
+  $site_config = \Drupal::configFactory()->getEditable('system.site');
+  if ($site_config->get('page.front') === '/dc-config') {
+    $site_config->set('page.front', '/user/login')->save();
+  }
+
+  // Gin theme logo + favicon back to defaults (paths pointed into this module).
+  if (\Drupal::moduleHandler()->moduleExists('gin')
+    || \Drupal::service('config.factory')->get('gin.settings')->getRawData()) {
+    $gin_config = \Drupal::configFactory()->getEditable('gin.settings');
+    $logo = $gin_config->get('logo.path');
+    if (is_string($logo) && strpos($logo, 'dc_config') !== FALSE) {
+      $gin_config->set('logo.use_default', TRUE)->set('logo.path', '');
+    }
+    $favicon = $gin_config->get('favicon.path');
+    if (is_string($favicon) && strpos($favicon, 'dc_config') !== FALSE) {
+      $gin_config->set('favicon.use_default', TRUE)->set('favicon.path', '');
+    }
+    $gin_config->save();
+  }
+
+  // Gin Login logo + brand image back to defaults.
+  $gin_login_config = \Drupal::configFactory()->getEditable('gin_login.settings');
+  if ($gin_login_config->getRawData()) {
+    $logo = $gin_login_config->get('logo.path');
+    if (is_string($logo) && strpos($logo, 'dc_config') !== FALSE) {
+      $gin_login_config->set('logo.use_default', TRUE)->set('logo.path', '');
+    }
+    $brand = $gin_login_config->get('brand_image.path');
+    if (is_string($brand) && strpos($brand, 'dc_config') !== FALSE) {
+      $gin_login_config->set('brand_image.use_default', TRUE)->set('brand_image.path', '');
+    }
+    $gin_login_config->save();
+  }
+}
+
+/**
  * Update Gin Login brand image to use custom background.
  */
 function dc_config_update_9001() {

@@ -83,7 +83,6 @@ dependencies:
   # Profile modules (from profile/modules directory)
   - dc_api
   - dc_admin
-  - dc_config
   - dc_import
   - dc_config_import
   - dc_login
@@ -93,6 +92,17 @@ dependencies:
   - dc_puck
   - dc_brand
   - dc_form
+
+# Modules enabled at install time but NOT hard dependencies, so they can
+# be uninstalled later via /admin/modules/uninstall. dc_config provides the
+# /dc-config landing page + post-login redirect + branding AND the
+# /api/dc-config/* endpoints the dashboard uses for frontend provisioning
+# and config-import. Moving it here (from `dependencies`) lets a tenant
+# uninstall it when the dc-config landing/redirect isn't wanted — at the
+# cost of those frontend-integration endpoints on that tenant. New tenants
+# still get it enabled by default.
+install:
+  - dc_config
 
 # Themes
 themes:
