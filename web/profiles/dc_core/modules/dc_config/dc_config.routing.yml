@@ -23,6 +23,15 @@ dc_config.generate_secret:
     _access: 'TRUE'
   methods: [POST]
 
+dc_config.set_login_redirect:
+  path: '/dc-config/set-login-redirect'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::setLoginRedirect'
+    _title: 'Toggle post-login redirect'
+  requirements:
+    _permission: 'administer site configuration'
+  methods: [POST]
+
 dc_config.generate_secret_ajax:
   path: '/dc-config/generate-secret-ajax'
   defaults:
