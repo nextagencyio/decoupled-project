@@ -6,6 +6,16 @@ dc_config.admin:
   requirements:
     _permission: 'administer decoupled configuration'
 
+# Same dashboard, surfaced under Admin > Reports so it's discoverable from
+# the Reports list (not just Configuration). Renders the same configPage.
+dc_config.reports:
+  path: '/admin/reports/decoupled'
+  defaults:
+    _controller: '\Drupal\dc_config\Controller\DcConfigController::configPage'
+    _title: 'Decoupled Drupal'
+  requirements:
+    _permission: 'administer decoupled configuration'
+
 dc_config.homepage:
   path: '/dc-config'
   defaults:

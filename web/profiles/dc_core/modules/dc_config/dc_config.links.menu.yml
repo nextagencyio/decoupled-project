@@ -10,3 +10,10 @@ dc_config.admin:
   description: 'Configure Decoupled Drupal integration settings and view OAuth credentials'
   parent: decoupled.admin_category
   route_name: dc_config.admin
+
+# Surface the dashboard under Admin > Reports.
+dc_config.reports:
+  title: 'Decoupled Drupal'
+  description: 'Decoupled Drupal configuration, OAuth credentials, and frontend integration status'
+  parent: system.admin_reports
+  route_name: dc_config.reports
