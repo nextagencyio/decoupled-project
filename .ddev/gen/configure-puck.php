@@ -49,9 +49,11 @@ $state->set('dc_puck.enabled_content_types', array_values($enabled_types));
 // 3. The landing node's paragraph field (NOT the dc_puck default).
 $state->set('dc_puck.sections_field', 'field_content');
 
-// 4. Frontend editor base URL (local live-mode dev server). Override per
-//    engagement if the dev port differs (e.g. Sharon CDC uses 4616).
-$editor_url = getenv('PUCK_EDITOR_URL') ?: 'http://localhost:4400/editor';
+// 4. Frontend editor base URL — the site ORIGIN, no /editor suffix. The
+//    module appends "/editor/{nid}?token=..." itself (TokenController::
+//    generate), so a trailing /editor here yields /editor/editor/{nid}.
+//    Override per engagement if the dev port differs (e.g. Sharon CDC 4616).
+$editor_url = getenv('PUCK_EDITOR_URL') ?: 'http://localhost:4400';
 $state->set('dc_puck.editor_url', $editor_url);
 
 // 5. Reset the auto-detected component map so it re-derives from the
