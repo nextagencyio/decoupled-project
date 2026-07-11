@@ -148,6 +148,25 @@ class PuckMappingService {
       return '';
     }
 
+    // Link fields store their data in uri/title, NOT value. Return the
+    // shape the Astro landing loader + Puck object field expect.
+    if ($type === 'link') {
+      $uri = $fieldItem->uri ?? '';
+      // Normalize Drupal's internal 'internal:/path' + 'entity:node/1' URIs
+      // to a plain URL the frontend can use as an href.
+      $url = $uri;
+      if (str_starts_with($uri, 'internal:')) {
+        $url = substr($uri, strlen('internal:'));
+      }
+      elseif (str_starts_with($uri, 'entity:')) {
+        $url = '/' . substr($uri, strlen('entity:'));
+      }
+      return [
+        'url' => $url,
+        'title' => $fieldItem->title ?? '',
+      ];
+    }
+
     return $fieldItem->value ?? '';
   }
 
@@ -220,6 +239,9 @@ class PuckMappingService {
         }
         elseif ($fieldType === 'boolean') {
           $paragraph->set($drupalField, (bool) $value);
+        }
+        elseif ($fieldType === 'link') {
+          $paragraph->set($drupalField, $this->puckValueToLink($value));
         }
         elseif ($fieldType === 'image') {
           // Skip empty or fake image values.
@@ -321,7 +343,10 @@ class PuckMappingService {
           continue;
         }
 
-        if ($fieldConfig['type'] === 'text') {
+        if ($fieldConfig['type'] === 'link') {
+          $child->set($drupalField, $this->puckValueToLink($value));
+        }
+        elseif ($fieldConfig['type'] === 'text') {
           $child->set($drupalField, ['value' => $value, 'format' => 'basic_html']);
         }
         elseif ($fieldConfig['type'] === 'boolean') {
@@ -464,6 +489,13 @@ class PuckMappingService {
             'label' => $fieldConfig->getLabel(),
           ];
         }
+        elseif ($fieldType === 'link') {
+          $fields[$puckProp] = [
+            'drupal_field' => $fieldName,
+            'type' => 'link',
+            'label' => $fieldConfig->getLabel(),
+          ];
+        }
         else {
           $fields[$puckProp] = [
             'drupal_field' => $fieldName,
@@ -490,6 +522,39 @@ class PuckMappingService {
     }
 
     return $mapping;
+  }
+
+  /**
+   * Convert a Puck link value to a Drupal link field value.
+   *
+   * Accepts either the {url, title} object the Puck object field emits, or
+   * a bare string (older data / a plain URL). Returns Drupal's {uri, title}
+   * shape, converting a site-relative path ("/about") to the "internal:"
+   * URI scheme the link field requires. Returns an empty value for a blank
+   * link so the field clears cleanly.
+   */
+  protected function puckValueToLink(mixed $value): array {
+    $url = '';
+    $title = '';
+    if (is_array($value)) {
+      $url = trim((string) ($value['url'] ?? ''));
+      $title = (string) ($value['title'] ?? '');
+    }
+    elseif (is_string($value)) {
+      $url = trim($value);
+    }
+
+    if ($url === '') {
+      return [];
+    }
+
+    // Absolute URLs and mailto:/tel: pass through; site-relative paths and
+    // fragments/queries get the internal: scheme the link field needs.
+    if (!preg_match('#^([a-z][a-z0-9+.\-]*:|//)#i', $url)) {
+      $url = 'internal:' . (str_starts_with($url, '/') ? $url : '/' . $url);
+    }
+
+    return ['uri' => $url, 'title' => $title];
   }
 
   /**
