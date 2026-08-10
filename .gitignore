@@ -53,3 +53,6 @@ DRUPAL_API_KEY.txt
 private/
 ._*
 .env
+
+# DDEV database snapshots — large binaries, never push
+.ddev/snapshots/
