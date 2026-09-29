@@ -89,7 +89,10 @@ dependencies:
   - dc_mail
   - dc_revalidate
   - dc_user_redirect
-  - dc_puck
+  # Visual page building: Drupal Canvas (headless) replaces the Puck
+  # editor. dc_puck stays in the codebase for existing tenants but is no
+  # longer installed on new ones.
+  - dc_canvas
   - dc_brand
   - dc_form
 

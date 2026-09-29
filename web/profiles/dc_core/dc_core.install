@@ -40,7 +40,7 @@ function dc_core_install() {
 
   $previewerData = [
     'client_id' => $previewerClientId,
-    'client_secret' => $previewerClientSecret,
+    'secret' => $previewerClientSecret,
     'label' => 'Next.js Frontend',
     'user_id' => 1,
     'third_party' => TRUE,
@@ -55,7 +55,7 @@ function dc_core_install() {
 
   $viewerData = [
     'client_id' => $viewerClientId,
-    'client_secret' => $viewerClientSecret,
+    'secret' => $viewerClientSecret,
     'label' => 'Next.js Viewer',
     'user_id' => 1,
     'third_party' => TRUE,

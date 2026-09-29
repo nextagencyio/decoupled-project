@@ -1,0 +1,9 @@
+services:
+  dc_canvas.frontend_manager:
+    class: Drupal\dc_canvas\Service\FrontendManager
+    arguments: ['@config.factory', '@logger.factory']
+  dc_canvas.default_scope_subscriber:
+    class: Drupal\dc_canvas\EventSubscriber\DefaultScopeSubscriber
+    arguments: ['@entity_type.manager']
+    tags:
+      - { name: event_subscriber }

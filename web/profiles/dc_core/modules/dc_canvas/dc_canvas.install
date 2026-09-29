@@ -1,0 +1,37 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Decoupled Canvas.
+ */
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ */
+function dc_canvas_install() {
+  // Site editors on decoupled.io are administrators; give them the headless
+  // preview and frontend-management permissions (no-op for admin roles).
+  if (($role = Role::load('administrator')) && !$role->isAdmin()) {
+    $role->grantPermission('access canvas headless preview');
+    $role->grantPermission('administer canvas headless frontends');
+    $role->save();
+  }
+
+  // Existing grant-less confidential consumers need client_credentials under
+  // simple_oauth 6.x; re-saving runs dc_canvas_consumer_presave().
+  $storage = \Drupal::entityTypeManager()->getStorage('consumer');
+  foreach ($storage->loadMultiple() as $consumer) {
+    if ($consumer->hasField('grant_types') && $consumer->get('grant_types')->isEmpty()) {
+      $consumer->save();
+    }
+  }
+
+  // Adopt a frontend that dc_config already knows about.
+  $frontend = \Drupal::config('dc_config.frontend')->get('data');
+  $url = $frontend['url'] ?? getenv('DC_CANVAS_FRONTEND_URL');
+  if ($url) {
+    \Drupal::service('dc_canvas.frontend_manager')->setPrimary($url);
+  }
+}

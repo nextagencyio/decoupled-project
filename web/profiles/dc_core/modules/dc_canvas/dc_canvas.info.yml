@@ -1,0 +1,9 @@
+name: 'Decoupled Canvas'
+type: module
+description: 'Decoupled.io integration for Drupal Canvas headless: registers the tenant frontend, grants editor permissions, adapts OAuth consumers for simple_oauth 6 and revalidates Canvas pages.'
+core_version_requirement: ^11.3
+package: 'Decoupled'
+dependencies:
+  - canvas:canvas
+  - canvas:canvas_headless
+  - dc_revalidate:dc_revalidate

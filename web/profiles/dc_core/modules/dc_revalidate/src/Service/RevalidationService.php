@@ -106,6 +106,27 @@ class RevalidationService {
   }
 
   /**
+   * Triggers revalidation for an arbitrary frontend path.
+   *
+   * Used for content that is not a node, e.g. Drupal Canvas pages.
+   *
+   * @param string $path
+   *   The site-relative path, e.g. "/about" or "page/3".
+   *
+   * @return bool
+   *   TRUE if revalidation was triggered successfully, FALSE otherwise.
+   */
+  public function revalidatePath(string $path) {
+    $config = $this->configFactory->get('dc_revalidate.settings');
+    $frontend_url = $config->get('frontend_url');
+    $secret = $config->get('revalidate_secret');
+    if (!$config->get('enabled') || empty($frontend_url) || empty($secret)) {
+      return FALSE;
+    }
+    return $this->sendRevalidationRequest($frontend_url, $secret, ltrim($path, '/'));
+  }
+
+  /**
    * Gets the slug for a node.
    *
    * @param \Drupal\node\NodeInterface $node
