@@ -507,6 +507,10 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       catch (\Exception $e) {
         // Content type may not exist yet
       }
+      // Canvas tenants import the starter content as Canvas pages.
+      if (!$has_content && $this->moduleHandler()->moduleExists('dc_canvas')) {
+        $has_content = $this->entityTypeManager->getStorage('canvas_page')->getQuery()->accessCheck(FALSE)->count()->execute() > 0;
+      }
 
       $claim_html = '';
       if ($is_claimed) {
@@ -1844,6 +1848,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'claimed' => $data['claimed'] ?? FALSE,
       'preview_configured' => $data['preview_configured'] ?? FALSE,
       'puck_configured' => $data['puck_configured'] ?? FALSE,
+      'canvas_configured' => $data['canvas_configured'] ?? FALSE,
       'content_imported' => $data['content_imported'] ?? FALSE,
       'updated_at' => date('c'),
     ]);

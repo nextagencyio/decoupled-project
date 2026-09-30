@@ -813,16 +813,28 @@
             fetch(netlifyUrl, { mode: 'no-cors' })
             .then(function() {
               // no-cors always succeeds — check with a real fetch after a delay
-              setTimeout(function() {
-                // Configure preview + puck now that Netlify is ready
+              // Configure preview + the visual editor now that Netlify is
+              // ready. Canvas reads its component library from the deployed
+              // frontend, so the dashboard answers "pending" until the build
+              // with real credentials is live; retry a few times.
+              var attemptsLeft = 10;
+              function configurePreview() {
                 fetch('https://dashboard.decoupled.io/api/spaces/frontend-configure-preview', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                   body: JSON.stringify({ spaceToken: spaceToken })
                 })
-                .then(function() { cleanupOb(); location.reload(); })
+                .then(function(res) { return res.json(); })
+                .then(function(result) {
+                  if (result && result.pending && --attemptsLeft > 0) {
+                    setTimeout(configurePreview, 20000);
+                    return;
+                  }
+                  cleanupOb(); location.reload();
+                })
                 .catch(function() { cleanupOb(); location.reload(); });
-              }, 90000); // Wait 90 seconds for Netlify build
+              }
+              setTimeout(configurePreview, 90000); // Wait 90 seconds for Netlify build
             })
             .catch(function() {
               setTimeout(waitForNetlify, 10000);
