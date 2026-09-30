@@ -7,19 +7,20 @@
 	# when it's used inside a route block.
 	order php_server before file_server
 
-	# Enable FrankenPHP worker mode for Drupal. The worker script bootstraps
-	# Drupal ONCE and handles many requests from the same process, cutting
-	# TTFB from ~50-200ms (classic mode) down to a few ms for cached pages.
-	#
-	# Worker count: 3 by default, FRANKENPHP_WORKERS overrides. Each worker
-	# with a full Drupal service container resident is ~120 MB; tenants now
-	# run 1-2 GB machines. It must be at least 2: Drupal Canvas setup calls
-	# the frontend's /api/canvas/components, and the frontend verifies that
-	# request by calling back into Drupal. With 1 worker the callback waits
-	# behind the request that made it and both time out (found 2026-09-30 on
-	# the first real Canvas provision; DDEV's php-fpm pool hid it).
+	# PHP concurrency. Drupal requests go through php_server to index.php,
+	# which runs on FrankenPHP's REGULAR threads, not the worker below: the
+	# worker only serves requests for frankenphp-worker.php itself. Regular
+	# threads = num_threads - workers, and num_threads defaults to 2x CPUs.
+	# On a 1-CPU tenant that left ONE thread, so every PHP request queued
+	# behind the one before it. Drupal Canvas setup deadlocked on it: Drupal
+	# calls the frontend's /api/canvas/components, the frontend redeems the
+	# preview assertion against Drupal, and that callback waited behind the
+	# request that made it until both timed out (found 2026-09-30 on the
+	# first real Canvas provision; DDEV's php-fpm pool hid it).
+	# FRANKENPHP_THREADS / FRANKENPHP_WORKERS override the defaults.
 	frankenphp {
-		worker /app/frankenphp-worker.php {$FRANKENPHP_WORKERS:3}
+		num_threads {$FRANKENPHP_THREADS:8}
+		worker /app/frankenphp-worker.php {$FRANKENPHP_WORKERS:1}
 	}
 }
 
