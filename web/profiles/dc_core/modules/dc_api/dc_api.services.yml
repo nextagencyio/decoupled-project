@@ -1,0 +1,6 @@
+services:
+  dc_api.default_scope_subscriber:
+    class: Drupal\dc_api\EventSubscriber\DefaultScopeSubscriber
+    arguments: ['@entity_type.manager']
+    tags:
+      - { name: event_subscriber }

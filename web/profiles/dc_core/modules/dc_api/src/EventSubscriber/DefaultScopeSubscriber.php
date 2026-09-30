@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\dc_canvas\EventSubscriber;
+namespace Drupal\dc_api\EventSubscriber;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;

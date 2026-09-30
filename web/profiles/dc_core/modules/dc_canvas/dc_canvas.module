@@ -5,35 +5,8 @@
  * Decoupled Canvas module hooks.
  */
 
-use Drupal\consumers\Entity\ConsumerInterface;
-use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityPublishedInterface;
-use Drupal\user\RoleInterface;
-
-/**
- * Implements hook_ENTITY_TYPE_presave() for consumer entities.
- *
- * simple_oauth 6.x (required by canvas_headless) only issues tokens for the
- * grant types a consumer explicitly enables. dc_core and the dashboard create
- * their frontend consumers without any, which simple_oauth 5.x tolerated;
- * default those confidential server-side clients to client_credentials so
- * the frontend's GraphQL client keeps working. The dc_frontend scope is
- * applied to scope-less token requests by DefaultScopeSubscriber.
- */
-function dc_canvas_consumer_presave(ConsumerInterface $consumer) {
-  if (!$consumer->hasField('grant_types') || !$consumer->get('grant_types')->isEmpty()) {
-    return;
-  }
-  // Leave public clients (e.g. canvas_headless's preview client) alone.
-  if ($consumer->hasField('confidential') && !$consumer->get('confidential')->value) {
-    return;
-  }
-  $consumer->set('grant_types', ['client_credentials']);
-  if ($consumer->hasField('scopes') && $consumer->get('scopes')->isEmpty()) {
-    $consumer->set('scopes', ['dc_frontend']);
-  }
-}
 
 /**
  * Implements hook_entity_insert().
@@ -63,18 +36,4 @@ function _dc_canvas_revalidate(EntityInterface $entity) {
   }
   $path = $entity->toUrl()->toString(TRUE)->getGeneratedUrl();
   \Drupal::service('dc_revalidate.revalidation_service')->revalidatePath($path);
-}
-
-/**
- * Implements hook_ENTITY_TYPE_insert() for user_role entities.
- *
- * The dc_frontend scope maps to the profile's "previewer" role, which the
- * dc_core profile creates after its modules are installed, and Drupal does
- * not revisit optional config at that point. Install it once the role exists.
- */
-function dc_canvas_user_role_insert(RoleInterface $role) {
-  if ($role->id() === 'previewer' && !\Drupal::isConfigSyncing()) {
-    $storage = new FileStorage(\Drupal::service('extension.list.module')->getPath('dc_canvas') . '/config/optional');
-    \Drupal::service('config.installer')->installOptionalConfig($storage, ['config' => 'user.role.previewer']);
-  }
 }

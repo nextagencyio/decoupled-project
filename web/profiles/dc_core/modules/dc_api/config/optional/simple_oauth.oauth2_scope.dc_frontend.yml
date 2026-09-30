@@ -5,7 +5,7 @@ dependencies:
     - user.role.previewer
   enforced:
     module:
-      - dc_canvas
+      - dc_api
 id: dc_frontend
 name: dc_frontend
 description: 'Server-side frontend access (GraphQL content and draft previews) for the tenant''s decoupled frontend.'

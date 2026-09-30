@@ -36,3 +36,40 @@ function dc_api_install() {
     }
   }
 }
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function dc_api_update_dependencies() {
+  // simple_oauth 6.x creates the oauth2_scope entity type and migrates
+  // consumers in these updates; the scope default below needs both.
+  $dependencies['dc_api'][10001] = ['simple_oauth' => 8608];
+  return $dependencies;
+}
+
+/**
+ * Give frontend consumers a default scope for simple_oauth 6.x.
+ *
+ * simple_oauth 6.x rejects token requests without a scope, which every
+ * deployed frontend sends. Existing confidential consumers get the
+ * dc_frontend scope as their default, so their tokens keep working with
+ * unchanged credentials.
+ */
+function dc_api_update_10001() {
+  _dc_api_install_frontend_scope();
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->getStorage('oauth2_scope')->load(DC_API_FRONTEND_SCOPE)) {
+    return (string) t('The dc_frontend scope could not be installed (is the previewer role missing?). Frontend token requests without a scope will fail.');
+  }
+
+  $updated = [];
+  foreach ($entity_type_manager->getStorage('consumer')->loadMultiple() as $consumer) {
+    // dc_api_consumer_presave() fills in the default grant and scope.
+    $had_scope = !$consumer->get('scopes')->isEmpty();
+    $consumer->save();
+    if (!$had_scope && !$consumer->get('scopes')->isEmpty()) {
+      $updated[] = $consumer->label();
+    }
+  }
+  return (string) t('Default OAuth scope set on: @consumers', ['@consumers' => $updated ? implode(', ', $updated) : 'no consumers']);
+}

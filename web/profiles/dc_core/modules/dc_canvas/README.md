@@ -5,9 +5,6 @@ visual page builder on new tenants.
 
 - Registers the tenant frontend as Canvas's primary headless frontend (on
   install from `dc_config.frontend`, and from dc_config's connect flow).
-- Keeps frontends working on simple_oauth 6: confidential consumers without
-  grant types get `client_credentials` + the `dc_frontend` scope, and token
-  requests without a `scope` get the consumer's default scopes.
 - Revalidates published Canvas pages through `dc_revalidate`.
 
 ## Commands

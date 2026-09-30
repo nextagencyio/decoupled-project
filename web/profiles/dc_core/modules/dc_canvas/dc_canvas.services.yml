@@ -2,11 +2,6 @@ services:
   dc_canvas.frontend_manager:
     class: Drupal\dc_canvas\Service\FrontendManager
     arguments: ['@config.factory', '@logger.factory']
-  dc_canvas.default_scope_subscriber:
-    class: Drupal\dc_canvas\EventSubscriber\DefaultScopeSubscriber
-    arguments: ['@entity_type.manager']
-    tags:
-      - { name: event_subscriber }
   dc_canvas.component_synchronizer:
     class: Drupal\dc_canvas\Service\ComponentSynchronizer
     arguments: ['@dc_canvas.frontend_manager', '@Drupal\canvas_headless\ExternalComponentSync', '@Drupal\canvas_headless\PreviewUrlGeneratorInterface', '@account_switcher', '@http_client']
