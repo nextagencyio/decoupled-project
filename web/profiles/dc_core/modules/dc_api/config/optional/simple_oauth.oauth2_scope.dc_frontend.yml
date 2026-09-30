@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - user.role.previewer
+  enforced:
+    module:
+      - dc_api
+id: dc_frontend
+name: dc_frontend
+description: 'Server-side frontend access (GraphQL content and draft previews) for the tenant''s decoupled frontend.'
+grant_types:
+  client_credentials:
+    status: true
+    description: 'Issued to the frontend''s confidential server-side client.'
+umbrella: false
+parent: null
+granularity_id: role
+granularity_configuration:
+  role: previewer

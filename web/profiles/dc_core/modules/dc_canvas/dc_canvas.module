@@ -1,0 +1,39 @@
+<?php
+
+/**
+ * @file
+ * Decoupled Canvas module hooks.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityPublishedInterface;
+
+/**
+ * Implements hook_entity_insert().
+ */
+function dc_canvas_entity_insert(EntityInterface $entity) {
+  _dc_canvas_revalidate($entity);
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function dc_canvas_entity_update(EntityInterface $entity) {
+  _dc_canvas_revalidate($entity);
+}
+
+/**
+ * Asks the frontend to revalidate a published Canvas page.
+ *
+ * dc_revalidate only reacts to nodes; Canvas pages are canvas_page entities.
+ */
+function _dc_canvas_revalidate(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() !== 'canvas_page') {
+    return;
+  }
+  if ($entity instanceof EntityPublishedInterface && !$entity->isPublished()) {
+    return;
+  }
+  $path = $entity->toUrl()->toString(TRUE)->getGeneratedUrl();
+  \Drupal::service('dc_revalidate.revalidation_service')->revalidatePath($path);
+}

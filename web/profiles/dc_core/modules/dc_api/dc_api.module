@@ -1,0 +1,59 @@
+<?php
+
+/**
+ * @file
+ * Decoupled Drupal API module hooks.
+ *
+ * Keeps frontends working on simple_oauth 6.x. Version 5.x issued
+ * client_credentials tokens to consumers with no grant types and to requests
+ * with no "scope"; 6.x requires both. Every deployed decoupled.io frontend
+ * (decoupled-client) relies on the old behaviour, so consumers get a default
+ * grant and scope here and DefaultScopeSubscriber applies the scope to
+ * requests that omit it.
+ */
+
+use Drupal\consumers\Entity\ConsumerInterface;
+use Drupal\Core\Config\FileStorage;
+use Drupal\user\RoleInterface;
+
+/**
+ * The scope frontend consumers get by default.
+ */
+const DC_API_FRONTEND_SCOPE = 'dc_frontend';
+
+/**
+ * Implements hook_ENTITY_TYPE_presave() for consumer entities.
+ */
+function dc_api_consumer_presave(ConsumerInterface $consumer) {
+  // Leave public clients (e.g. canvas_headless's preview client) alone.
+  if (!$consumer->hasField('grant_types') || !$consumer->hasField('scopes') || !$consumer->get('confidential')->value) {
+    return;
+  }
+  if ($consumer->get('grant_types')->isEmpty()) {
+    $consumer->set('grant_types', ['client_credentials']);
+  }
+  if ($consumer->get('scopes')->isEmpty() && in_array('client_credentials', array_column($consumer->get('grant_types')->getValue(), 'value'), TRUE)) {
+    $consumer->set('scopes', [DC_API_FRONTEND_SCOPE]);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for user_role entities.
+ *
+ * The dc_frontend scope maps to the profile's "previewer" role, which the
+ * dc_core profile creates after its modules are installed, and Drupal does
+ * not revisit optional config at that point. Install it once the role exists.
+ */
+function dc_api_user_role_insert(RoleInterface $role) {
+  if ($role->id() === 'previewer' && !\Drupal::isConfigSyncing()) {
+    _dc_api_install_frontend_scope();
+  }
+}
+
+/**
+ * Installs the dc_frontend scope if its dependencies are met.
+ */
+function _dc_api_install_frontend_scope(): void {
+  $storage = new FileStorage(\Drupal::service('extension.list.module')->getPath('dc_api') . '/config/optional');
+  \Drupal::service('config.installer')->installOptionalConfig($storage, ['config' => 'user.role.previewer']);
+}

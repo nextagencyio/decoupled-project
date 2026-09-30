@@ -486,8 +486,13 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       $preview_config_check = $this->configFactory->get('decoupled_preview_iframe.settings');
       $has_preview = !empty($preview_config_check->get('preview_url'));
 
-      $puck_config_check = $this->configFactory->get('dc_puck.settings');
-      $has_puck = !empty($puck_config_check->get('enabled')) && !empty($puck_config_check->get('editor_url'));
+      if ($this->moduleHandler()->moduleExists('dc_canvas')) {
+        $has_puck = !empty(\Drupal::service('dc_canvas.frontend_manager')->getUrls());
+      }
+      else {
+        $puck_config_check = $this->configFactory->get('dc_puck.settings');
+        $has_puck = !empty($puck_config_check->get('enabled')) && !empty($puck_config_check->get('editor_url'));
+      }
 
       $has_content = FALSE;
       try {
@@ -501,6 +506,10 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       }
       catch (\Exception $e) {
         // Content type may not exist yet
+      }
+      // Canvas tenants import the starter content as Canvas pages.
+      if (!$has_content && $this->moduleHandler()->moduleExists('dc_canvas')) {
+        $has_content = $this->entityTypeManager->getStorage('canvas_page')->getQuery()->accessCheck(FALSE)->count()->execute() > 0;
       }
 
       $claim_html = '';
@@ -693,13 +702,13 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
             <div class="dc-settings-card-desc">Frontend URL for live content preview</div>
           </div>
         </a>
-        <a href="/admin/config/dc-puck" class="dc-settings-card">
+        <a href="' . ($this->moduleHandler()->moduleExists('dc_canvas') ? '/canvas' : '/admin/config/dc-puck') . '" class="dc-settings-card">
           <div class="dc-settings-card-icon" style="background:#f5f3ff;color:#8b5cf6;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z"/></svg>
           </div>
           <div>
             <div class="dc-settings-card-title">Design Studio</div>
-            <div class="dc-settings-card-desc">Puck visual editor URL and content types</div>
+            <div class="dc-settings-card-desc">' . ($this->moduleHandler()->moduleExists('dc_canvas') ? 'Drupal Canvas visual page builder' : 'Puck visual editor URL and content types') . '</div>
           </div>
         </a>
         <a href="/admin/config/decoupled/revalidation" class="dc-settings-card">
@@ -950,7 +959,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       // Create previewer consumer data.
       $consumer_data = [
         'client_id' => $client_id,
-        'client_secret' => $client_secret,
+        'secret' => $client_secret,
         'label' => 'Next.js Frontend',
         'user_id' => 2,
         'third_party' => TRUE,
@@ -1713,17 +1722,30 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       $results['preview_configured'] = FALSE;
     }
 
-    // Step 3: Configure Puck editor
-    try {
-      $puck_config = $this->configFactory->getEditable('dc_puck.settings');
-      $puck_config->set('enabled', TRUE);
-      $puck_config->set('editor_url', $fe_url);
-      $puck_config->set('enabled_content_types', ['landing_page']);
-      $puck_config->save();
-      $results['puck_configured'] = TRUE;
+    // Step 3: Configure the visual page builder: Canvas on new tenants,
+    // the legacy Puck editor where dc_puck is still enabled.
+    $results['canvas_configured'] = FALSE;
+    $results['puck_configured'] = FALSE;
+    if ($this->moduleHandler()->moduleExists('dc_canvas')) {
+      try {
+        \Drupal::service('dc_canvas.frontend_manager')->setPrimary($fe_url);
+        $results['canvas_configured'] = TRUE;
+      }
+      catch (\Exception $e) {
+        \Drupal::logger('dc_config')->error('Canvas frontend registration failed: @msg', ['@msg' => $e->getMessage()]);
+      }
     }
-    catch (\Exception $e) {
-      $results['puck_configured'] = FALSE;
+    elseif ($this->moduleHandler()->moduleExists('dc_puck')) {
+      try {
+        $puck_config = $this->configFactory->getEditable('dc_puck.settings');
+        $puck_config->set('enabled', TRUE);
+        $puck_config->set('editor_url', $fe_url);
+        $puck_config->set('enabled_content_types', ['landing_page']);
+        $puck_config->save();
+        $results['puck_configured'] = TRUE;
+      }
+      catch (\Exception $e) {
+      }
     }
 
     // Step 4: Update frontend config to active
@@ -1731,6 +1753,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
     $frontend['content_imported'] = $results['content_imported'] ?? FALSE;
     $frontend['preview_configured'] = $results['preview_configured'] ?? FALSE;
     $frontend['puck_configured'] = $results['puck_configured'] ?? FALSE;
+    $frontend['canvas_configured'] = $results['canvas_configured'] ?? FALSE;
     $frontend['updated_at'] = date('c');
     $frontend_config->set('data', $frontend);
     $frontend_config->save();
@@ -1825,6 +1848,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0";
       'claimed' => $data['claimed'] ?? FALSE,
       'preview_configured' => $data['preview_configured'] ?? FALSE,
       'puck_configured' => $data['puck_configured'] ?? FALSE,
+      'canvas_configured' => $data['canvas_configured'] ?? FALSE,
       'content_imported' => $data['content_imported'] ?? FALSE,
       'updated_at' => date('c'),
     ]);

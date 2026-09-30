@@ -1,0 +1,22 @@
+# Dashboard-facing endpoints. Like dc_import and dc_config, access is open at
+# the routing layer and the controller checks the space auth token sent in
+# the X-Decoupled-Token header.
+dc_canvas.status:
+  path: '/api/dc-canvas/status'
+  defaults:
+    _controller: '\Drupal\dc_canvas\Controller\SetupController::status'
+  methods: [GET]
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: TRUE
+
+dc_canvas.setup:
+  path: '/api/dc-canvas/setup'
+  defaults:
+    _controller: '\Drupal\dc_canvas\Controller\SetupController::setup'
+  methods: [POST]
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: TRUE

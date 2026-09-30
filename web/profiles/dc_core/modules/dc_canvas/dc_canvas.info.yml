@@ -1,0 +1,11 @@
+name: 'Decoupled Canvas'
+type: module
+description: 'Decoupled.io integration for Drupal Canvas headless: registers the tenant frontend, syncs its components, imports starter content and revalidates Canvas pages.'
+core_version_requirement: ^11.3
+package: 'Decoupled'
+dependencies:
+  - canvas:canvas
+  - canvas:canvas_headless
+  - dc_revalidate:dc_revalidate
+  - drupal:media
+  - drupal:path_alias
