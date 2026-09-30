@@ -11,11 +11,15 @@
 	# Drupal ONCE and handles many requests from the same process, cutting
 	# TTFB from ~50-200ms (classic mode) down to a few ms for cached pages.
 	#
-	# Worker count = 1 for the 512 MB memory footprint. Each worker with a
-	# full Drupal service container resident is ~120 MB, so 1 worker leaves
-	# comfortable headroom. For larger machines, bump to 2+ for concurrency.
+	# Worker count: 3 by default, FRANKENPHP_WORKERS overrides. Each worker
+	# with a full Drupal service container resident is ~120 MB; tenants now
+	# run 1-2 GB machines. It must be at least 2: Drupal Canvas setup calls
+	# the frontend's /api/canvas/components, and the frontend verifies that
+	# request by calling back into Drupal. With 1 worker the callback waits
+	# behind the request that made it and both time out (found 2026-09-30 on
+	# the first real Canvas provision; DDEV's php-fpm pool hid it).
 	frankenphp {
-		worker /app/frankenphp-worker.php 1
+		worker /app/frankenphp-worker.php {$FRANKENPHP_WORKERS:3}
 	}
 }
 
