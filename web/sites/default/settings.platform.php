@@ -148,3 +148,21 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 // settings.php is loaded, so referencing it causes a fatal during settings
 // initialization, which silently kills the DB config and sends every request
 // to /core/install.php.
+
+// ============================================================================
+// Reverse proxy (Fly)
+// ============================================================================
+//
+// Behind Fly's proxy, which terminates TLS and forwards plain HTTP. Without
+// this Drupal builds http:// URLs for its own https:// site: one-time login
+// links, and the Canvas preview assertion's renewUrl, which the https
+// preview iframe then cannot call (mixed content) and whose http origin
+// makes the frontend's component endpoint answer 403 to the editor.
+// Fly's proxy connects from the private 172.16.0.0/12 and fdaa::/16 ranges.
+if (getenv('FLY_APP_NAME') !== FALSE) {
+  $settings['reverse_proxy'] = TRUE;
+  $settings['reverse_proxy_addresses'] = ['172.16.0.0/12', 'fdaa::/16', '127.0.0.1', '::1'];
+  $settings['reverse_proxy_trusted_headers'] = \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_FOR
+    | \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PORT
+    | \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PROTO;
+}
