@@ -28,6 +28,17 @@ drush dc-canvas:sync --fetch-url=http://host.docker.internal:4321
 drush dc-canvas:import https://raw.githubusercontent.com/nextagencyio/decoupled-components-astro/main/data/components-content.json
 ```
 
+## Dashboard endpoints
+
+Authenticated with the space auth token in `X-Decoupled-Token`, like dc_import.
+
+- `GET /api/dc-canvas/status` — whether Canvas is available, plus registered
+  frontends and component/page counts. Older tenants (dc_puck) return 404.
+- `POST /api/dc-canvas/setup` with `{"frontend_url": "…", "content": {…}}` —
+  registers the frontend, syncs its component library and, if `content` (a
+  starter content file) is given, imports its landing pages as Canvas pages.
+  Returns 502 while the frontend is not reachable yet; safe to retry.
+
 ## Local setup from scratch
 
 ```bash
