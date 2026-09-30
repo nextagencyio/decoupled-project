@@ -7,3 +7,9 @@ services:
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
+  dc_canvas.component_synchronizer:
+    class: Drupal\dc_canvas\Service\ComponentSynchronizer
+    arguments: ['@dc_canvas.frontend_manager', '@Drupal\canvas_headless\ExternalComponentSync', '@Drupal\canvas_headless\PreviewUrlGeneratorInterface', '@account_switcher', '@http_client']
+  dc_canvas.content_importer:
+    class: Drupal\dc_canvas\Service\ContentImporter
+    arguments: ['@entity_type.manager', '@uuid', '@http_client', '@file_system', '@file.repository']

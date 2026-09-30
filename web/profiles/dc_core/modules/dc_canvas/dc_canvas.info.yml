@@ -7,3 +7,5 @@ dependencies:
   - canvas:canvas
   - canvas:canvas_headless
   - dc_revalidate:dc_revalidate
+  - drupal:media
+  - drupal:path_alias
