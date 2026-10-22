@@ -21,6 +21,7 @@ on:
       - 'docs/**'
       - '.github/workflows/rollback-source-image.yml'
       - '.github/workflows/drupal-security-updates.yml'
+      - '.github/workflows/php-runtime-refresh.yml'
   workflow_dispatch:
 
 concurrency:
