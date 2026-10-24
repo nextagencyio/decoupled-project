@@ -136,7 +136,7 @@ jobs:
       # merge step.
       # -----------------------------------------------------------------
       - name: Auto-merge automated security PR
-        # Identify the automated PR by branch name + label. We can't
+        # Identify the automated PR by branch name, same-repo head. We can't
         # rely on the author being github-actions[bot] because we
         # deliberately open the PR with a PAT to get downstream
         # workflows to fire (see comment in drupal-security-updates.yml).
@@ -151,7 +151,13 @@ jobs:
           success() &&
           github.repository == 'nextagencyio/decoupled-project' &&
           github.event.pull_request.head.ref == 'security-updates/automated' &&
-          contains(github.event.pull_request.labels.*.name, 'automated')
+          github.event.pull_request.head.repo.full_name == github.repository
+        # No label check: create-pull-request adds the `automated` label
+        # AFTER opening the PR, so the `opened` run never saw it and skipped
+        # this step. Every security fix then waited for the NEXT night's
+        # run to merge (1-2 days, PRs #48/#51/#52). Only accounts with write
+        # access can push this branch in this repo, so branch + same-repo is
+        # the real signature.
         env:
           # Use GH_PAT (not GITHUB_TOKEN) so the squash commit fires
           # downstream push workflows on main — GitHub suppresses
