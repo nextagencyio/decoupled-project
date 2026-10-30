@@ -2402,17 +2402,17 @@
         },
         {
             "name": "drupal/geofield",
-            "version": "10.3.4",
+            "version": "10.3.5",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/geofield.git",
-                "reference": "10.3.4"
+                "reference": "10.3.5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/geofield-10.3.4.zip",
-                "reference": "10.3.4",
-                "shasum": "bd68709c400780504c01e126c21aabb88ddfcd57"
+                "url": "https://ftp.drupal.org/files/projects/geofield-10.3.5.zip",
+                "reference": "10.3.5",
+                "shasum": "c485759b412f511527f746f3fda9a2f9e6368942"
             },
             "require": {
                 "drupal/core": "^10.3 || ^11 || ^12",
@@ -2426,8 +2426,8 @@
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "10.3.4",
-                    "datestamp": "1773079821",
+                    "version": "10.3.5",
+                    "datestamp": "1793285504",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -2462,7 +2462,7 @@
                 "issues": "https://www.drupal.org/project/issues/geofield",
                 "irc": "irc://irc.freenode.org/drupal-contribute"
             },
-            "published-time": "2026-03-09T18:09:38+00:00"
+            "published-time": "2026-10-29T14:51:24+00:00"
         },
         {
             "name": "drupal/gin",
@@ -3223,29 +3223,26 @@
         },
         {
             "name": "drupal/token",
-            "version": "1.17.0",
+            "version": "1.18.0",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/token.git",
-                "reference": "8.x-1.17"
+                "reference": "8.x-1.18"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/token-8.x-1.17.zip",
-                "reference": "8.x-1.17",
-                "shasum": "21d11adf0be16f1aa95b6348b4ceadbe9a625824"
+                "url": "https://ftp.drupal.org/files/projects/token-8.x-1.18.zip",
+                "reference": "8.x-1.18",
+                "shasum": "7db67f644c83136cac78c7c5dbaef29599e7a7d7"
             },
             "require": {
-                "drupal/core": "^10.3 || ^11"
-            },
-            "require-dev": {
-                "drupal/book": "^1 || ^2"
+                "drupal/core": "^10.3 || ^11 || ^12"
             },
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "8.x-1.17",
-                    "datestamp": "1767942434",
+                    "version": "8.x-1.18",
+                    "datestamp": "1793355985",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -3292,7 +3289,7 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/token"
             },
-            "published-time": "2026-01-09T06:49:44+00:00"
+            "published-time": "2026-10-30T10:26:03+00:00"
         },
         {
             "name": "drupal/typed_data",
