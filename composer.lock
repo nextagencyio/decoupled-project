@@ -1521,6 +1521,10 @@
             ],
             "description": "Adds menu links like Flush cache, Run cron, Run updates, and Logout under Drupal icon.",
             "homepage": "https://www.drupal.org/project/admin_toolbar",
+            "keywords": [
+                "Actively maintained",
+                "Administration tools"
+            ],
             "support": {
                 "source": "https://git.drupalcode.org/project/admin_toolbar"
             },
@@ -1746,6 +1750,10 @@
             ],
             "description": "Canvas",
             "homepage": "https://www.drupal.org/project/canvas",
+            "keywords": [
+                "Actively maintained",
+                "Site structure"
+            ],
             "support": {
                 "source": "https://git.drupalcode.org/project/canvas"
             },
@@ -2227,36 +2235,40 @@
         },
         {
             "name": "drupal/custom_elements",
-            "version": "3.4.1",
+            "version": "3.5.0",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/custom_elements.git",
-                "reference": "3.4.1"
+                "reference": "3.5.0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/custom_elements-3.4.1.zip",
-                "reference": "3.4.1",
-                "shasum": "c462a5045f54e484a90f3eae9d5edfae2c348d83"
+                "url": "https://ftp.drupal.org/files/projects/custom_elements-3.5.0.zip",
+                "reference": "3.5.0",
+                "shasum": "fe8ca73334d083ebfa12c1d69037dd5a31cba082"
             },
             "require": {
                 "drunomics/service-utils": "*",
-                "drupal/core": "^10 || ^11"
+                "drupal/core": "^10.2 || ^11"
             },
             "require-dev": {
+                "drupal/address": "^2.0.4",
                 "drupal/canvas": "1.x-dev",
                 "drupal/canvas_extjs": "1.x-dev",
                 "drupal/crop": "^2.4",
                 "drupal/entity_reference_revisions": "^1.12",
+                "drupal/geofield": "^1.67.0",
                 "drupal/lupus_ce_renderer": "^2.5.0",
                 "drupal/paragraphs": "^1.18",
+                "drupal/search_api": "^1.39",
+                "drupal/smart_date": "^4.2.5",
                 "drupal/tablefield": "^3.0"
             },
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "3.4.1",
-                    "datestamp": "1777495514",
+                    "version": "3.5.0",
+                    "datestamp": "1794585759",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -2290,7 +2302,7 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/custom_elements"
             },
-            "published-time": "2026-04-29T20:44:32+00:00"
+            "published-time": "2026-11-13T16:02:17+00:00"
         },
         {
             "name": "drupal/decoupled_preview_iframe",
