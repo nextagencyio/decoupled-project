@@ -1,5 +1,5 @@
 {
-    "_hash": "582ff85345e7707d6af0a43b9a8c6acf3fae3d818d2b75b8b08d883171e1c420",
+    "_hash": "6d0ae3800f6790a1b4f2c69aff5a9fcea47ca0b4627c45f098be26b049b7d29d",
     "patches": {
         "webonyx/graphql-php": [
             {
@@ -19,6 +19,18 @@
                 "description": "Issue #3385337 / MR !209 — defer menu link rebuilds in admin_toolbar_tools so a programmatic import that creates many bundles in one request triggers ONE rebuild at request termination instead of one per entity. Without this, dc_import's first publish to a fresh tenant times out at 120s when admin_toolbar_tools_entity_insert calls MenuLinkManager::rebuild() on every paragraph type save. Drop this entry once admin_toolbar 3.x merges the MR.",
                 "url": "patches/admin_toolbar-defer-menu-rebuild-3385337-MR209.patch",
                 "sha256": "28153358c02d18f0bed76171f4d22e3c9c7d397c03344d4259ecd0ca10aabe7b",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ],
+        "drupal/custom_elements": [
+            {
+                "package": "drupal/custom_elements",
+                "description": "custom_elements 3.5.0 dropped the RenderConverter class alias that canvas_headless (drupal/canvas 1.12) autowires against; without it the container fails to compile (drush site:install dies in DefinitionErrorExceptionPass). Drop once drupal/canvas ships a release built against custom_elements 3.5.",
+                "url": "patches/custom_elements-3.5-render-converter-autowire-alias.patch",
+                "sha256": "26ba8878811955ee1a55b2fd53724f0ff5be057101cf3f137017ddfa46bbf16d",
                 "depth": 1,
                 "extra": {
                     "provenance": "root"

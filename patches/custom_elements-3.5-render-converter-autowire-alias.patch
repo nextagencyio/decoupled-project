@@ -1,0 +1,12 @@
+--- a/custom_elements.services.yml	2026-11-15 07:47:20.155156970 -0600
++++ b/custom_elements.services.yml	2026-11-15 07:47:20.176045702 -0600
+@@ -38,6 +38,9 @@
+   custom_elements.render_converter:
+     class: Drupal\custom_elements\RenderConverter\RenderConverter
+     arguments: [!tagged_iterator custom_elements.render_converter]
++  # Autowiring alias: canvas_headless (drupal/canvas <= 1.12) autowires
++  # CanvasRenderConverter subclasses, whose 3.5.0 constructor takes this class.
++  Drupal\custom_elements\RenderConverter\RenderConverter: '@custom_elements.render_converter'
+   custom_elements.render_converter.custom_element_passthrough:
+     class: Drupal\custom_elements\RenderConverter\CustomElementPassthroughConverter
+     arguments: ['@custom_elements.render_converter']
